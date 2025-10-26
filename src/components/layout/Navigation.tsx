@@ -11,9 +11,23 @@ import { cn } from '@/lib/utils';
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/governance', label: 'Governance' },
-  { href: '/launchpad', label: 'Launchpad' },
-  { href: '/grants', label: 'Grants' },
+  { 
+    label: 'Governance',
+    items: [
+      { href: '/governance', label: 'Proposals' },
+      { href: '/grants', label: 'Grants' },
+      { href: '/launchpad', label: 'Launchpad' },
+    ]
+  },
+  {
+    label: 'DeFi',
+    items: [
+      { href: '/defi/swap', label: 'Swap' },
+      { href: '/defi/liquidity', label: 'Liquidity' },
+      { href: '/defi/farms', label: 'Farms' },
+      { href: '/defi/staking', label: 'Staking' },
+    ]
+  },
   { href: '/news', label: 'News' },
   { href: '/ecosystem', label: 'Ecosystem' },
   { href: '/community', label: 'Community' },
@@ -23,6 +37,7 @@ export function Navigation() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   return (
     <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -34,20 +49,54 @@ export function Navigation() {
             </Link>
             
             <div className="hidden md:flex items-center gap-6">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "text-sm font-medium transition-colors hover:text-foreground",
-                    pathname === link.href
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                if ('items' in link) {
+                  return (
+                    <div 
+                      key={link.label}
+                      className="relative"
+                      onMouseEnter={() => setOpenDropdown(link.label)}
+                      onMouseLeave={() => setOpenDropdown(null)}
+                    >
+                      <button className="text-sm font-medium transition-colors hover:text-foreground text-muted-foreground">
+                        {link.label}
+                      </button>
+                      {openDropdown === link.label && (
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg py-2">
+                          {link.items.map((item) => (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              className={cn(
+                                "block px-4 py-2 text-sm transition-colors hover:bg-accent",
+                                pathname === item.href
+                                  ? "text-foreground font-medium"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {item.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "text-sm font-medium transition-colors hover:text-foreground",
+                      pathname === link.href
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
@@ -78,21 +127,45 @@ export function Navigation() {
 
         {mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-2 border-t border-border">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "block py-2 text-sm font-medium transition-colors",
-                  pathname === link.href
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              if ('items' in link) {
+                return (
+                  <div key={link.label} className="space-y-1">
+                    <div className="py-2 text-sm font-semibold text-foreground">{link.label}</div>
+                    {link.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "block py-2 pl-4 text-sm font-medium transition-colors",
+                          pathname === item.href
+                            ? "text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                );
+              }
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "block py-2 text-sm font-medium transition-colors",
+                    pathname === link.href
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
             <div className="pt-4">
               <ConnectButton showBalance={false} chainStatus="icon" />
             </div>

@@ -1,6 +1,6 @@
 # Fushuma Governance Hub V2
 
-> The nexus for community interaction, governance, and economic activity in the Fushuma ecosystem
+> The unified platform for governance, DeFi, and community interaction in the Fushuma ecosystem
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
@@ -9,19 +9,31 @@
 
 ## 🌟 Overview
 
-Fushuma Governance Hub V2 is a modern, high-performance decentralized governance platform built with Next.js 16, React 19, and the latest Web3 technologies. This is a complete rewrite of the original governance hub, leveraging server-side rendering, optimized performance, and enhanced security.
+Fushuma Governance Hub V2 is a comprehensive, high-performance decentralized platform built with Next.js 16, React 19, and the latest Web3 technologies. This unified platform combines governance features with a complete DeFi suite, providing users with everything they need to participate in the Fushuma ecosystem.
 
 ### Key Features
 
+**Governance:**
 - **🗳️ Decentralized Governance**: Vote on proposals and shape the future of Fushuma
 - **🚀 Project Launchpad**: Discover and support new projects seeking funding
 - **💰 Development Grants**: Apply for or review grant applications with GitHub integration
 - **💬 Community Discussion**: Engage with the Fushuma community
 - **📰 News & Updates**: Stay informed about ecosystem developments
 - **🌐 Ecosystem Directory**: Explore all projects built on Fushuma
+
+**DeFi Suite:**
+- **💱 Token Swap**: Trade tokens with optimal routing and low slippage
+- **💧 Liquidity Pools**: Provide liquidity and earn fees
+- **🌾 Yield Farming**: Stake LP tokens and earn rewards
+- **🔒 Staking**: Single-asset staking with competitive APY
+- **🔄 Migration Tools**: Seamlessly migrate between protocol versions
+- **🚀 Token Launchpad**: Participate in new token launches
+
+**Platform Features:**
 - **🔐 Web3 Wallet Authentication**: Secure wallet-based sign-in
 - **⚡ Lightning Fast**: Server-side rendering for optimal performance
 - **🎨 Modern UI**: Beautiful, responsive design with dark mode support
+- **🔗 Unified Experience**: Single platform for all Fushuma activities
 
 ## 🏗️ Tech Stack
 
@@ -31,7 +43,9 @@ Fushuma Governance Hub V2 is a modern, high-performance decentralized governance
 **Web3**: wagmi 2.18 + viem 2.38 + RainbowKit 2.2  
 **API**: tRPC 11 (Type-safe API layer)  
 **Database**: MySQL + Drizzle ORM  
-**State Management**: TanStack Query 5.90  
+**State Management**: TanStack Query 5.90 + Zustand 5.0  
+**DeFi**: Uniswap V3 SDK + Soy SDK  
+**Charts**: Chart.js 4.5  
 **Blockchain**: Fushuma Network (Chain ID: 121224)
 
 ## 🚀 Quick Start
@@ -109,15 +123,20 @@ fushuma-gov-hub-v2/
 ├── src/
 │   ├── app/                    # Next.js App Router pages
 │   │   ├── api/trpc/          # tRPC API endpoint
+│   │   ├── defi/              # DeFi pages (swap, liquidity, farms, etc.)
+│   │   ├── governance/        # Governance pages
+│   │   ├── grants/            # Grants pages
 │   │   ├── layout.tsx         # Root layout
 │   │   ├── page.tsx           # Home page
 │   │   └── providers.tsx      # React providers
 │   ├── components/            # React components
 │   │   ├── ui/               # Reusable UI components
-│   │   └── layout/           # Layout components
+│   │   ├── layout/           # Layout components
+│   │   └── defi/             # DeFi-specific components
 │   ├── lib/                   # Utilities and configurations
 │   │   ├── trpc/             # tRPC client setup
 │   │   ├── web3/             # Web3 configuration
+│   │   ├── defi/             # DeFi utilities, hooks, stores
 │   │   └── utils.ts          # Helper functions
 │   ├── hooks/                 # Custom React hooks
 │   └── contexts/              # React contexts
@@ -128,8 +147,28 @@ fushuma-gov-hub-v2/
 │   └── trpc.ts               # tRPC setup
 ├── drizzle/                   # Database schemas
 ├── public/                    # Static assets
+├── DEFI-INTEGRATION.md       # DeFi integration documentation
 └── package.json              # Dependencies
 ```
+
+## 🎯 Feature Routes
+
+### Governance
+- `/` - Home page
+- `/governance` - Governance proposals
+- `/grants` - Development grants
+- `/launchpad` - Project launchpad
+- `/news` - News and updates
+- `/ecosystem` - Ecosystem directory
+- `/community` - Community hub
+
+### DeFi
+- `/defi/swap` - Token swap
+- `/defi/liquidity` - Liquidity pools
+- `/defi/farms` - Yield farming
+- `/defi/staking` - Token staking
+- `/defi/migrate` - Migration tools
+- `/defi/launchpads` - Token launches
 
 ## 🔐 Security
 
@@ -139,19 +178,15 @@ fushuma-gov-hub-v2/
 - **Wallet authentication**: Secure Web3 wallet-based authentication
 - **HTTPS only**: Always use HTTPS in production
 - **Security headers**: Configured in `next.config.ts`
+- **Smart contract interactions**: All transactions require wallet signatures
 
 ## 🚢 Deployment
 
 ### Ubuntu Server Deployment
 
-1. **Server Requirements**
-   - Ubuntu 22.04 LTS
-   - Node.js 22+
-   - pnpm 10+
-   - MySQL 8.0+
-   - Nginx
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions.
 
-2. **Deployment Steps**
+Quick deployment steps:
 
 ```bash
 # On your server
@@ -174,29 +209,14 @@ pm2 save
 pm2 startup
 ```
 
-3. **Configure Nginx** (reverse proxy)
+## 📚 Documentation
 
-```nginx
-server {
-    listen 80;
-    server_name governance.fushuma.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-4. **Set up SSL** with Let's Encrypt
-
-```bash
-sudo certbot --nginx -d governance.fushuma.com
-```
+- **[README.md](./README.md)** - This file, project overview
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Ubuntu server deployment guide
+- **[DEFI-INTEGRATION.md](./DEFI-INTEGRATION.md)** - DeFi integration details
+- **[SECURITY.md](./SECURITY.md)** - Security best practices
+- **[SETUP-SUMMARY.md](./SETUP-SUMMARY.md)** - Quick setup guide
+- **[.env.example](./.env.example)** - Environment variable template
 
 ## 🤝 Contributing
 
@@ -208,21 +228,44 @@ sudo certbot --nginx -d governance.fushuma.com
 
 **Important**: Never commit files containing credentials or secrets!
 
+## 🔗 Integration Details
+
+### DeFi Integration
+
+The platform integrates a complete DeFi suite from FuDEFI, providing:
+
+- **Unified Navigation**: Seamless access to both governance and DeFi features
+- **Shared Authentication**: Single wallet connection for all features
+- **Consistent UI/UX**: Unified design language across all features
+- **Optimized Performance**: Server-side rendering and code splitting
+
+See [DEFI-INTEGRATION.md](./DEFI-INTEGRATION.md) for detailed integration documentation.
+
+### Technology Integration
+
+- **Web3 Stack**: Shared wagmi/viem configuration for governance and DeFi
+- **State Management**: TanStack Query for server state, Zustand for client state
+- **UI Components**: Radix UI + Tailwind CSS for consistent design
+- **API Layer**: tRPC for type-safe governance APIs
+- **Charts**: Chart.js for DeFi analytics and governance metrics
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
-- [GitHub Repository](https://github.com/Fushuma/fushuma-gov-hub-v2)
-- [Fushuma Network](https://fushuma.com)
-- [Documentation](https://docs.fushuma.com)
+- **Repository**: https://github.com/Fushuma/fushuma-gov-hub-v2
+- **Fushuma Network**: https://fushuma.com
+- **Documentation**: https://docs.fushuma.com
+- **Chain Explorer**: https://fumascan.com
 
 ## 📞 Support
 
 - **Website**: https://fushuma.com
 - **Governance**: https://governance.fushuma.com
 - **Community**: Join our community channels
+- **Issues**: https://github.com/Fushuma/fushuma-gov-hub-v2/issues
 
 ---
 
