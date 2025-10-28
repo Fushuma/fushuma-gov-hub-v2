@@ -27,7 +27,7 @@ export const fushuma = defineChain({
 
 export const wagmiConfig = getDefaultConfig({
   appName: 'Fushuma Governance Hub',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'placeholder-project-id-get-from-walletconnect',
   chains: [fushuma],
   transports: {
     [fushuma.id]: http(),

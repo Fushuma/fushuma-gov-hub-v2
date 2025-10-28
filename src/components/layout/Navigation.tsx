@@ -61,7 +61,7 @@ export function Navigation() {
                       <button className="text-sm font-medium transition-colors hover:text-foreground text-muted-foreground">
                         {link.label}
                       </button>
-                      {openDropdown === link.label && (
+                      {openDropdown === link.label && link.items && (
                         <div className="absolute top-full left-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg py-2">
                           {link.items.map((item) => (
                             <Link
@@ -132,7 +132,7 @@ export function Navigation() {
                 return (
                   <div key={link.label} className="space-y-1">
                     <div className="py-2 text-sm font-semibold text-foreground">{link.label}</div>
-                    {link.items.map((item) => (
+                    {link.items?.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}

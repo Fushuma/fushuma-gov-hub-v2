@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
     ],
   },
   
+  // Turbopack configuration (Next.js 16+)
+  turbopack: {},
+  
   // Webpack configuration
   webpack: (config) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
