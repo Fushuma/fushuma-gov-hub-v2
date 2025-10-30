@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { trpc } from '@/lib/trpc/client';
-import { ArrowLeft, Calendar, User, DollarSign, ExternalLink, Github } from 'lucide-react';
+import { ArrowLeft, Calendar, User, DollarSign, ExternalLink, Github, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function GrantDetailPage() {
@@ -17,6 +17,11 @@ export default function GrantDetailPage() {
 
   const { data: grant, isLoading, error } = trpc.grants.getById.useQuery(
     { id: grantId },
+    { enabled: !isNaN(grantId) }
+  );
+
+  const { data: comments } = trpc.grants.getComments.useQuery(
+    { grantId },
     { enabled: !isNaN(grantId) }
   );
 
@@ -305,6 +310,50 @@ export default function GrantDetailPage() {
                       <div className="font-medium">{grant.githubAuthor}</div>
                       <div className="text-sm text-muted-foreground">GitHub User</div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* GitHub Comments */}
+            {comments && comments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    GitHub Discussion ({comments.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="border-b pb-6 last:border-0 last:pb-0">
+                        <div className="flex gap-4">
+                          {comment.authorAvatar && (
+                            <img
+                              src={comment.authorAvatar}
+                              alt={comment.author}
+                              className="w-10 h-10 rounded-full"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-semibold">{comment.author}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(comment.createdAt), 'MMM dd, yyyy HH:mm')}
+                              </span>
+                            </div>
+                            <div className="prose prose-sm max-w-none dark:prose-invert">
+                              {comment.bodyHtml ? (
+                                <div dangerouslySetInnerHTML={{ __html: comment.bodyHtml }} />
+                              ) : (
+                                <p className="whitespace-pre-wrap">{comment.body}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>

@@ -56,7 +56,7 @@ export class GitHubGrantsSync {
     
     // Extract amount requested (look for patterns like "$10,000" or "10000 FUMA")
     const amountMatch = body.match(/\$?([\d,]+)\s*(FUMA|USD)?/i);
-    const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
+    const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) || 0 : 0;
 
     // Determine status from labels and state
     let status: 'submitted' | 'review' | 'approved' | 'in_progress' | 'completed' | 'rejected' = 'submitted';

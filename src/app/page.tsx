@@ -1,7 +1,10 @@
+'use client';
+
 import { Navigation } from '@/components/layout/Navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight, Vote, Rocket, DollarSign, Users } from 'lucide-react';
+import { trpc } from '@/lib/trpc/client';
 
 export default function HomePage() {
   return (
@@ -60,11 +63,7 @@ export default function HomePage() {
         </section>
 
         {/* Stats Section */}
-        <section className="grid md:grid-cols-3 gap-8 py-20">
-          <StatCard label="Active Proposals" value="12" />
-          <StatCard label="Total Grants" value="45" />
-          <StatCard label="Community Members" value="1,234" />
-        </section>
+        <StatsSection />
       </main>
     </div>
   );
@@ -87,12 +86,50 @@ function FeatureCard({ icon, title, description, href }: {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, isLoading }: { label: string; value: string | number; isLoading?: boolean }) {
   return (
     <div className="text-center p-8 rounded-lg border border-border bg-card">
-      <div className="text-4xl font-bold text-primary mb-2">{value}</div>
-      <div className="text-muted-foreground">{label}</div>
+      {isLoading ? (
+        <div className="animate-pulse">
+          <div className="h-10 bg-gray-300 rounded w-20 mx-auto mb-2"></div>
+          <div className="h-4 bg-gray-300 rounded w-32 mx-auto"></div>
+        </div>
+      ) : (
+        <>
+          <div className="text-4xl font-bold text-primary mb-2">
+            {typeof value === 'number' ? value.toLocaleString() : value}
+          </div>
+          <div className="text-muted-foreground">{label}</div>
+        </>
+      )}
     </div>
+  );
+}
+
+function StatsSection() {
+  const { data: activeProposals, isLoading: loadingProposals } = trpc.proposals.getActive.useQuery({ limit: 100 });
+  const { data: grants, isLoading: loadingGrants } = trpc.grants.list.useQuery({ limit: 100 });
+  
+  const activeProposalsCount = activeProposals?.length || 0;
+  const totalGrantsCount = grants?.length || 0;
+  
+  return (
+    <section className="grid md:grid-cols-3 gap-8 py-20">
+      <StatCard 
+        label="Active Proposals" 
+        value={activeProposalsCount} 
+        isLoading={loadingProposals}
+      />
+      <StatCard 
+        label="Total Grants" 
+        value={totalGrantsCount} 
+        isLoading={loadingGrants}
+      />
+      <StatCard 
+        label="Community Members" 
+        value="1,234" 
+      />
+    </section>
   );
 }
 

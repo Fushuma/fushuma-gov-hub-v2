@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
-import { developmentGrants } from "@/db/schema";
+import { developmentGrants, grantComments } from "@/db/schema";
 import { eq, desc, and, isNull, like, or } from "drizzle-orm";
 import { githubSync } from "../services/github-sync";
 
@@ -51,6 +51,18 @@ export const grantsRouter = router({
       }
       
       return grant;
+    }),
+
+  getComments: publicProcedure
+    .input(z.object({ grantId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      const comments = await ctx.db
+        .select()
+        .from(grantComments)
+        .where(eq(grantComments.grantId, input.grantId))
+        .orderBy(desc(grantComments.createdAt));
+      
+      return comments;
     }),
 
   create: protectedProcedure

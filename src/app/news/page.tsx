@@ -61,7 +61,7 @@ export default function NewsPage() {
         {!isLoading && newsItems && newsItems.length > 0 && (
           <div className="space-y-6">
             {newsItems.map((newsItem) => {
-              const imageUrl = newsItem.metadata?.media?.[0]?.url;
+              const imageUrl = newsItem.imageUrl;
               
               return (
                 <Card key={newsItem.id} className="overflow-hidden">
@@ -88,19 +88,12 @@ export default function NewsPage() {
                               {newsItem.category && (
                                 <Badge variant="outline">{newsItem.category}</Badge>
                               )}
-                              {newsItem.isPinned === 1 && (
-                                <Badge variant="secondary">📌 Pinned</Badge>
-                              )}
                             </div>
                             <CardTitle className="text-2xl mb-2">
                               {newsItem.title}
                             </CardTitle>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span>{format(new Date(newsItem.publishedAt), 'MMMM dd, yyyy')}</span>
-                              {newsItem.author && <span>by {newsItem.author}</span>}
-                              {newsItem.viewCount !== null && newsItem.viewCount > 0 && (
-                                <span>👁 {newsItem.viewCount} views</span>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -115,25 +108,6 @@ export default function NewsPage() {
                             </p>
                           ) : null}
                         </div>
-
-                        {newsItem.metadata?.links && newsItem.metadata.links.length > 0 && (
-                          <div className="mb-4">
-                            <p className="text-sm font-medium mb-2">Related Links:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {newsItem.metadata.links.map((link, idx) => (
-                                <Link
-                                  key={idx}
-                                  href={link}
-                                  target="_blank"
-                                  className="text-sm text-primary hover:underline flex items-center gap-1"
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                  Link {idx + 1}
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        )}
 
                         {newsItem.sourceUrl && (
                           <Link href={newsItem.sourceUrl} target="_blank">

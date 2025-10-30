@@ -1,10 +1,34 @@
 import { db } from './index';
-import { proposals, developmentGrants, newsFeed, users } from './schema';
+import { proposals, developmentGrants, newsFeed, users, votes } from './schema';
+import { eq } from 'drizzle-orm';
 
 async function seed() {
   console.log('🌱 Seeding database...');
 
   try {
+    // Clear existing test data
+    console.log('🧹 Clearing existing test data...');
+    
+    // Delete votes first (foreign key constraint)
+    await db.delete(votes);
+    console.log('  ✓ Cleared votes');
+    
+    // Delete proposals
+    await db.delete(proposals);
+    console.log('  ✓ Cleared proposals');
+    
+    // Delete grants
+    await db.delete(developmentGrants);
+    console.log('  ✓ Cleared grants');
+    
+    // Delete news
+    await db.delete(newsFeed);
+    console.log('  ✓ Cleared news');
+    
+    // Delete test users (keep real users)
+    await db.delete(users).where(eq(users.username, 'testuser'));
+    console.log('  ✓ Cleared test users');
+
     // Create a test user
     const [testUser] = await db.insert(users).values({
       walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
@@ -15,7 +39,7 @@ async function seed() {
 
     console.log('✅ Created test user');
 
-    // Seed proposals
+    // Seed proposals with more diverse data
     const proposalsData = [
       {
         title: 'Protocol Upgrade: Fushuma V2',
@@ -52,6 +76,102 @@ async function seed() {
         votesAgainst: 54321,
         startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
         endDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Launch Fushuma Launchpad Platform',
+        description: 'Proposal to launch an official launchpad platform for new projects on Fushuma. The platform will provide vetting, funding, and marketing support for promising projects. Features include:\n\n- Community voting on project listings\n- Tiered allocation system based on FUMA holdings\n- Anti-bot protection\n- Transparent fundraising process',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'active' as const,
+        quorum: 1000,
+        votesFor: 456789,
+        votesAgainst: 23456,
+        startDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Increase Block Gas Limit',
+        description: 'Proposal to increase the block gas limit from 30M to 50M to accommodate more complex smart contracts and higher transaction throughput.',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'rejected' as const,
+        quorum: 1000,
+        votesFor: 234567,
+        votesAgainst: 567890,
+        startDate: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Establish Fushuma Ecosystem Fund',
+        description: 'Create a 5M FUMA ecosystem fund to support strategic partnerships, liquidity incentives, and ecosystem growth initiatives. The fund will be managed by a 5-member committee elected by token holders.',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'active' as const,
+        quorum: 1000,
+        votesFor: 678901,
+        votesAgainst: 123456,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Integrate Chainlink Price Feeds',
+        description: 'Proposal to integrate Chainlink price feeds for accurate on-chain price data. This will enable more sophisticated DeFi protocols and reduce oracle manipulation risks.',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'pending' as const,
+        quorum: 1000,
+        votesFor: 0,
+        votesAgainst: 0,
+        startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Reduce Transaction Fees by 30%',
+        description: 'A proposal to reduce network transaction fees by 30% to make Fushuma more competitive and accessible to users. This will be achieved through optimizations in the fee calculation mechanism.',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'active' as const,
+        quorum: 1000,
+        votesFor: 890123,
+        votesAgainst: 45678,
+        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Partnership with Major CEX for FUMA Listing',
+        description: 'Proposal to allocate 200,000 FUMA from the treasury to secure a listing on a top-tier centralized exchange, increasing accessibility and liquidity for FUMA token.',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'active' as const,
+        quorum: 1000,
+        votesFor: 567890,
+        votesAgainst: 234567,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Launch Bug Bounty Program',
+        description: 'Establish a bug bounty program with a 500,000 FUMA pool to incentivize security researchers to find and report vulnerabilities in Fushuma smart contracts and infrastructure.',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'passed' as const,
+        quorum: 1000,
+        votesFor: 923456,
+        votesAgainst: 34567,
+        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() - 23 * 24 * 60 * 60 * 1000),
+      },
+      {
+        title: 'Implement Governance Staking Rewards',
+        description: 'Proposal to reward active governance participants with staking rewards. Users who vote on proposals will receive a share of 100,000 FUMA distributed monthly.',
+        proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        proposerUserId: testUser.id,
+        status: 'active' as const,
+        quorum: 1000,
+        votesFor: 712345,
+        votesAgainst: 156789,
+        startDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
       },
     ];
 
