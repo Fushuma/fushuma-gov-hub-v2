@@ -9,7 +9,16 @@ import { Input } from '@/components/ui/input';
 import { ExternalLink, Search, Rocket, Award, Building2 } from 'lucide-react';
 
 // Mock data for ecosystem projects - will be replaced with database query when router is implemented
-const ecosystemProjects = [
+const ecosystemProjects: Array<{
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  website: string;
+  logo: string;
+  fundingAmount: number | null;
+  tokenSymbol: string | null;
+}> = [
   {
     id: 1,
     name: 'Fushuma DEX',

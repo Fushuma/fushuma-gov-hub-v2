@@ -95,7 +95,7 @@ function NewsCard({ newsItem }: { newsItem: any }) {
           <div className="text-sm text-muted-foreground">
             {format(new Date(newsItem.publishedAt), 'MMMM dd, yyyy')}
           </div>
-          <Link href={newsItem.url} target="_blank">
+          <Link href={newsItem.sourceUrl || '#'} target="_blank">
             <Button variant="outline" className="gap-2">
               View Source <ArrowRight className="h-4 w-4" />
             </Button>
