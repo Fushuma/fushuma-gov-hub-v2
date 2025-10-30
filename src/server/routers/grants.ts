@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { developmentGrants } from "@/db/schema";
-import { eq, desc, and, isNull } from "drizzle-orm";
+import { eq, desc, and, isNull, like, or } from "drizzle-orm";
+import { githubSync } from "../services/github-sync";
 
 export const grantsRouter = router({
   list: publicProcedure
@@ -93,5 +94,41 @@ export const grantsRouter = router({
         .where(eq(developmentGrants.id, input.id));
       
       return { success: true };
+    }),
+
+  // GitHub sync endpoints
+  syncFromGitHub: adminProcedure
+    .mutation(async () => {
+      const result = await githubSync.syncAllGrants();
+      return result;
+    }),
+
+  search: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(100).optional().default(20),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { query, limit } = input;
+      
+      const grants = await ctx.db
+        .select()
+        .from(developmentGrants)
+        .where(
+          and(
+            isNull(developmentGrants.deletedAt),
+            or(
+              like(developmentGrants.title, `%${query}%`),
+              like(developmentGrants.description, `%${query}%`),
+              like(developmentGrants.applicantName, `%${query}%`)
+            )
+          )
+        )
+        .orderBy(desc(developmentGrants.createdAt))
+        .limit(limit);
+      
+      return grants;
     }),
 });

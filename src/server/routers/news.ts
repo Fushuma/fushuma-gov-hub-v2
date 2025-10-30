@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc";
+import { router, publicProcedure, adminProcedure } from "../_core/trpc";
 import { newsFeed as news } from "@/db/schema";
 import { eq, desc, and, isNull, like, or } from "drizzle-orm";
+import { telegramSync } from "../services/telegram-sync";
 
 export const newsRouter = router({
   list: publicProcedure
@@ -112,5 +113,12 @@ export const newsRouter = router({
         .limit(input.limit);
       
       return items;
+    }),
+
+  // Telegram sync endpoint
+  syncFromTelegram: adminProcedure
+    .mutation(async () => {
+      const result = await telegramSync.syncMessages();
+      return result;
     }),
 });
