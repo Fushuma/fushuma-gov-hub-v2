@@ -64,7 +64,8 @@ export default function NewsPage() {
               const imageUrl = newsItem.imageUrl;
               
               return (
-                <Card key={newsItem.id} className="overflow-hidden">
+                <Link key={newsItem.id} href={`/news/${newsItem.id}`}>
+                  <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
                   <div className="md:flex">
                     {imageUrl && (
                       <div className="md:w-1/3 relative h-64 md:h-auto">
@@ -119,7 +120,8 @@ export default function NewsPage() {
                       </CardContent>
                     </div>
                   </div>
-                </Card>
+                  </Card>
+                </Link>
               );
             })}
           </div>

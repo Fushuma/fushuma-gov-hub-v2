@@ -58,21 +58,27 @@ export class GitHubGrantsSync {
     const amountMatch = body.match(/\$?([\d,]+)\s*(FUMA|USD)?/i);
     const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) || 0 : 0;
 
-    // Determine status from labels and state
+    // Determine status from issue state and labels
     let status: 'submitted' | 'review' | 'approved' | 'in_progress' | 'completed' | 'rejected' = 'submitted';
     
     const labelNames = issue.labels.map(l => l.name.toLowerCase());
     
-    if (labelNames.includes('completed')) {
-      status = 'completed';
-    } else if (labelNames.includes('in progress') || labelNames.includes('in_progress')) {
-      status = 'in_progress';
-    } else if (labelNames.includes('approved')) {
-      status = 'approved';
-    } else if (labelNames.includes('rejected')) {
-      status = 'rejected';
-    } else if (labelNames.includes('review') || labelNames.includes('in review')) {
-      status = 'review';
+    // If issue is closed, it's completed (unless explicitly rejected)
+    if (issue.state === 'closed') {
+      status = labelNames.includes('rejected') ? 'rejected' : 'completed';
+    } else {
+      // For open issues, check labels for status
+      if (labelNames.includes('completed')) {
+        status = 'completed';
+      } else if (labelNames.includes('in progress') || labelNames.includes('in_progress')) {
+        status = 'in_progress';
+      } else if (labelNames.includes('approved')) {
+        status = 'approved';
+      } else if (labelNames.includes('rejected')) {
+        status = 'rejected';
+      } else if (labelNames.includes('review') || labelNames.includes('in review')) {
+        status = 'review';
+      }
     }
 
     // Extract description
@@ -178,6 +184,7 @@ export class GitHubGrantsSync {
       for (const comment of comments) {
         await db.insert(grantComments).values({
           grantId,
+          githubCommentId: comment.id,
           author: comment.user?.login || 'unknown',
           authorAvatar: comment.user?.avatar_url || '',
           body: comment.body || '',
