@@ -30,7 +30,7 @@ const navLinks = [
   },
   { href: '/news', label: 'News' },
   { href: '/ecosystem', label: 'Ecosystem' },
-  { href: '/community', label: 'Community' },
+  { href: '/community', label: 'Taishi Program' },
 ];
 
 export function Navigation() {

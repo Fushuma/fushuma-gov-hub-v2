@@ -12,20 +12,20 @@ export default function HomePage() {
         {/* Hero Section */}
         <section className="text-center space-y-6 py-20">
           <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-            Fushuma Governance Hub
+            Welcome to the Venture Club
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-            The nexus for community interaction, governance, and economic activity in the Fushuma ecosystem
+            Fushuma is a community-governed economy. As a token holder, you are an investor. No committees, no central control, you discover, validate, and fund the projects you believe in.
           </p>
           <div className="flex gap-4 justify-center pt-8">
             <Link href="/governance">
               <Button size="lg" className="gap-2">
-                Explore Governance <ArrowRight className="h-4 w-4" />
+                Vote on Proposals <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/grants">
               <Button size="lg" variant="outline">
-                View Grants
+                Apply for Funding
               </Button>
             </Link>
           </div>
@@ -35,26 +35,26 @@ export default function HomePage() {
         <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 py-20">
           <FeatureCard
             icon={<Vote className="h-8 w-8" />}
-            title="Decentralized Governance"
-            description="Vote on proposals and shape the future of Fushuma"
+            title="How to Participate"
+            description="As a member of Fushuma VC, you are an investor. You actively discover, validate, and fund the next generation of high-potential projects. The 40% community-controlled Treasury provides the capital; your vote provides the decision."
             href="/governance"
           />
           <FeatureCard
             icon={<Rocket className="h-8 w-8" />}
-            title="Project Launchpad"
-            description="Discover and support new projects seeking funding"
+            title="The Decentralized Venture Club"
+            description="● 40% Treasury Under Your Control\n● 100% Transparent On-Chain Voting\n● Direct Airdrops from Funded Projects"
             href="/launchpad"
           />
           <FeatureCard
             icon={<DollarSign className="h-8 w-8" />}
-            title="Development Grants"
-            description="Apply for or review grant applications"
+            title="Direct Airdrops from Funded Projects"
+            description="Every successful project funded by the Treasury rewards the community with Airdrops. Connect your wallet, vote to support the projects you believe in, and secure your stake in every successful venture."
             href="/grants"
           />
           <FeatureCard
             icon={<Users className="h-8 w-8" />}
-            title="Community"
-            description="Engage with the Fushuma community"
+            title="Build Your Portfolio"
+            description="Every successful project funded by the Treasury rewards the community with Airdrops. Connect your wallet, vote to support the projects you believe in, and secure your stake in every successful venture."
             href="/community"
           />
         </section>
