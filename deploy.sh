@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fushuma Governance Hub V2 - Deployment Script
-# This script deploys V2 with all V1 features to Azure server
+# This script deploys V2 with all core governance features to Azure server
 
 set -e  # Exit on error
 
@@ -11,6 +11,7 @@ echo "🚀 Starting Fushuma Governance Hub V2 deployment..."
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
@@ -59,31 +60,56 @@ tar -xzf /tmp/v2-deployment.tar.gz
 rm /tmp/v2-deployment.tar.gz
 
 echo "📦 Installing dependencies..."
-pnpm install --prod
+pnpm install
+
+echo "🗄️  Setting up database..."
+# Check if .env.local exists
+if [ ! -f .env.local ]; then
+    echo "⚠️  Warning: .env.local not found!"
+    echo "Please create .env.local with DATABASE_URL and other environment variables"
+    echo "See .env.example for reference"
+else
+    echo "Pushing database schema..."
+    pnpm db:push || echo "⚠️  Database push failed - may need manual setup"
+fi
 
 echo "🏗️  Building application..."
 pnpm build
 
 echo "🛑 Stopping old process..."
-# Kill any running nohup processes on port 3001
-pkill -f "PORT=3001" || true
 # Stop PM2 process if exists
 pm2 delete fushuma-gov-v2 2>/dev/null || true
 pm2 delete fushuma-v2 2>/dev/null || true
+pm2 delete fushuma-gov 2>/dev/null || true
 
 echo "🚀 Starting with PM2..."
-pm2 start ecosystem.config.cjs
+# Check if ecosystem.config.cjs exists, otherwise use npm start
+if [ -f ecosystem.config.cjs ]; then
+    pm2 start ecosystem.config.cjs
+else
+    pm2 start npm --name "fushuma-gov-v2" -- start
+fi
 pm2 save
 
 echo "✅ Deployment complete!"
 echo "📊 Process status:"
 pm2 list
-pm2 logs fushuma-gov-v2 --lines 20
+echo ""
+echo "📝 Recent logs:"
+pm2 logs fushuma-gov-v2 --lines 20 --nostream || pm2 logs --lines 20 --nostream
 
 ENDSSH
 
 echo -e "${GREEN}✅ Deployment successful!${NC}"
 echo -e "${BLUE}🌐 V2 should now be running at: https://governance2.fushuma.com${NC}"
+echo ""
+echo -e "${YELLOW}⚠️  IMPORTANT: Database Setup${NC}"
+echo "If this is the first deployment, you need to:"
+echo "1. SSH to server: ssh -i $SSH_KEY ${REMOTE_USER}@${REMOTE_HOST}"
+echo "2. Create .env.local with DATABASE_URL"
+echo "3. Run: pnpm db:push"
+echo "4. Optionally seed data: pnpm db:seed"
+echo "5. Restart: pm2 restart fushuma-gov-v2"
 echo ""
 echo "To check logs:"
 echo "  ssh -i $SSH_KEY ${REMOTE_USER}@${REMOTE_HOST} 'pm2 logs fushuma-gov-v2'"

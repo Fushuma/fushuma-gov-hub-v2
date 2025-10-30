@@ -171,7 +171,7 @@ export default function EcosystemPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="mt-auto">
-                  {project.fundingAmount && (
+                  {project.fundingAmount !== null && project.fundingAmount !== undefined && (
                     <div className="mb-4 pb-4 border-b">
                       <div className="text-sm text-muted-foreground">Funding Received</div>
                       <div className="font-bold">
