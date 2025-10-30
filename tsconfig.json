@@ -27,10 +27,13 @@
         "./src/*"
       ],
       "@/server/*": [
-        "./server/*"
+        "./src/server/*"
       ],
-      "@/drizzle/*": [
-        "./drizzle/*"
+      "@/db/*": [
+        "./src/db/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
       ]
     }
   },
