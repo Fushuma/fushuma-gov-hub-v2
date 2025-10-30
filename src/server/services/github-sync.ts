@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import { db } from '@/db';
-import { developmentGrants } from '@/db/schema';
+import { developmentGrants, grantComments } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 interface GitHubIssue {
@@ -146,6 +146,55 @@ export class GitHubGrantsSync {
   }
 
   /**
+   * Fetch comments for a specific issue
+   */
+  async fetchIssueComments(issueNumber: number) {
+    try {
+      const { data } = await this.octokit.rest.issues.listComments({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        per_page: 100,
+      });
+
+      return data;
+    } catch (error) {
+      console.error(`Error fetching comments for issue #${issueNumber}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Sync comments for a grant
+   */
+  async syncGrantComments(grantId: number, issueNumber: number) {
+    try {
+      const comments = await this.fetchIssueComments(issueNumber);
+      
+      // Delete existing comments for this grant
+      await db.delete(grantComments).where(eq(grantComments.grantId, grantId));
+
+      // Insert new comments
+      for (const comment of comments) {
+        await db.insert(grantComments).values({
+          grantId,
+          author: comment.user?.login || 'unknown',
+          authorAvatar: comment.user?.avatar_url || '',
+          body: comment.body || '',
+          createdAt: new Date(comment.created_at),
+          updatedAt: new Date(comment.updated_at),
+        });
+      }
+
+      console.log(`Synced ${comments.length} comments for grant #${issueNumber}`);
+      return comments.length;
+    } catch (error) {
+      console.error(`Error syncing comments for grant #${issueNumber}:`, error);
+      return 0;
+    }
+  }
+
+  /**
    * Sync all grants from GitHub
    */
   async syncAllGrants(): Promise<{ synced: number; errors: number }> {
@@ -161,7 +210,11 @@ export class GitHubGrantsSync {
       for (const issue of issues) {
         try {
           const grantData = this.parseGrantIssue(issue);
-          await this.upsertGrant(grantData);
+          const grantId = await this.upsertGrant(grantData);
+          
+          // Sync comments for this grant
+          await this.syncGrantComments(grantId, issue.number);
+          
           synced++;
         } catch (error) {
           console.error(`Error syncing issue #${issue.number}:`, error);
