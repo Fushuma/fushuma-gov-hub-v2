@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { developmentGrants } from "@/db/schema";
 import { eq, desc, and, isNull, like, or } from "drizzle-orm";
-import { githubSync } from "../services/github-sync";
+// GitHub sync service will be added later
 
 export const grantsRouter = router({
   list: publicProcedure
@@ -96,12 +96,12 @@ export const grantsRouter = router({
       return { success: true };
     }),
 
-  // GitHub sync endpoints
-  syncFromGitHub: adminProcedure
-    .mutation(async () => {
-      const result = await githubSync.syncAllGrants();
-      return result;
-    }),
+  // GitHub sync endpoints - will be implemented later
+  // syncFromGitHub: adminProcedure
+  //   .mutation(async () => {
+  //     const result = await githubSync.syncAllGrants();
+  //     return result;
+  //   }),
 
   search: publicProcedure
     .input(

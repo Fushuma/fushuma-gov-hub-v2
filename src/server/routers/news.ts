@@ -1,8 +1,31 @@
 import { z } from "zod";
 import { router, publicProcedure, adminProcedure } from "../_core/trpc";
-import { newsFeed as news } from "@/db/schema";
-import { eq, desc, and, isNull, like, or } from "drizzle-orm";
-import { telegramSync } from "../services/telegram-sync";
+import { db } from "@/db";
+import { sql, eq, desc, and, isNull, like, or } from "drizzle-orm";
+import { mysqlTable, int, varchar, text, timestamp, mysqlEnum, json } from "drizzle-orm/mysql-core";
+
+// Define the news table schema (from V1)
+export const news = mysqlTable("news", {
+  id: int("id").primaryKey().autoincrement(),
+  title: varchar("title", { length: 500 }).notNull(),
+  content: text("content"),
+  excerpt: text("excerpt"),
+  author: varchar("author", { length: 255 }),
+  publishedAt: timestamp("publishedAt").notNull(),
+  source: mysqlEnum("source", ["telegram", "manual", "github", "official"]).notNull(),
+  sourceId: varchar("sourceId", { length: 255 }),
+  sourceUrl: varchar("sourceUrl", { length: 1000 }),
+  category: varchar("category", { length: 100 }),
+  tags: json("tags").$type<string[]>(),
+  isPinned: int("isPinned").default(0),
+  viewCount: int("viewCount").default(0),
+  metadata: json("metadata").$type<{
+    media?: Array<{ url: string; type: string }>;
+    links?: string[];
+  }>(),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
 
 export const newsRouter = router({
   list: publicProcedure
@@ -11,17 +34,23 @@ export const newsRouter = router({
         limit: z.number().min(1).max(100).optional().default(20),
         offset: z.number().min(0).optional().default(0),
         category: z.string().optional(),
+        source: z.enum(["telegram", "manual", "github", "official"]).optional(),
       })
     )
-    .query(async ({ input, ctx }) => {
-      const { limit, offset, category } = input;
+    .query(async ({ input }) => {
+      const { limit, offset, category, source } = input;
       
-      const where = and(
-        isNull(news.deletedAt),
-        category ? eq(news.category, category) : undefined
-      );
+      const conditions = [];
+      if (category) {
+        conditions.push(eq(news.category, category));
+      }
+      if (source) {
+        conditions.push(eq(news.source, source));
+      }
       
-      const items = await ctx.db
+      const where = conditions.length > 0 ? and(...conditions) : undefined;
+      
+      const items = await db
         .select()
         .from(news)
         .where(where)
@@ -33,92 +62,96 @@ export const newsRouter = router({
     }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.number().int().positive() }))
-    .query(async ({ input, ctx }) => {
-      const [item] = await ctx.db
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      const item = await db
         .select()
         .from(news)
-        .where(
-          and(
-            eq(news.id, input.id),
-            isNull(news.deletedAt)
-          )
-        )
+        .where(eq(news.id, input.id))
         .limit(1);
       
-      if (!item) {
-        throw new Error("News not found");
+      if (item.length === 0) {
+        throw new Error("News item not found");
       }
+
+      // Increment view count
+      await db
+        .update(news)
+        .set({ viewCount: sql`${news.viewCount} + 1` })
+        .where(eq(news.id, input.id));
       
-      return item;
+      return item[0];
     }),
 
-  getCategories: publicProcedure.query(async ({ ctx }) => {
-    const items = await ctx.db.select().from(news);
-    
-    const categoryCounts = items.reduce((acc, item) => {
-      const cat = item.category || "uncategorized";
-      acc[cat] = (acc[cat] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    return Object.entries(categoryCounts).map(([id, count]) => ({
-      id,
-      name: id.charAt(0).toUpperCase() + id.slice(1),
-      count,
-    }));
-  }),
-
-  getTrending: publicProcedure
+  create: adminProcedure
     .input(
       z.object({
-        limit: z.number().min(1).max(20).optional().default(5),
-        days: z.number().min(1).max(30).optional().default(7),
+        title: z.string().min(1).max(500),
+        content: z.string().optional(),
+        excerpt: z.string().optional(),
+        author: z.string().optional(),
+        source: z.enum(["telegram", "manual", "github", "official"]),
+        sourceUrl: z.string().optional(),
+        category: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        metadata: z.object({
+          media: z.array(z.object({
+            url: z.string(),
+            type: z.string(),
+          })).optional(),
+          links: z.array(z.string()).optional(),
+        }).optional(),
       })
     )
-    .query(async ({ input, ctx }) => {
-      const items = await ctx.db
-        .select()
-        .from(news)
-        .where(isNull(news.deletedAt))
-        .orderBy(desc(news.publishedAt))
-        .limit(input.limit);
+    .mutation(async ({ input }) => {
+      const result = await db.insert(news).values({
+        ...input,
+        publishedAt: new Date(),
+      });
       
-      return items;
+      return { id: Number(result[0].insertId) };
     }),
 
-  search: publicProcedure
+  update: adminProcedure
     .input(
       z.object({
-        query: z.string().min(1),
-        limit: z.number().min(1).max(50).optional().default(10),
+        id: z.number(),
+        title: z.string().min(1).max(500).optional(),
+        content: z.string().optional(),
+        excerpt: z.string().optional(),
+        category: z.string().optional(),
+        isPinned: z.number().optional(),
       })
     )
-    .query(async ({ input, ctx }) => {
-      const searchTerm = `%${input.query}%`;
+    .mutation(async ({ input }) => {
+      const { id, ...updates } = input;
       
-      const items = await ctx.db
-        .select()
-        .from(news)
-        .where(
-          and(
-            isNull(news.deletedAt),
-            or(
-              like(news.title, searchTerm),
-              like(news.content, searchTerm),
-              like(news.excerpt, searchTerm)
-            )
-          )
-        )
-        .limit(input.limit);
+      await db
+        .update(news)
+        .set(updates)
+        .where(eq(news.id, id));
       
-      return items;
+      return { success: true };
     }),
 
-  // Telegram sync endpoint
-  syncFromTelegram: adminProcedure
-    .mutation(async () => {
-      const result = await telegramSync.syncMessages();
-      return result;
+  delete: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await db
+        .delete(news)
+        .where(eq(news.id, input.id));
+      
+      return { success: true };
+    }),
+
+  incrementView: publicProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await db
+        .update(news)
+        .set({ viewCount: sql`${news.viewCount} + 1` })
+        .where(eq(news.id, input.id));
+      
+      return { success: true };
     }),
 });
