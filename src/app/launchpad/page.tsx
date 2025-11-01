@@ -1,34 +1,94 @@
 'use client';
 
 import { Navigation } from '@/components/layout/Navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { trpc } from '@/lib/trpc/client';
-import { Rocket, TrendingUp, Users } from 'lucide-react';
+import { Rocket, TrendingUp, Users, Clock } from 'lucide-react';
+import { useAllICOs } from '@/hooks/launchpad';
+import { ICOCard } from '@/components/launchpad/ICOCard';
+import { getStatus } from '@/lib/launchpad/ico';
+import { useMemo } from 'react';
+import type { LaunchpadMetadata } from '@/lib/launchpad/types';
+
+// Import launchpad metadata
+import launchpadsConfig from '@/config/launchpads.json';
 
 export default function LaunchpadPage() {
-  const { data: projects, isLoading } = trpc.launchpad.list.useQuery({});
+  const { data: icos, isLoading } = useAllICOs();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'voting':
-        return 'bg-blue-500';
-      case 'approved':
-        return 'bg-green-500';
-      case 'fundraising':
-        return 'bg-purple-500';
-      case 'launched':
-        return 'bg-emerald-500';
-      case 'rejected':
-        return 'bg-red-500';
-      case 'review':
-        return 'bg-yellow-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
+  // Create metadata lookup map
+  const metadataMap = useMemo(() => {
+    const map = new Map<string, LaunchpadMetadata>();
+    (launchpadsConfig as LaunchpadMetadata[]).forEach((config) => {
+      map.set(config.key.toLowerCase(), config);
+    });
+    return map;
+  }, []);
+
+  // Sort and categorize ICOs
+  const categorizedICOs = useMemo(() => {
+    if (!icos) return { live: [], upcoming: [], ended: [], soldOut: [], closed: [] };
+
+    const now = Date.now().toString();
+    const live: typeof icos = [];
+    const upcoming: typeof icos = [];
+    const ended: typeof icos = [];
+    const soldOut: typeof icos = [];
+    const closed: typeof icos = [];
+
+    icos.forEach((ico) => {
+      const status = getStatus(
+        ico.data.isClosed,
+        ico.data.amount,
+        ico.data.totalSold,
+        ico.data.startDate.toString(),
+        now,
+        ico.data.endDate.toString()
+      );
+
+      switch (status.status) {
+        case 'Live':
+          live.push(ico);
+          break;
+        case 'Upcoming':
+          upcoming.push(ico);
+          break;
+        case 'Ended':
+          ended.push(ico);
+          break;
+        case 'Sold Out':
+          soldOut.push(ico);
+          break;
+        case 'Closed':
+          closed.push(ico);
+          break;
+      }
+    });
+
+    // Sort by start date (newest first)
+    const sortByDate = (a: typeof icos[0], b: typeof icos[0]) =>
+      b.data.startDate - a.data.startDate;
+
+    live.sort(sortByDate);
+    upcoming.sort(sortByDate);
+    ended.sort(sortByDate);
+    soldOut.sort(sortByDate);
+    closed.sort(sortByDate);
+
+    return { live, upcoming, ended, soldOut, closed };
+  }, [icos]);
+
+  // Combine in display order: Live → Upcoming → Sold Out → Ended → Closed
+  const sortedICOs = useMemo(() => {
+    return [
+      ...categorizedICOs.live,
+      ...categorizedICOs.upcoming,
+      ...categorizedICOs.soldOut,
+      ...categorizedICOs.ended,
+      ...categorizedICOs.closed,
+    ];
+  }, [categorizedICOs]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,22 +100,22 @@ export default function LaunchpadPage() {
           <div>
             <h1 className="text-4xl font-bold mb-2 flex items-center gap-2">
               <Rocket className="h-8 w-8 text-primary" />
-              Project Launchpad
+              ICO Launchpad
             </h1>
             <p className="text-muted-foreground text-lg">
-              Discover and vote on new projects seeking funding from the Fushuma Treasury
+              Participate in token sales and discover new projects on Fushuma
             </p>
           </div>
-          <Link href="/launchpad/submit">
+          <Link href="/launchpad/create">
             <Button size="lg" className="gap-2">
               <TrendingUp className="h-5 w-5" />
-              Submit Project
+              Create ICO
             </Button>
           </Link>
         </div>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -63,8 +123,8 @@ export default function LaunchpadPage() {
                   <Rocket className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{projects?.length || 0}</p>
-                  <p className="text-sm text-muted-foreground">Total Projects</p>
+                  <p className="text-2xl font-bold">{icos?.length || 0}</p>
+                  <p className="text-sm text-muted-foreground">Total ICOs</p>
                 </div>
               </div>
             </CardContent>
@@ -77,10 +137,22 @@ export default function LaunchpadPage() {
                   <TrendingUp className="h-6 w-6 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
-                    {projects?.filter(p => p.status === 'launched').length || 0}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Launched</p>
+                  <p className="text-2xl font-bold">{categorizedICOs.live.length}</p>
+                  <p className="text-sm text-muted-foreground">Live</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-500/10 rounded-lg">
+                  <Clock className="h-6 w-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{categorizedICOs.upcoming.length}</p>
+                  <p className="text-sm text-muted-foreground">Upcoming</p>
                 </div>
               </div>
             </CardContent>
@@ -94,100 +166,54 @@ export default function LaunchpadPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {projects?.filter(p => p.status === 'voting' || p.status === 'fundraising').length || 0}
+                    {categorizedICOs.ended.length + categorizedICOs.soldOut.length + categorizedICOs.closed.length}
                   </p>
-                  <p className="text-sm text-muted-foreground">Active</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Projects Grid */}
+        {/* ICOs Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                  <div className="h-4 bg-muted rounded w-1/2" />
-                </CardHeader>
-                <CardContent>
-                  <div className="h-20 bg-muted rounded" />
-                </CardContent>
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-muted rounded-full" />
+                    <div className="flex-1">
+                      <div className="h-6 bg-muted rounded w-3/4 mb-2" />
+                      <div className="h-4 bg-muted rounded w-1/2" />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-2 bg-muted rounded" />
+                    <div className="h-4 bg-muted rounded w-2/3" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
+                  </div>
+                </div>
               </Card>
             ))}
           </div>
-        ) : projects && projects.length > 0 ? (
+        ) : sortedICOs && sortedICOs.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Link key={project.id} href={`/launchpad/${project.id}`}>
-                <Card className="hover:border-primary transition-all duration-200 cursor-pointer h-full hover:shadow-lg">
-                  <CardHeader>
-                    <div className="flex justify-between items-start mb-2">
-                      <CardTitle className="text-xl line-clamp-1">{project.title}</CardTitle>
-                      <Badge className={getStatusColor(project.status)}>
-                        {project.status}
-                      </Badge>
-                    </div>
-                    {project.tokenSymbol && (
-                      <div className="text-sm text-muted-foreground">
-                        ${project.tokenSymbol}
-                      </div>
-                    )}
-                    <CardDescription className="line-clamp-3 mt-2">
-                      {project.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Funding Goal</span>
-                        <span className="font-semibold">{project.fundingAmount.toLocaleString()} FUMA</span>
-                      </div>
-                      
-                      {project.airdropAllocation && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Airdrop</span>
-                          <span className="font-semibold text-green-500">
-                            {project.airdropAllocation}%
-                          </span>
-                        </div>
-                      )}
-                      
-                      {(project.status === 'voting' || project.status === 'approved') && (
-                        <div className="pt-2 border-t">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-green-500">For: {project.votesFor}</span>
-                            <span className="text-red-500">Against: {project.votesAgainst}</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                            <div
-                              className="bg-green-500 h-2 rounded-full transition-all"
-                              style={{
-                                width: `${
-                                  (project.votesFor || 0) + (project.votesAgainst || 0) > 0
-                                    ? ((project.votesFor || 0) / ((project.votesFor || 0) + (project.votesAgainst || 0))) * 100
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+            {sortedICOs.map((ico) => (
+              <ICOCard
+                key={ico.data.seed}
+                ico={ico}
+                metadata={metadataMap.get(ico.key.toLowerCase())}
+              />
             ))}
           </div>
         ) : (
           <Card>
             <CardContent className="py-12 text-center">
               <Rocket className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg text-muted-foreground mb-4">No projects submitted yet</p>
-              <Link href="/launchpad/submit">
-                <Button>Be the First to Submit</Button>
+              <p className="text-lg text-muted-foreground mb-4">No ICOs available yet</p>
+              <Link href="/launchpad/create">
+                <Button>Create the First ICO</Button>
               </Link>
             </CardContent>
           </Card>

@@ -1,0 +1,62 @@
+[
+    {
+        "key": "7EJazPSeYuJg3z7gvfY8zhKDcBY6RYkgk1KmGJ4uPf15",
+        "name": "Launchpad 1",
+        "projectLogo": "https://cryptologos.cc/logos/dogecoin-doge-logo.png",
+        "links": {
+            "web": { "name": "Website", "url": "https://google.com" },
+            "x": { "name": "X", "url": "https://x.com/FushumaChain/" },
+            "telegram": { "name": "Instagram", "url": "https://instagram.com/https://t.me/FushumaChain" }
+        },
+        "evmAddressMemo": true,
+        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    },
+    {
+        "key": "7EZEpz2aWVYh3X4tgGiBnM7xxY2gmHzbTpiyJeuyYvE6",
+        "name": "Defined in JSON",
+        "projectLogo": "https://cryptologos.cc/logos/solana-sol-logo.png",
+        "links": {
+            "web": { "name": "Website", "url": "https://google.com" },
+            "x": { "name": "X", "url": "https://x.com/FushumaChain/" },
+            "telegram": { "name": "Instagram", "url": "https://instagram.com/https://t.me/FushumaChain" }
+        },
+        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    },
+    {
+        "key": "3Ji7fXgUGrQxzRkAUT1VaC2gkKVT56WWHRZcTzaMbq7F",
+        "name": "Launchpad 2",
+        "projectLogo": "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+        "links": {
+            "web": { "name": "Website", "url": "https://google.com" },
+            "x": { "name": "X", "url": "https://x.com/FushumaChain/" },
+            "telegram": { "name": "Instagram", "url": "https://instagram.com/https://t.me/FushumaChain" }
+        },
+        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    },
+    {
+        "key": "3wwHdqqDts5T36XTvbXC4EgtC1xiPKz7KHQynFnAyKeP",
+        "name": "Whaleden",
+        "projectLogo": "https://file.dexlab.space/file/dcb28795c81a4e1fbba28f0ce01f8aa1",
+        "links": {
+            "web": { "name": "Website", "url": "https://whaleden.com/" },
+            "x": { "name": "X", "url": "https://x.com/whaledencom" },
+            "telegram": {}
+        },
+        "description": "Whaleden is a next-gen storytelling platform that fuses comic publishing with Web3 and AI, ushering in a new era of community-driven IP creation. By harnessing blockchain technology, Whaleden enables transparent project funding and fair revenue sharing through tokenized IP—accessed via the WHALE token. The platform empowers creators, brands, and fans to co-create and co-own stories that can evolve into full-fledged franchises spanning comics, games, and animation—powering a decentralized, creator-first entertainment ecosystem."
+    },
+    {
+        "key": "7GYVDrcMUFESvhETvMFJ7ZmUeuucTmAttX8jdvd1z4ZV",
+        "name": "Fushuma",
+        "projectLogo": "https://fushuma.com/wp-content/uploads/sites/2/2025/04/Fushuma-logo256.png",
+        "links": {
+            "web": { "name": "Website", "url": "https://fushuma.com/" },
+            "x": { "name": "X", "url":  "https://x.com/FushumaChain"},
+            "telegram": {
+                "name": "Telegram",
+                "url": "https://t.me/FushumaChain"
+            }
+        },
+        "evmAddressMemo": true,
+        "description": "Fushuma brings decentralization back to blockchain, establishing a sustainable ecosystem where investors, developers, and the community share equal power."
+    }
+]
