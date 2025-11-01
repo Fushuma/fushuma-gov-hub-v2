@@ -140,6 +140,8 @@ export class GitHubGrantsSync {
             status: grantData.status,
             submittedBy: 1, // System user
             githubIssueUrl: grantData.githubUrl,
+            createdAt: grantData.createdAt,
+            updatedAt: grantData.updatedAt,
           });
         
         console.log(`Created grant #${grantData.githubIssueNumber}: ${grantData.title}`);

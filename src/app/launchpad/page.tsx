@@ -8,13 +8,16 @@ import { Rocket, TrendingUp, Users, Clock } from 'lucide-react';
 import { useAllICOs } from '@/hooks/launchpad';
 import { ICOCard } from '@/components/launchpad/ICOCard';
 import { getStatus } from '@/lib/launchpad/ico';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { LaunchpadMetadata } from '@/lib/launchpad/types';
 
 // Import launchpad metadata
 import launchpadsConfig from '@/config/launchpads.json';
 
+type IcoStatusFilter = 'All' | 'Live' | 'Upcoming' | 'Ended' | 'Sold Out' | 'Closed';
+
 export default function LaunchpadPage() {
+  const [statusFilter, setStatusFilter] = useState<IcoStatusFilter>('All');
   const { data: icos, isLoading } = useAllICOs();
 
   // Create metadata lookup map
@@ -89,6 +92,26 @@ export default function LaunchpadPage() {
       ...categorizedICOs.closed,
     ];
   }, [categorizedICOs]);
+
+  // Filter ICOs based on status filter
+  const filteredICOs = useMemo(() => {
+    if (statusFilter === 'All') return sortedICOs;
+    
+    switch (statusFilter) {
+      case 'Live':
+        return categorizedICOs.live;
+      case 'Upcoming':
+        return categorizedICOs.upcoming;
+      case 'Ended':
+        return categorizedICOs.ended;
+      case 'Sold Out':
+        return categorizedICOs.soldOut;
+      case 'Closed':
+        return categorizedICOs.closed;
+      default:
+        return sortedICOs;
+    }
+  }, [statusFilter, sortedICOs, categorizedICOs]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,6 +198,52 @@ export default function LaunchpadPage() {
           </Card>
         </div>
 
+        {/* Status Filters */}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <Button
+            variant={statusFilter === 'All' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('All')}
+            size="sm"
+          >
+            All
+          </Button>
+          <Button
+            variant={statusFilter === 'Live' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Live')}
+            size="sm"
+          >
+            Live
+          </Button>
+          <Button
+            variant={statusFilter === 'Upcoming' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Upcoming')}
+            size="sm"
+          >
+            Upcoming
+          </Button>
+          <Button
+            variant={statusFilter === 'Ended' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Ended')}
+            size="sm"
+          >
+            Ended
+          </Button>
+          <Button
+            variant={statusFilter === 'Sold Out' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Sold Out')}
+            size="sm"
+          >
+            Sold Out
+          </Button>
+          <Button
+            variant={statusFilter === 'Closed' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Closed')}
+            size="sm"
+          >
+            Closed
+          </Button>
+        </div>
+
         {/* ICOs Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -197,9 +266,9 @@ export default function LaunchpadPage() {
               </Card>
             ))}
           </div>
-        ) : sortedICOs && sortedICOs.length > 0 ? (
+        ) : filteredICOs && filteredICOs.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedICOs.map((ico) => (
+            {filteredICOs.map((ico) => (
               <ICOCard
                 key={ico.data.seed}
                 ico={ico}
