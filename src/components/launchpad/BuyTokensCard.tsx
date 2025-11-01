@@ -113,24 +113,31 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
     try {
       const amountBigInt = parseUnits(amount, Math.log10(ico.icoDecimals));
       
-      await buyTokens({
+      buyTokens({
         address: LAUNCHPAD_PROXY_ADDRESS as `0x${string}`,
         abi: LaunchpadABI,
         functionName: 'buy',
         args: [ico.seed, amountBigInt],
         value: isNativePayment ? cost.value : 0n,
       });
-
-      toast.success('Purchase submitted');
-      setAmount('');
-      onPurchaseSuccess?.();
     } catch (error: any) {
       console.error('Purchase failed:', error);
       toast.error(error.message || 'Purchase failed');
-    } finally {
       setIsPurchasing(false);
     }
   };
+
+  // Handle purchase success
+  useEffect(() => {
+    if (isConfirming) {
+      toast.loading('Transaction confirming...', { id: 'purchase' });
+    } else if (purchaseHash) {
+      toast.success('Purchase successful!', { id: 'purchase' });
+      setAmount('');
+      setIsPurchasing(false);
+      onPurchaseSuccess?.();
+    }
+  }, [isConfirming, purchaseHash, onPurchaseSuccess]);
 
   const canPurchase = status === 'Live' && !!address && !!cost && !needsApproval;
   const isDisabled = status !== 'Live' || !address;

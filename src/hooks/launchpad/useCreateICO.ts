@@ -35,7 +35,7 @@ export function useCreateICO() {
   });
 
   // Get creation fee
-  const { data: creationFee } = useReadContract({
+  const { data: creationFee, isLoading: isFeeLoading, error: feeError } = useReadContract({
     address: LAUNCHPAD_PROXY_ADDRESS as `0x${string}`,
     abi: LaunchpadABI,
     functionName: 'creationFee',
@@ -65,8 +65,16 @@ export function useCreateICO() {
       throw new Error('Wallet not connected');
     }
 
+    if (isFeeLoading) {
+      throw new Error('Loading creation fee, please wait...');
+    }
+
+    if (feeError) {
+      throw new Error(`Failed to get creation fee: ${feeError.message}`);
+    }
+
     if (!creationFee) {
-      throw new Error('Failed to get creation fee');
+      throw new Error('Creation fee not available. Please check your network connection.');
     }
 
     setIsPending(true);
@@ -128,6 +136,8 @@ export function useCreateICO() {
     createICO,
     approveICOTokens,
     creationFee,
+    isFeeLoading,
+    feeError,
     isPending: isPending || isConfirming,
     isSuccess,
     error,

@@ -60,8 +60,7 @@ export default function EcosystemPage() {
   const filteredProjects = ecosystemProjects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          project.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === 'All' || project.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const getCategoryIcon = (category: string) => {
@@ -101,8 +100,8 @@ export default function EcosystemPage() {
           </p>
         </div>
 
-        {/* Search and Filters */}
-        <div className="mb-8 space-y-4">
+        {/* Search */}
+        <div className="mb-8">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -111,40 +110,6 @@ export default function EcosystemPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              variant={categoryFilter === 'All' ? 'default' : 'outline'}
-              onClick={() => setCategoryFilter('All')}
-              size="sm"
-            >
-              All Projects
-            </Button>
-            <Button
-              variant={categoryFilter === 'Core Initiative' ? 'default' : 'outline'}
-              onClick={() => setCategoryFilter('Core Initiative')}
-              size="sm"
-            >
-              <Building2 className="h-4 w-4 mr-2" />
-              Core Initiatives
-            </Button>
-            <Button
-              variant={categoryFilter === 'Launchpad Alumni' ? 'default' : 'outline'}
-              onClick={() => setCategoryFilter('Launchpad Alumni')}
-              size="sm"
-            >
-              <Rocket className="h-4 w-4 mr-2" />
-              Launchpad Alumni
-            </Button>
-            <Button
-              variant={categoryFilter === 'Grant Recipient' ? 'default' : 'outline'}
-              onClick={() => setCategoryFilter('Grant Recipient')}
-              size="sm"
-            >
-              <Award className="h-4 w-4 mr-2" />
-              Grant Recipients
-            </Button>
           </div>
         </div>
 

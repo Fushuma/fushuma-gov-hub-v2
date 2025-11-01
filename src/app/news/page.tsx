@@ -65,20 +65,7 @@ export default function NewsPage() {
               
               return (
                 <Link key={newsItem.id} href={`/news/${newsItem.id}`}>
-                  <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
-                  <div className="md:flex">
-                    {imageUrl && (
-                      <div className="md:w-1/3 relative h-64 md:h-auto">
-                        <Image
-                          src={imageUrl}
-                          alt={newsItem.title}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    )}
-                    <div className={imageUrl ? 'md:w-2/3' : 'w-full'}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
                       <CardHeader>
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
@@ -118,8 +105,6 @@ export default function NewsPage() {
                           </Link>
                         )}
                       </CardContent>
-                    </div>
-                  </div>
                   </Card>
                 </Link>
               );

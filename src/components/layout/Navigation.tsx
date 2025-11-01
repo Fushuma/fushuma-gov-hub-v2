@@ -16,18 +16,9 @@ const navLinks = [
     items: [
       { href: '/governance', label: 'Proposals' },
       { href: '/grants', label: 'Grants' },
-      { href: '/launchpad', label: 'Launchpad' },
     ]
   },
-  {
-    label: 'DeFi',
-    items: [
-      { href: '/defi/swap', label: 'Swap' },
-      { href: '/defi/liquidity', label: 'Liquidity' },
-      { href: '/defi/farms', label: 'Farms' },
-      { href: '/defi/staking', label: 'Staking' },
-    ]
-  },
+  { href: '/launchpad', label: 'Launchpad' },
   { href: '/news', label: 'News' },
   { href: '/ecosystem', label: 'Ecosystem' },
   { href: '/community', label: 'Taishi Program' },
@@ -55,14 +46,13 @@ export function Navigation() {
                     <div 
                       key={link.label}
                       className="relative"
-                      onMouseEnter={() => setOpenDropdown(link.label)}
-                      onMouseLeave={() => setOpenDropdown(null)}
+                      onClick={() => setOpenDropdown(openDropdown === link.label ? null : link.label)}
                     >
                       <button className="text-sm font-medium transition-colors hover:text-foreground text-muted-foreground">
                         {link.label}
                       </button>
                       {openDropdown === link.label && link.items && (
-                        <div className="absolute top-full left-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg py-2">
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg py-2 z-50">
                           {link.items.map((item) => (
                             <Link
                               key={item.href}
@@ -73,6 +63,7 @@ export function Navigation() {
                                   ? "text-foreground font-medium"
                                   : "text-muted-foreground"
                               )}
+                              onClick={() => setOpenDropdown(null)}
                             >
                               {item.label}
                             </Link>

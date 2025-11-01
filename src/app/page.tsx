@@ -38,26 +38,26 @@ export default function HomePage() {
         <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 py-20">
           <FeatureCard
             icon={<Vote className="h-8 w-8" />}
-            title="How to Participate"
-            description="As a member of Fushuma VC, you are an investor. You actively discover, validate, and fund the next generation of high-potential projects. The 40% community-controlled Treasury provides the capital; your vote provides the decision."
+            title="Governance Portal"
+            description="As an investor in the Fushuma VC, you discover, validate, and fund new projects. The Treasury provides the capital; your vote provides the decision."
             href="/governance"
           />
           <FeatureCard
             icon={<Rocket className="h-8 w-8" />}
-            title="The Decentralized Venture Club"
-            description="● 40% Treasury Under Your Control\n● 100% Transparent On-Chain Voting\n● Direct Airdrops from Funded Projects"
+            title="Launchpad"
+            description="Launch your own ICO, or participate in token sales from new ecosystem projects. This is where new ventures get their start."
             href="/launchpad"
           />
           <FeatureCard
             icon={<DollarSign className="h-8 w-8" />}
-            title="Direct Airdrops from Funded Projects"
-            description="Every successful project funded by the Treasury rewards the community with Airdrops. Connect your wallet, vote to support the projects you believe in, and secure your stake in every successful venture."
+            title="Grants"
+            description="Have an idea that adds value to the ecosystem? Apply for a community grant to get your project funded by the Treasury."
             href="/grants"
           />
           <FeatureCard
             icon={<Users className="h-8 w-8" />}
-            title="Build Your Portfolio"
-            description="Every successful project funded by the Treasury rewards the community with Airdrops. Connect your wallet, vote to support the projects you believe in, and secure your stake in every successful venture."
+            title="Taishi Program"
+            description="Become a Taishi. Join our community leadership program to help guide the ecosystem, lead discussions, and earn rewards for your contributions."
             href="/community"
           />
         </section>
@@ -126,7 +126,7 @@ function StatsSection() {
         isLoading={loadingGrants}
       />
       <StatCard 
-        label="Community Members" 
+        label="Contributors" 
         value="1,234" 
       />
     </section>

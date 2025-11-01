@@ -1,5 +1,6 @@
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { http } from 'wagmi';
+import { getDefaultConfig, connectorsForWallets } from '@rainbow-me/rainbowkit';
+import { metaMaskWallet, walletConnectWallet, coinbaseWallet, rainbowWallet, trustWallet } from '@rainbow-me/rainbowkit/wallets';
+import { http, createConfig } from 'wagmi';
 import { defineChain } from 'viem';
 
 // Fushuma Network Chain Definition
@@ -25,9 +26,30 @@ export const fushuma = defineChain({
   testnet: false,
 });
 
-export const wagmiConfig = getDefaultConfig({
-  appName: 'Fushuma Governance Hub',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'placeholder-project-id-get-from-walletconnect',
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'placeholder-project-id-get-from-walletconnect';
+
+// Configure wallet connectors with MetaMask first
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: 'Recommended',
+      wallets: [
+        metaMaskWallet,
+        walletConnectWallet,
+        coinbaseWallet,
+        rainbowWallet,
+        trustWallet,
+      ],
+    },
+  ],
+  {
+    appName: 'Fushuma Governance Hub',
+    projectId,
+  }
+);
+
+export const wagmiConfig = createConfig({
+  connectors,
   chains: [fushuma],
   transports: {
     [fushuma.id]: http(),

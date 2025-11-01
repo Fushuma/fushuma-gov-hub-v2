@@ -118,7 +118,8 @@ export class GitHubGrantsSync {
             applicantName: grantData.applicant,
             fundingRequest: grantData.amount,
             status: grantData.status,
-            updatedAt: new Date(),
+            createdAt: grantData.createdAt,
+            updatedAt: grantData.updatedAt,
           })
           .where(eq(developmentGrants.id, existing.id));
         

@@ -17,11 +17,11 @@ import {
 export default function CommunityPage() {
   const communityLinks = [
     {
-      name: 'Discord',
-      description: 'Join our Discord server for real-time discussions and community support',
+      name: 'Reddit',
+      description: 'Join our Reddit community for discussions and community support',
       icon: <MessageSquare className="h-8 w-8" />,
-      url: 'https://discord.gg/fushuma',
-      color: 'bg-indigo-500',
+      url: 'https://www.reddit.com/r/Fushuma/',
+      color: 'bg-orange-500',
     },
     {
       name: 'Telegram',
