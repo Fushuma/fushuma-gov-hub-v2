@@ -158,9 +158,19 @@ export function calculateCurrentPrice(
   totalAmount: number,
   icoDecimals: number
 ): number {
+  console.log('Price Calculation Debug:', {
+    startPrice: startPrice.toString(),
+    endPrice: endPrice.toString(),
+    totalSold,
+    totalAmount,
+    icoDecimals
+  });
+  
   // Fixed price if endPrice is 0
   if (Number(endPrice) === 0) {
-    return Number(startPrice) / icoDecimals;
+    const price = Number(startPrice) / icoDecimals;
+    console.log('Fixed price calculated:', price);
+    return price;
   }
 
   // Linear price increase based on amount sold
@@ -168,7 +178,9 @@ export function calculateCurrentPrice(
     BigInt(startPrice) +
     ((BigInt(endPrice) - BigInt(startPrice)) * BigInt(totalSold)) / BigInt(totalAmount);
 
-  return Number(increase) / icoDecimals;
+  const price = Number(increase) / icoDecimals;
+  console.log('Dynamic price calculated:', price);
+  return price;
 }
 
 /**
