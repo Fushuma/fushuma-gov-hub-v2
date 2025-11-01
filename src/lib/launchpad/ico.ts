@@ -40,6 +40,7 @@ function mapEvmIcoToIIcoInfo(index: number, params: any, state: any): IIcoInfoWi
       icoDecimals: 10 ** Number(state.icoTokenDecimals),
       amount: Number(params.amount),
       costMint: params.paymentToken,
+      costDecimals: 10 ** 6, // USDT/USDC have 6 decimals
       startPrice: BigInt(params.startPrice),
       endPrice: BigInt(params.endPrice),
       startDate: Number(params.startDate) * 1000,
@@ -156,19 +157,19 @@ export function calculateCurrentPrice(
   endPrice: bigint,
   totalSold: number,
   totalAmount: number,
-  icoDecimals: number
+  costDecimals: number // Use payment token decimals, not ICO token decimals!
 ): number {
   console.log('Price Calculation Debug:', {
     startPrice: startPrice.toString(),
     endPrice: endPrice.toString(),
     totalSold,
     totalAmount,
-    icoDecimals
+    costDecimals
   });
   
   // Fixed price if endPrice is 0
   if (Number(endPrice) === 0) {
-    const price = Number(startPrice) / icoDecimals;
+    const price = Number(startPrice) / costDecimals;
     console.log('Fixed price calculated:', price);
     return price;
   }
@@ -178,7 +179,7 @@ export function calculateCurrentPrice(
     BigInt(startPrice) +
     ((BigInt(endPrice) - BigInt(startPrice)) * BigInt(totalSold)) / BigInt(totalAmount);
 
-  const price = Number(increase) / icoDecimals;
+  const price = Number(increase) / costDecimals;
   console.log('Dynamic price calculated:', price);
   return price;
 }

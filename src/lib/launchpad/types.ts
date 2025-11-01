@@ -7,6 +7,7 @@ export interface IIcoInfo {
   icoDecimals: number;
   amount: number;
   costMint: string;
+  costDecimals: number; // Payment token decimals
   startPrice: bigint;
   endPrice: bigint;
   startDate: number;

@@ -30,7 +30,7 @@ export function ICOCard({ ico, metadata }: ICOCardProps) {
     ico.data.endPrice,
     ico.data.totalSold,
     ico.data.amount,
-    ico.data.icoDecimals
+    ico.data.costDecimals
   );
 
   const soldPercentage = (ico.data.totalSold / ico.data.amount) * 100;

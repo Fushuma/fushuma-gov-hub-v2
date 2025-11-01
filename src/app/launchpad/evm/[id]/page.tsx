@@ -65,7 +65,7 @@ export default function ICODetailPage() {
       ico.data.endPrice,
       ico.data.totalSold,
       ico.data.amount,
-      ico.data.icoDecimals
+      ico.data.costDecimals
     );
   }, [ico, status]);
 

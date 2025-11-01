@@ -76,14 +76,14 @@ export function ICOStats({ ico, currentPrice }: ICOStatsProps) {
             <div>
               <p className="text-muted-foreground">Start</p>
               <p className="font-semibold">
-                {(Number(ico.startPrice) / ico.icoDecimals).toFixed(6)}
+                {(Number(ico.startPrice) / ico.costDecimals).toFixed(6)}
               </p>
             </div>
             {Number(ico.endPrice) > 0 && (
               <div className="text-right">
                 <p className="text-muted-foreground">End</p>
                 <p className="font-semibold">
-                  {(Number(ico.endPrice) / ico.icoDecimals).toFixed(6)}
+                  {(Number(ico.endPrice) / ico.costDecimals).toFixed(6)}
                 </p>
               </div>
             )}
