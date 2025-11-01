@@ -32,7 +32,7 @@ const launchpadContract = new ethers.Contract(
  */
 function mapEvmIcoToIIcoInfo(index: number, params: any, state: any): IIcoInfoWithKey {
   return {
-    key: params.token.toString(),
+    key: index.toString(),
     data: {
       seed: index,
       owner: state.ICOOwner,
