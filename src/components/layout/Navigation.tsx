@@ -28,6 +28,7 @@ const navLinks = [
     ]
   },
   { href: '/launchpad', label: 'Launchpad' },
+  { href: '/docs', label: 'Docs' },
   { href: '/news', label: 'News' },
   { href: '/ecosystem', label: 'Ecosystem' },
   { href: '/community', label: 'Taishi Program' },
