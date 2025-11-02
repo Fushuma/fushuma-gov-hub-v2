@@ -6,6 +6,7 @@
  */
 
 import { FeeAmount, TICK_SPACINGS } from './contracts';
+export { FeeAmount };
 import { isPlaceholderAddress } from './tokens';
 import type { Address } from 'viem';
 

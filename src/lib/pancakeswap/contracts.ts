@@ -84,3 +84,16 @@ export const TICK_SPACINGS: { [amount in SDKFeeAmount]: number } = {
   [SDKFeeAmount.HIGH]: 200,
 };
 
+// Export individual contract addresses for easier imports
+export const VAULT_ADDRESS = FUSHUMA_CONTRACTS.vault;
+export const CL_POOL_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPoolManager;
+export const BIN_POOL_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.binPoolManager;
+export const CL_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPositionManager;
+export const INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.infinityRouter;
+export const MIXED_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter;
+export const CL_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter; // Alias for compatibility
+export const PERMIT2_ADDRESS = FUSHUMA_CONTRACTS.permit2;
+export const WFUMA_ADDRESS = FUSHUMA_CONTRACTS.wfuma;
+export const FUMA_DISCOUNT_HOOK_ADDRESS = FUSHUMA_CONTRACTS.fumaDiscountHook;
+export const LAUNCHPAD_HOOK_ADDRESS = FUSHUMA_CONTRACTS.launchpadHook;
+
