@@ -47,10 +47,11 @@ export function Navigation() {
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <img 
-                src="/fushuma-logo.png" 
-                alt="Fushuma" 
-                className="h-8 dark:invert-0 invert" 
+                src="/fushuma-icon-only.png" 
+                alt="Fushuma Icon" 
+                className="h-8" 
               />
+              <span className="text-xl font-bold">FUSHUMA</span>
             </Link>
             
             <div className="hidden md:flex items-center gap-6">

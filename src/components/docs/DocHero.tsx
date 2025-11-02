@@ -29,7 +29,7 @@ export function DocHero({ title, description, icon: Icon, showLogo = false }: Do
           {showLogo && (
             <div className="flex-shrink-0">
               <img
-                src="/fushuma-icon-large.webp"
+                src="/fushuma-icon-large.png"
                 alt="Fushuma"
                 width="200"
                 height="200"
