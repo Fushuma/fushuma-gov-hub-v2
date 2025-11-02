@@ -3,7 +3,7 @@
 import { Navigation } from '@/components/layout/Navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, Vote, Rocket, DollarSign, Users } from 'lucide-react';
+import { ArrowRight, Vote, Rocket, DollarSign, Users, ArrowLeftRight, BookOpen, Newspaper, Globe } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 
 export default function HomePage() {
@@ -59,6 +59,30 @@ export default function HomePage() {
             title="Taishi Program"
             description="Become a Taishi. Join our community leadership program to help guide the ecosystem, lead discussions, and earn rewards for your contributions."
             href="/community"
+          />
+          <FeatureCard
+            icon={<ArrowLeftRight className="h-8 w-8" />}
+            title="Bridge"
+            description="Bridge tokens seamlessly across multiple blockchain networks. Move your assets between Ethereum, BNB Chain, Polygon, Fushuma, and more with fast, secure transfers."
+            href="/defi/bridge"
+          />
+          <FeatureCard
+            icon={<BookOpen className="h-8 w-8" />}
+            title="Documentation"
+            description="Learn how to use all features of the Fushuma ecosystem. Comprehensive guides for governance, DeFi, bridge, grants, launchpad, and more."
+            href="/docs"
+          />
+          <FeatureCard
+            icon={<Newspaper className="h-8 w-8" />}
+            title="News"
+            description="Stay updated with the latest announcements, project launches, governance decisions, and ecosystem developments from the Fushuma community."
+            href="/news"
+          />
+          <FeatureCard
+            icon={<Globe className="h-8 w-8" />}
+            title="Ecosystem"
+            description="Explore the growing Fushuma ecosystem. Discover projects, dApps, and services built by our community members and funded by the Treasury."
+            href="/ecosystem"
           />
         </section>
 
