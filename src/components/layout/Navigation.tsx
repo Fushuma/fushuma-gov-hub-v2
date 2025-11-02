@@ -45,8 +45,8 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
-              Fushuma Hub
+            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <img src="/fushuma-logo.png" alt="Fushuma" className="h-8" />
             </Link>
             
             <div className="hidden md:flex items-center gap-6">
