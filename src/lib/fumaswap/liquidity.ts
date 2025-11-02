@@ -5,7 +5,7 @@
  * Ready to connect to deployed contracts
  */
 
-import type { Token } from '@fumaswap/sdk';
+import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
 import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';

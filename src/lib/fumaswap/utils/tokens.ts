@@ -1,5 +1,5 @@
 import { formatUnits, parseUnits } from 'viem';
-import type { Token } from '@fumaswap/sdk';
+import type { Token } from '@pancakeswap/sdk';
 
 /**
  * Format token amount from wei to human-readable string

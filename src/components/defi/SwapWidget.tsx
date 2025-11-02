@@ -27,7 +27,7 @@ import { DEFAULT_TOKEN_LIST, isPlaceholderAddress } from '@/lib/fumaswap/tokens'
 import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput } from '@/lib/fumaswap/swap';
 import { useTokenBalance } from '@/lib/fumaswap/hooks/useTokenBalance';
 import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
-import type { Token } from '@fumaswap/sdk';
+import type { Token } from '@pancakeswap/sdk';
 import type { SwapQuote } from '@/lib/fumaswap/swap';
 
 export function SwapWidget() {

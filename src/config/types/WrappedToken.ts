@@ -1,4 +1,4 @@
-import { Token } from "@fumaswap/sdk";
+import { Token } from "@pancakeswap/sdk";
 
 export class WrappedToken extends Token {
   constructor(chainId: number, address: `0x${string}`, decimals: number, symbol: string, name: string) {

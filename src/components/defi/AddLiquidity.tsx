@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { DEFAULT_TOKEN_LIST } from '@/lib/fumaswap/tokens';
 import { FeeAmount, TICK_SPACINGS } from '@/lib/fumaswap/contracts';
 import { formatFee, getFeeTierName } from '@/lib/fumaswap/pools';
-import type { Token } from '@fumaswap/sdk';
+import type { Token } from '@pancakeswap/sdk';
 
 export function AddLiquidity() {
   const { address, isConnected } = useAccount();

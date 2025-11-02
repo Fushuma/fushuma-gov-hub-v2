@@ -5,7 +5,7 @@
  * Ready to connect to deployed contracts
  */
 
-import type { Token } from '@fumaswap/sdk';
+import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
 import { formatUnits, parseUnits } from 'viem';
 import { INFINITY_ROUTER_ADDRESS, MIXED_QUOTER_ADDRESS } from './contracts';
