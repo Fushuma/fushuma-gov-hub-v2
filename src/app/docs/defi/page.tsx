@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { DocHero } from '@/components/docs/DocHero';
+import { TrendingUp } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'DeFi Overview | Fushuma Docs',
@@ -8,10 +10,11 @@ export const metadata: Metadata = {
 export default function DeFiOverviewPage() {
   return (
     <article>
-      <h1>DeFi Overview</h1>
-      <p className="lead">
-        Welcome to the Fushuma DeFi ecosystem, powered by FumaSwap. This guide will give you a high-level overview of what you can do with FumaSwap and how to get started.
-      </p>
+      <DocHero
+        title="DeFi Overview"
+        description="Welcome to the Fushuma DeFi ecosystem, powered by FumaSwap. This guide will give you a high-level overview of what you can do with FumaSwap and how to get started."
+        icon={TrendingUp}
+      />
 
       <h2>What is FumaSwap?</h2>
       <p>

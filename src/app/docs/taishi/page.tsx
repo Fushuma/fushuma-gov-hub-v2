@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { DocHero } from '@/components/docs/DocHero';
+import { Users } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Taishi Program Overview | Fushuma Docs',
@@ -8,10 +10,11 @@ export const metadata: Metadata = {
 export default function TaishiProgramOverviewPage() {
   return (
     <article>
-      <h1>Taishi Program Overview</h1>
-      <p className="lead">
-        The Fushuma Taishi Program is a community leadership program that empowers dedicated community members to help guide the Fushuma ecosystem. This guide provides an overview of the Taishi Program and how you can get involved.
-      </p>
+      <DocHero
+        title="Taishi Program Overview"
+        description="The Fushuma Taishi Program is a community leadership program that empowers dedicated community members to help guide the Fushuma ecosystem."
+        icon={Users}
+      />
 
       <h2>What is a Taishi?</h2>
       <p>

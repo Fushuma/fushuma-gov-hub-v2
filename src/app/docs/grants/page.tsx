@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { DocHero } from '@/components/docs/DocHero';
+import { DollarSign } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Grants Overview | Fushuma Docs',
@@ -8,10 +10,11 @@ export const metadata: Metadata = {
 export default function GrantsOverviewPage() {
   return (
     <article>
-      <h1>Grants Overview</h1>
-      <p className="lead">
-        The Fushuma Grants Program is a community-led initiative to fund projects that add value to the Fushuma ecosystem. This guide provides an overview of the grants program and how you can apply for funding.
-      </p>
+      <DocHero
+        title="Grants Overview"
+        description="The Fushuma Grants Program is a community-led initiative to fund projects that add value to the Fushuma ecosystem."
+        icon={DollarSign}
+      />
 
       <h2>What We Fund</h2>
       <p>

@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { DocHero } from '@/components/docs/DocHero';
+import { Rocket } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Getting Started | Fushuma Docs',
@@ -8,10 +10,12 @@ export const metadata: Metadata = {
 export default function GettingStartedPage() {
   return (
     <article>
-      <h1>Getting Started</h1>
-      <p className="lead">
-        Welcome to the Fushuma ecosystem! This guide will help you get set up and ready to explore everything Fushuma has to offer.
-      </p>
+      <DocHero
+        title="Getting Started"
+        description="Welcome to the Fushuma ecosystem! This guide will help you get set up and ready to explore everything Fushuma has to offer."
+        icon={Rocket}
+        showLogo
+      />
 
       <h2>What You Can Do</h2>
       <p>

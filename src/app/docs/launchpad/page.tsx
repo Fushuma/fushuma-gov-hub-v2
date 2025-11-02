@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { DocHero } from '@/components/docs/DocHero';
+import { Rocket } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Launchpad Overview | Fushuma Docs',
@@ -8,10 +10,11 @@ export const metadata: Metadata = {
 export default function LaunchpadOverviewPage() {
   return (
     <article>
-      <h1>Launchpad Overview</h1>
-      <p className="lead">
-        The Fushuma Launchpad is a platform for new projects to raise capital and for users to get early access to new tokens. This guide provides an overview of the Launchpad and how it works.
-      </p>
+      <DocHero
+        title="Launchpad Overview"
+        description="The Fushuma Launchpad is a platform for new projects to raise capital and for users to get early access to new tokens."
+        icon={Rocket}
+      />
 
       <h2>For Projects</h2>
       <p>

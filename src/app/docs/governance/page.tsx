@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { DocHero } from '@/components/docs/DocHero';
+import { Vote } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Governance Overview | Fushuma Docs',
@@ -8,10 +10,11 @@ export const metadata: Metadata = {
 export default function GovernanceOverviewPage() {
   return (
     <article>
-      <h1>Governance Overview</h1>
-      <p className="lead">
-        Fushuma is a community-governed ecosystem. This means that you, as a FUMA holder, have the power to shape the future of the platform. This guide provides an overview of the governance process and how you can get involved.
-      </p>
+      <DocHero
+        title="Governance Overview"
+        description="Fushuma is a community-governed ecosystem. This means that you, as a FUMA holder, have the power to shape the future of the platform."
+        icon={Vote}
+      />
 
       <h2>How it Works</h2>
       <p>
