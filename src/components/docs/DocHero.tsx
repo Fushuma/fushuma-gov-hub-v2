@@ -1,3 +1,4 @@
+'use client';
 import Image from 'next/image';
 import { LucideIcon } from 'lucide-react';
 
@@ -29,12 +30,12 @@ export function DocHero({ title, description, icon: Icon, showLogo = false }: Do
           </div>
           {showLogo && (
             <div className="flex-shrink-0">
-              <Image
+              <img
                 src="/fushuma-icon-large.webp"
                 alt="Fushuma"
-                width={200}
-                height={200}
-                className="opacity-80"
+                width="200"
+                height="200"
+                className="opacity-80 max-w-[200px]"
               />
             </div>
           )}
