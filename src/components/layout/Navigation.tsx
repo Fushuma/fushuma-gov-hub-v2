@@ -18,6 +18,15 @@ const navLinks = [
       { href: '/grants', label: 'Grants' },
     ]
   },
+  { 
+    label: 'DeFi',
+    items: [
+      { href: '/defi/pancakeswap/swap', label: 'Swap' },
+      { href: '/defi/pancakeswap/liquidity', label: 'Liquidity' },
+      { href: '/defi/pancakeswap/pools', label: 'Pools' },
+      { href: '/defi/pancakeswap/positions', label: 'Positions' },
+    ]
+  },
   { href: '/launchpad', label: 'Launchpad' },
   { href: '/news', label: 'News' },
   { href: '/ecosystem', label: 'Ecosystem' },
