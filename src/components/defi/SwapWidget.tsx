@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { ArrowDownUp, Settings, Info } from 'lucide-react';
+import { ArrowDownUp, Settings, Info, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,9 +23,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { DEFAULT_TOKEN_LIST } from '@/lib/pancakeswap/tokens';
-import { validateSwapParams, formatPrice } from '@/lib/pancakeswap/swap';
+import { DEFAULT_TOKEN_LIST, isPlaceholderAddress } from '@/lib/pancakeswap/tokens';
+import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput } from '@/lib/pancakeswap/swap';
+import { useTokenBalance } from '@/lib/pancakeswap/hooks/useTokenBalance';
+import { formatTokenAmount } from '@/lib/pancakeswap/utils/tokens';
 import type { Token } from '@pancakeswap/sdk';
+import type { SwapQuote } from '@/lib/pancakeswap/swap';
 
 export function SwapWidget() {
   const { address, isConnected } = useAccount();
@@ -39,13 +42,17 @@ export function SwapWidget() {
   const [amountOut, setAmountOut] = useState('');
   
   // Swap settings
-  const [slippage, setSlippage] = useState(50); // 0.5% in basis points
+  const [slippage, setSlippage] = useState(50); // 0.5% in basis points (50 = 0.5%)
   const [deadline, setDeadline] = useState(20); // 20 minutes
   
   // Quote data
-  const [priceImpact, setPriceImpact] = useState('0');
-  const [executionPrice, setExecutionPrice] = useState('0');
+  const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  
+  // Token balances
+  const { balance: balanceIn } = useTokenBalance(
+    tokenIn && !isPlaceholderAddress(tokenIn.address) ? tokenIn.address as `0x${string}` : undefined
+  );
   
   // Swap tokens
   const handleSwapTokens = () => {
@@ -57,22 +64,22 @@ export function SwapWidget() {
   
   // Get quote when amount changes
   useEffect(() => {
-    const getQuote = async () => {
+    const fetchQuote = async () => {
       if (!tokenIn || !tokenOut || !amountIn || parseFloat(amountIn) <= 0) {
         setAmountOut('');
+        setQuote(null);
         return;
       }
       
       setIsLoadingQuote(true);
       
       try {
-        // TODO: Implement actual quote fetching from smart contracts
-        // For now, using placeholder logic
-        const mockRate = 1.5; // Mock exchange rate
-        const calculatedOut = (parseFloat(amountIn) * mockRate).toFixed(6);
-        setAmountOut(calculatedOut);
-        setPriceImpact('0.15');
-        setExecutionPrice(mockRate.toString());
+        const swapQuote = await getSwapQuote(tokenIn, tokenOut, amountIn);
+        
+        if (swapQuote) {
+          setQuote(swapQuote);
+          setAmountOut(swapQuote.outputAmount);
+        }
       } catch (error) {
         console.error('Error fetching quote:', error);
         toast.error('Failed to fetch quote');
@@ -81,7 +88,7 @@ export function SwapWidget() {
       }
     };
     
-    const debounce = setTimeout(getQuote, 500);
+    const debounce = setTimeout(fetchQuote, 500);
     return () => clearTimeout(debounce);
   }, [amountIn, tokenIn, tokenOut]);
   
@@ -105,16 +112,20 @@ export function SwapWidget() {
     
     try {
       toast.info('Swap functionality will be available after contract deployment');
+      
       // TODO: Implement actual swap execution
-      // 1. Approve tokens if needed
-      // 2. Execute swap through InfinityRouter
-      // 3. Wait for transaction confirmation
-      // 4. Show success message
+      // 1. Check token approvals
+      // 2. Approve tokens if needed
+      // 3. Execute swap transaction
+      // 4. Wait for confirmation
+      // 5. Show success message
     } catch (error) {
       console.error('Swap error:', error);
-      toast.error('Swap failed');
+      toast.error('Failed to execute swap');
     }
   };
+  
+  const minimumReceived = quote ? calculateMinimumOutput(quote.outputAmount, slippage / 100) : '0';
   
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -134,10 +145,10 @@ export function SwapWidget() {
                   <div className="flex items-center gap-2 mt-2">
                     <Slider
                       value={[slippage]}
-                      onValueChange={([value]) => setSlippage(value)}
-                      min={10}
+                      onValueChange={(value) => setSlippage(value[0])}
+                      min={1}
                       max={500}
-                      step={10}
+                      step={1}
                       className="flex-1"
                     />
                     <span className="text-sm font-medium w-16 text-right">
@@ -153,7 +164,8 @@ export function SwapWidget() {
                       type="number"
                       value={deadline}
                       onChange={(e) => setDeadline(parseInt(e.target.value) || 20)}
-                      className="flex-1"
+                      min={1}
+                      max={60}
                     />
                     <span className="text-sm text-muted-foreground">minutes</span>
                   </div>
@@ -165,31 +177,18 @@ export function SwapWidget() {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* Token In */}
+        {/* Input Token */}
         <div className="space-y-2">
-          <Label>From</Label>
+          <div className="flex items-center justify-between">
+            <Label>From</Label>
+            {isConnected && balanceIn !== undefined && (
+              <span className="text-xs text-muted-foreground">
+                Balance: {formatTokenAmount(balanceIn, tokenIn?.decimals)}
+              </span>
+            )}
+          </div>
+          
           <div className="flex gap-2">
-            <Select
-              value={tokenIn?.symbol}
-              onValueChange={(symbol) => {
-                const token = DEFAULT_TOKEN_LIST.find((t) => t.symbol === symbol);
-                if (token) setTokenIn(token);
-              }}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DEFAULT_TOKEN_LIST.map((token) => (
-                  <SelectItem key={token.address} value={token.symbol!}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{token.symbol}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
             <Input
               type="number"
               placeholder="0.0"
@@ -197,13 +196,25 @@ export function SwapWidget() {
               onChange={(e) => setAmountIn(e.target.value)}
               className="flex-1"
             />
+            <Select
+              value={tokenIn?.symbol}
+              onValueChange={(symbol) => {
+                const token = DEFAULT_TOKEN_LIST.find((t) => t.symbol === symbol);
+                if (token) setTokenIn(token);
+              }}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DEFAULT_TOKEN_LIST.map((token) => (
+                  <SelectItem key={token.address} value={token.symbol!}>
+                    {token.symbol}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          
-          {isConnected && tokenIn && (
-            <p className="text-xs text-muted-foreground">
-              Balance: 0.00 {tokenIn.symbol}
-            </p>
-          )}
         </div>
         
         {/* Swap Button */}
@@ -218,10 +229,22 @@ export function SwapWidget() {
           </Button>
         </div>
         
-        {/* Token Out */}
+        {/* Output Token */}
         <div className="space-y-2">
           <Label>To</Label>
           <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Input
+                type="number"
+                placeholder="0.0"
+                value={amountOut}
+                readOnly
+                className="pr-8"
+              />
+              {isLoadingQuote && (
+                <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              )}
+            </div>
             <Select
               value={tokenOut?.symbol}
               onValueChange={(symbol) => {
@@ -229,68 +252,65 @@ export function SwapWidget() {
                 if (token) setTokenOut(token);
               }}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {DEFAULT_TOKEN_LIST.map((token) => (
                   <SelectItem key={token.address} value={token.symbol!}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{token.symbol}</span>
-                    </div>
+                    {token.symbol}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            
-            <Input
-              type="number"
-              placeholder="0.0"
-              value={amountOut}
-              readOnly
-              className="flex-1 bg-muted"
-            />
           </div>
-          
-          {isLoadingQuote && (
-            <p className="text-xs text-muted-foreground">Fetching quote...</p>
-          )}
         </div>
         
         {/* Quote Details */}
-        {amountOut && parseFloat(amountOut) > 0 && (
-          <div className="rounded-lg border p-3 space-y-2">
-            <div className="flex justify-between text-sm">
+        {quote && amountOut && (
+          <div className="rounded-lg border p-3 space-y-2 text-sm">
+            <div className="flex justify-between">
               <span className="text-muted-foreground">Rate</span>
               <span className="font-medium">
-                1 {tokenIn?.symbol} = {formatPrice(parseFloat(executionPrice))} {tokenOut?.symbol}
+                1 {tokenIn?.symbol} = {formatPrice(parseFloat(quote.outputAmount) / parseFloat(quote.inputAmount))} {tokenOut?.symbol}
               </span>
             </div>
             
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between">
               <span className="text-muted-foreground">Price Impact</span>
-              <Badge variant={parseFloat(priceImpact) > 1 ? 'destructive' : 'secondary'}>
-                {priceImpact}%
-              </Badge>
+              <span className={`font-medium ${quote.priceImpact > 1 ? 'text-orange-500' : 'text-green-500'}`}>
+                {quote.priceImpact.toFixed(2)}%
+              </span>
             </div>
             
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Minimum Received</span>
-              <span className="font-medium">
-                {(parseFloat(amountOut) * (1 - slippage / 10000)).toFixed(6)} {tokenOut?.symbol}
-              </span>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Fee</span>
+              <span className="font-medium">{quote.fee}%</span>
             </div>
             
             <Separator />
             
-            <div className="flex items-start gap-2 text-xs text-muted-foreground">
-              <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-              <span>
-                Output is estimated. You will receive at least the minimum amount or the transaction will revert.
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Minimum Received</span>
+              <span className="font-medium">
+                {minimumReceived} {tokenOut?.symbol}
               </span>
             </div>
           </div>
         )}
+        
+        {/* FUMA Holder Benefit */}
+        <div className="rounded-lg bg-primary/10 p-3 border border-primary/20">
+          <div className="flex items-start gap-2 text-sm">
+            <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-primary">FUMA Holder Benefit</p>
+              <p className="text-muted-foreground mt-1">
+                Hold FUMA or WFUMA tokens to receive reduced trading fees on all swaps.
+              </p>
+            </div>
+          </div>
+        </div>
         
         {/* Swap Button */}
         <Button
@@ -299,25 +319,9 @@ export function SwapWidget() {
           className="w-full"
           size="lg"
         >
-          {!isConnected ? 'Connect Wallet' : 'Swap'}
+          {!isConnected ? 'Connect Wallet' : isLoadingQuote ? 'Loading...' : 'Swap'}
         </Button>
-        
-        {/* FUMA Holder Benefit */}
-        {isConnected && (
-          <div className="rounded-lg bg-primary/10 p-3 border border-primary/20">
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-primary mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-primary">FUMA Holder Benefit</p>
-                <p className="text-muted-foreground mt-1">
-                  Hold 100+ FUMA tokens to get up to 50% discount on swap fees!
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
 }
-
