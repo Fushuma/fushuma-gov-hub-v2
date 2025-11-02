@@ -12,7 +12,8 @@ import {
   TrendingUp, 
   Users, 
   HelpCircle,
-  BookMarked
+  BookMarked,
+  ArrowLeftRight
 } from 'lucide-react';
 
 const docSections = [
@@ -60,6 +61,16 @@ const docSections = [
       { href: '/docs/defi/swapping', label: 'Swapping Tokens' },
       { href: '/docs/defi/liquidity', label: 'Providing Liquidity' },
       { href: '/docs/defi/positions', label: 'Managing Positions' },
+    ],
+  },
+  {
+    title: 'Bridge',
+    icon: ArrowLeftRight,
+    items: [
+      { href: '/docs/bridge', label: 'Overview' },
+      { href: '/docs/bridge/bridging-tokens', label: 'Bridging Tokens' },
+      { href: '/docs/bridge/claiming-tokens', label: 'Claiming Tokens' },
+      { href: '/docs/bridge/troubleshooting', label: 'Troubleshooting' },
     ],
   },
   {
