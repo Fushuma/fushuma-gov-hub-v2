@@ -23,12 +23,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { DEFAULT_TOKEN_LIST, isPlaceholderAddress } from '@/lib/pancakeswap/tokens';
-import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput } from '@/lib/pancakeswap/swap';
-import { useTokenBalance } from '@/lib/pancakeswap/hooks/useTokenBalance';
-import { formatTokenAmount } from '@/lib/pancakeswap/utils/tokens';
-import type { Token } from '@pancakeswap/sdk';
-import type { SwapQuote } from '@/lib/pancakeswap/swap';
+import { DEFAULT_TOKEN_LIST, isPlaceholderAddress } from '@/lib/fumaswap/tokens';
+import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput } from '@/lib/fumaswap/swap';
+import { useTokenBalance } from '@/lib/fumaswap/hooks/useTokenBalance';
+import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
+import type { Token } from '@fumaswap/sdk';
+import type { SwapQuote } from '@/lib/fumaswap/swap';
 
 export function SwapWidget() {
   const { address, isConnected } = useAccount();

@@ -5,7 +5,7 @@
 
 ## Overview
 
-This document summarizes all DeFi infrastructure improvements made to the Fushuma Governance Hub V2 application. The implementation prepares the application to integrate with PancakeSwap V4 (Infinity) smart contracts once they are deployed on the Fushuma Network.
+This document summarizes all DeFi infrastructure improvements made to the Fushuma Governance Hub V2 application. The implementation prepares the application to integrate with FumaSwap V4 (Infinity) smart contracts once they are deployed on the Fushuma Network.
 
 ## What Was Implemented
 
@@ -17,7 +17,7 @@ This document summarizes all DeFi infrastructure improvements made to the Fushum
 - **Impact:** Eliminates `indexedDB is not defined` server crashes
 
 **Token Configuration**
-- Updated token definitions in `src/lib/pancakeswap/tokens.ts`
+- Updated token definitions in `src/lib/fumaswap/tokens.ts`
 - Integrated actual USDC and USDT addresses from launchpad contracts
 - Added placeholder addresses for WFUMA, WETH, WBTC (to be updated after deployment)
 - **Impact:** Uses real deployed token addresses where available
@@ -25,22 +25,22 @@ This document summarizes all DeFi infrastructure improvements made to the Fushum
 ### Phase 2: Integration Layer ✅
 
 **Contract ABIs**
-- `src/lib/pancakeswap/abis/WFUMA.json` - Wrapped FUMA token ABI
-- `src/lib/pancakeswap/abis/ERC20.json` - Standard ERC20 token ABI
+- `src/lib/fumaswap/abis/WFUMA.json` - Wrapped FUMA token ABI
+- `src/lib/fumaswap/abis/ERC20.json` - Standard ERC20 token ABI
 
 **Custom Hooks**
-- `src/lib/pancakeswap/hooks/useTokenBalance.ts` - Fetch token balances and allowances
-- `src/lib/pancakeswap/hooks/useTokenApprove.ts` - Approve token spending
-- `src/lib/pancakeswap/hooks/usePositions.ts` - Fetch user liquidity positions
-- `src/lib/pancakeswap/hooks/usePools.ts` - Fetch pool data
+- `src/lib/fumaswap/hooks/useTokenBalance.ts` - Fetch token balances and allowances
+- `src/lib/fumaswap/hooks/useTokenApprove.ts` - Approve token spending
+- `src/lib/fumaswap/hooks/usePositions.ts` - Fetch user liquidity positions
+- `src/lib/fumaswap/hooks/usePools.ts` - Fetch pool data
 
 **Utility Functions**
-- `src/lib/pancakeswap/utils/tokens.ts` - Token formatting, parsing, validation
+- `src/lib/fumaswap/utils/tokens.ts` - Token formatting, parsing, validation
 
 **Core Modules (Enhanced)**
-- `src/lib/pancakeswap/swap.ts` - Swap quote fetching, execution, validation
-- `src/lib/pancakeswap/pools.ts` - Pool queries, position management, TVL/APR calculations
-- `src/lib/pancakeswap/liquidity.ts` - Add/remove/increase liquidity, fee collection
+- `src/lib/fumaswap/swap.ts` - Swap quote fetching, execution, validation
+- `src/lib/fumaswap/pools.ts` - Pool queries, position management, TVL/APR calculations
+- `src/lib/fumaswap/liquidity.ts` - Add/remove/increase liquidity, fee collection
 
 **Key Features:**
 - Mock data fallback for development
@@ -51,8 +51,8 @@ This document summarizes all DeFi infrastructure improvements made to the Fushum
 ### Phase 3: Frontend Enhancements ✅
 
 **New Pages**
-- `src/app/defi/pancakeswap/positions/page.tsx` - View all liquidity positions
-- `src/app/defi/pancakeswap/positions/[id]/page.tsx` - Individual position details
+- `src/app/defi/fumaswap/positions/page.tsx` - View all liquidity positions
+- `src/app/defi/fumaswap/positions/[id]/page.tsx` - Individual position details
 
 **Enhanced Components**
 - `src/components/defi/SwapWidget.tsx` - Integrated with balance checking and quote fetching
@@ -113,7 +113,7 @@ Frontend (Next.js)
   ↓
 Integration Layer (hooks, utilities)
   ↓
-Smart Contracts (PancakeSwap V4)
+Smart Contracts (FumaSwap V4)
   ↓
 Fushuma Network Blockchain
   ↑
@@ -138,7 +138,7 @@ Subgraph/Indexer → tRPC API → Frontend (historical data)
 src/
 ├── app/
 │   ├── defi/
-│   │   └── pancakeswap/
+│   │   └── fumaswap/
 │   │       ├── positions/
 │   │       │   ├── page.tsx (positions list)
 │   │       │   └── [id]/page.tsx (position detail)
@@ -154,7 +154,7 @@ src/
 │   └── providers/
 │       └── WalletProvider.tsx (new)
 ├── lib/
-│   └── pancakeswap/
+│   └── fumaswap/
 │       ├── abis/
 │       │   ├── WFUMA.json
 │       │   └── ERC20.json
@@ -185,9 +185,9 @@ src/
 
 1. **Deploy Smart Contracts** (see `SMART_CONTRACT_DEPLOYMENT.md`)
    - Deploy WFUMA
-   - Deploy all PancakeSwap V4 contracts
+   - Deploy all FumaSwap V4 contracts
    - Deploy custom hooks (FUMA Discount, Launchpad)
-   - Update `src/lib/pancakeswap/contracts.ts` with addresses
+   - Update `src/lib/fumaswap/contracts.ts` with addresses
 
 2. **Deploy Subgraph** (see `subgraph/README.md`)
    - Create subgraph.yaml with contract addresses
@@ -249,9 +249,9 @@ All integration points are marked with `TODO` comments in the code:
 ```
 
 Search for `TODO` in the following files to find all integration points:
-- `src/lib/pancakeswap/swap.ts`
-- `src/lib/pancakeswap/pools.ts`
-- `src/lib/pancakeswap/liquidity.ts`
+- `src/lib/fumaswap/swap.ts`
+- `src/lib/fumaswap/pools.ts`
+- `src/lib/fumaswap/liquidity.ts`
 - `src/server/routers/defi.ts`
 
 ## Testing Checklist
@@ -283,8 +283,8 @@ Before deploying to production:
 
 ## Support and Resources
 
-- **PancakeSwap V4 Docs:** https://developer.pancakeswap.finance/
-- **PancakeSwap GitHub:** https://github.com/pancakeswap/
+- **FumaSwap V4 Docs:** https://developer.fumaswap.finance/
+- **FumaSwap GitHub:** https://github.com/fumaswap/
 - **The Graph Docs:** https://thegraph.com/docs/
 - **Fushuma Support:** https://help.manus.im
 
@@ -298,4 +298,4 @@ The Fushuma DeFi infrastructure is now complete and ready for smart contract dep
 - ✅ Deployment guides (comprehensive)
 - ✅ Testing framework (ready)
 
-The final step is to deploy the smart contracts and connect them to the existing infrastructure. Once deployed, the Fushuma DeFi platform will be a fully functional, production-ready decentralized exchange powered by PancakeSwap V4 technology.
+The final step is to deploy the smart contracts and connect them to the existing infrastructure. Once deployed, the Fushuma DeFi platform will be a fully functional, production-ready decentralized exchange powered by FumaSwap V4 technology.

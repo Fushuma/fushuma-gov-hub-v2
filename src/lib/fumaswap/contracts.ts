@@ -1,5 +1,5 @@
 /**
- * PancakeSwap V4 Contract Addresses on Fushuma Network
+ * FumaSwap V4 Contract Addresses on Fushuma Network
  * 
  * These addresses will be populated after deployment
  * See deployment-guide.md for deployment instructions
@@ -68,15 +68,15 @@ export const COMMON_TOKENS = {
 
 /**
  * Fee tiers for concentrated liquidity pools
- * Using PancakeSwap SDK's FeeAmount enum
+ * Using FumaSwap SDK's FeeAmount enum
  */
-export { FeeAmount } from '@pancakeswap/v3-sdk';
+export { FeeAmount } from '@fumaswap/v3-sdk';
 
 /**
  * Tick spacings for each fee tier
- * Note: These are from Uniswap V3, PancakeSwap may use different values
+ * Note: These are from Uniswap V3, FumaSwap may use different values
  */
-import { FeeAmount as SDKFeeAmount } from '@pancakeswap/v3-sdk';
+import { FeeAmount as SDKFeeAmount } from '@fumaswap/v3-sdk';
 export const TICK_SPACINGS: { [amount in SDKFeeAmount]: number } = {
   [SDKFeeAmount.LOWEST]: 1,
   [SDKFeeAmount.LOW]: 10,

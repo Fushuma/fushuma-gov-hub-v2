@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, TrendingUp, Droplets, Plus, Minus, DollarSign } from 'lucide-react';
 import Link from 'next/link';
-import { usePosition } from '@/lib/pancakeswap/hooks/usePositions';
-import { formatTokenAmount } from '@/lib/pancakeswap/utils/tokens';
-import { formatFee } from '@/lib/pancakeswap/pools';
+import { usePosition } from '@/lib/fumaswap/hooks/usePositions';
+import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
+import { formatFee } from '@/lib/fumaswap/pools';
 import { toast } from 'sonner';
 
 export default function PositionDetailPage() {
@@ -34,7 +34,7 @@ export default function PositionDetailPage() {
   };
 
   if (!isConnected) {
-    router.push('/defi/pancakeswap/positions');
+    router.push('/defi/fumaswap/positions');
     return null;
   }
 
@@ -58,7 +58,7 @@ export default function PositionDetailPage() {
             <p className="text-muted-foreground text-center mb-6">
               The position you're looking for doesn't exist or you don't own it.
             </p>
-            <Link href="/defi/pancakeswap/positions">
+            <Link href="/defi/fumaswap/positions">
               <Button>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Positions
@@ -74,7 +74,7 @@ export default function PositionDetailPage() {
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       {/* Header */}
       <div className="mb-8">
-        <Link href="/defi/pancakeswap/positions">
+        <Link href="/defi/fumaswap/positions">
           <Button variant="ghost" size="sm" className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Positions

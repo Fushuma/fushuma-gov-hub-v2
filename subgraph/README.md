@@ -4,7 +4,7 @@ This directory contains the subgraph schema and configuration for indexing Fushu
 
 ## Overview
 
-The subgraph indexes all DeFi events from the PancakeSwap V4 (Infinity) contracts deployed on Fushuma Network, including:
+The subgraph indexes all DeFi events from the FumaSwap V4 (Infinity) contracts deployed on Fushuma Network, including:
 
 - Pool creation and updates
 - Swaps
@@ -194,5 +194,5 @@ SUBGRAPH_URL=https://api.thegraph.com/subgraphs/name/fushuma/fushuma-defi
 ## Resources
 
 - [The Graph Documentation](https://thegraph.com/docs/)
-- [PancakeSwap V4 Contracts](https://github.com/pancakeswap/infinity-core)
+- [FumaSwap V4 Contracts](https://github.com/fumaswap/infinity-core)
 - [Subgraph Best Practices](https://thegraph.com/docs/en/developer/create-subgraph-hosted/)

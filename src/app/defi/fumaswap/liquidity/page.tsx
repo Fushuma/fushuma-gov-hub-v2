@@ -33,7 +33,7 @@ export default function LiquidityPage() {
           <div className="rounded-lg border p-6 space-y-3">
             <h3 className="font-semibold text-lg">🎯 Concentrated Liquidity</h3>
             <p className="text-sm text-muted-foreground">
-              With PancakeSwap V4, you can concentrate your liquidity in specific price ranges 
+              With FumaSwap V4, you can concentrate your liquidity in specific price ranges 
               for up to 4000x capital efficiency compared to traditional AMMs.
             </p>
           </div>

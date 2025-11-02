@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, Plus, TrendingUp, Droplets, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { usePositions } from '@/lib/pancakeswap/hooks/usePositions';
-import { formatTokenAmount } from '@/lib/pancakeswap/utils/tokens';
-import { formatFee } from '@/lib/pancakeswap/pools';
+import { usePositions } from '@/lib/fumaswap/hooks/usePositions';
+import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
+import { formatFee } from '@/lib/fumaswap/pools';
 
 export default function PositionsPage() {
   const { address, isConnected } = useAccount();
@@ -39,7 +39,7 @@ export default function PositionsPage() {
             Manage your liquidity positions and collect earned fees
           </p>
         </div>
-        <Link href="/defi/pancakeswap/liquidity">
+        <Link href="/defi/fumaswap/liquidity">
           <Button size="lg">
             <Plus className="h-4 w-4 mr-2" />
             New Position
@@ -63,7 +63,7 @@ export default function PositionsPage() {
             <p className="text-muted-foreground text-center mb-6 max-w-md">
               You don't have any liquidity positions. Add liquidity to a pool to start earning trading fees.
             </p>
-            <Link href="/defi/pancakeswap/liquidity">
+            <Link href="/defi/fumaswap/liquidity">
               <Button size="lg">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Liquidity
@@ -154,7 +154,7 @@ export default function PositionsPage() {
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <Link href={`/defi/pancakeswap/positions/${position.tokenId}`} className="flex-1">
+                  <Link href={`/defi/fumaswap/positions/${position.tokenId}`} className="flex-1">
                     <Button variant="outline" className="w-full">
                       <ExternalLink className="h-4 w-4 mr-2" />
                       View Details

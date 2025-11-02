@@ -1,11 +1,11 @@
 /**
- * PancakeSwap V4 Liquidity Operations
+ * FumaSwap V4 Liquidity Operations
  * 
  * Functions for adding and removing liquidity
  * Ready to connect to deployed contracts
  */
 
-import type { Token } from '@pancakeswap/sdk';
+import type { Token } from '@fumaswap/sdk';
 import type { Address } from 'viem';
 import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';

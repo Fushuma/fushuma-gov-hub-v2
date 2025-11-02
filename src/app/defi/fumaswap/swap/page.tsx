@@ -2,10 +2,10 @@ import { SwapWidget } from '@/components/defi/SwapWidget';
 
 export const metadata = {
   title: 'Swap | Fushuma DeFi',
-  description: 'Swap tokens on Fushuma Network with the best rates powered by PancakeSwap V4',
+  description: 'Swap tokens on Fushuma Network with the best rates powered by FumaSwap V4',
 };
 
-export default function PancakeSwapPage() {
+export default function FumaSwapPage() {
   return (
     <div className="container mx-auto py-8">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -28,7 +28,7 @@ export default function PancakeSwapPage() {
             </div>
             <h3 className="font-semibold">Low Fees</h3>
             <p className="text-sm text-muted-foreground">
-              Optimized gas costs with PancakeSwap V4 Singleton architecture
+              Optimized gas costs with FumaSwap V4 Singleton architecture
             </p>
           </div>
           

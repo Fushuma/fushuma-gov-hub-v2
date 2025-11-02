@@ -18,10 +18,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { DEFAULT_TOKEN_LIST } from '@/lib/pancakeswap/tokens';
-import { FeeAmount, TICK_SPACINGS } from '@/lib/pancakeswap/contracts';
-import { formatFee, getFeeTierName } from '@/lib/pancakeswap/pools';
-import type { Token } from '@pancakeswap/sdk';
+import { DEFAULT_TOKEN_LIST } from '@/lib/fumaswap/tokens';
+import { FeeAmount, TICK_SPACINGS } from '@/lib/fumaswap/contracts';
+import { formatFee, getFeeTierName } from '@/lib/fumaswap/pools';
+import type { Token } from '@fumaswap/sdk';
 
 export function AddLiquidity() {
   const { address, isConnected } = useAccount();

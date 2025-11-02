@@ -23,7 +23,7 @@ const ecosystemProjects: Array<{
     id: 1,
     name: 'Fushuma DEX',
     category: 'Core Initiative',
-    description: 'Decentralized exchange built on Fushuma Network with PancakeSwap V4 integration, offering low fees and high liquidity.',
+    description: 'Decentralized exchange built on Fushuma Network with FumaSwap V4 integration, offering low fees and high liquidity.',
     website: 'https://dex.fushuma.com',
     logo: '🔄',
     fundingAmount: null,

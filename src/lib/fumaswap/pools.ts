@@ -1,5 +1,5 @@
 /**
- * PancakeSwap V4 Pool Utilities
+ * FumaSwap V4 Pool Utilities
  * 
  * Integration layer for pool and liquidity operations
  * Ready to connect to deployed contracts

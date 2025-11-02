@@ -21,10 +21,10 @@ const navLinks = [
   { 
     label: 'DeFi',
     items: [
-      { href: '/defi/pancakeswap/swap', label: 'Swap' },
-      { href: '/defi/pancakeswap/liquidity', label: 'Liquidity' },
-      { href: '/defi/pancakeswap/pools', label: 'Pools' },
-      { href: '/defi/pancakeswap/positions', label: 'Positions' },
+      { href: '/defi/fumaswap/swap', label: 'Swap' },
+      { href: '/defi/fumaswap/liquidity', label: 'Liquidity' },
+      { href: '/defi/fumaswap/pools', label: 'Pools' },
+      { href: '/defi/fumaswap/positions', label: 'Positions' },
     ]
   },
   { href: '/launchpad', label: 'Launchpad' },

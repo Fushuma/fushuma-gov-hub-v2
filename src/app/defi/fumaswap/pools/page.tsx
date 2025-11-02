@@ -21,7 +21,7 @@ export default function PoolsPage() {
             </p>
           </div>
           
-          <Link href="/defi/pancakeswap/liquidity">
+          <Link href="/defi/fumaswap/liquidity">
             <Button size="lg">
               <Plus className="h-4 w-4 mr-2" />
               Create Position

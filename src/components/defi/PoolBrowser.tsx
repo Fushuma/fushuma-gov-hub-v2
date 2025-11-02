@@ -14,8 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatFee } from '@/lib/pancakeswap/pools';
-import { FeeAmount } from '@/lib/pancakeswap/contracts';
+import { formatFee } from '@/lib/fumaswap/pools';
+import { FeeAmount } from '@/lib/fumaswap/contracts';
 
 // Mock pool data - will be replaced with actual data from contracts
 const MOCK_POOLS = [

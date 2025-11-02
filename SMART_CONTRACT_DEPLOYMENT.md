@@ -1,6 +1,6 @@
 # Smart Contract Deployment Guide
 
-This guide provides step-by-step instructions for deploying all PancakeSwap V4 (Infinity) smart contracts to the Fushuma Network.
+This guide provides step-by-step instructions for deploying all FumaSwap V4 (Infinity) smart contracts to the Fushuma Network.
 
 ## Prerequisites
 
@@ -60,7 +60,7 @@ forge create --rpc-url $RPC_URL \
 export WFUMA_ADDRESS=0x...
 ```
 
-**Update:** Add the WFUMA address to `src/lib/pancakeswap/contracts.ts`
+**Update:** Add the WFUMA address to `src/lib/fumaswap/contracts.ts`
 
 ### 2. Check/Deploy Permit2
 
@@ -86,8 +86,8 @@ forge create --rpc-url $RPC_URL \
 ### 3. Deploy Core Contracts (Vault, Pool Managers)
 
 ```bash
-# Clone PancakeSwap Infinity Core
-git clone https://github.com/pancakeswap/infinity-core.git
+# Clone FumaSwap Infinity Core
+git clone https://github.com/fumaswap/infinity-core.git
 cd infinity-core
 
 # Install dependencies
@@ -138,9 +138,9 @@ export BIN_POOL_MANAGER_ADDRESS=0x...
 ### 4. Deploy Periphery Contracts
 
 ```bash
-# Clone PancakeSwap Infinity Periphery
+# Clone FumaSwap Infinity Periphery
 cd ..
-git clone https://github.com/pancakeswap/infinity-periphery.git
+git clone https://github.com/fumaswap/infinity-periphery.git
 cd infinity-periphery
 
 # Install dependencies
@@ -186,9 +186,9 @@ export MIXED_QUOTER_ADDRESS=0x...
 ### 5. Deploy Universal Router
 
 ```bash
-# Clone PancakeSwap Infinity Universal Router
+# Clone FumaSwap Infinity Universal Router
 cd ..
-git clone https://github.com/pancakeswap/infinity-universal-router.git
+git clone https://github.com/fumaswap/infinity-universal-router.git
 cd infinity-universal-router
 
 # Install dependencies
@@ -223,9 +223,9 @@ export UNIVERSAL_ROUTER_ADDRESS=0x...
 This hook provides fee discounts to FUMA/WFUMA holders.
 
 ```bash
-# Clone PancakeSwap Infinity Hooks template
+# Clone FumaSwap Infinity Hooks template
 cd ..
-git clone https://github.com/pancakeswap/infinity-hooks.git fushuma-hooks
+git clone https://github.com/fumaswap/infinity-hooks.git fushuma-hooks
 cd fushuma-hooks
 
 # Create FUMA Discount Hook
@@ -280,7 +280,7 @@ forge verify-contract $CL_POSITION_MANAGER_ADDRESS CLPositionManager --watch --c
 
 ### 8. Update Frontend Configuration
 
-Update `src/lib/pancakeswap/contracts.ts` with all deployed addresses:
+Update `src/lib/fumaswap/contracts.ts` with all deployed addresses:
 
 ```typescript
 export const VAULT_ADDRESS = '0x...';
@@ -298,7 +298,7 @@ export const FUMA_DISCOUNT_HOOK_ADDRESS = '0x...';
 export const LAUNCHPAD_HOOK_ADDRESS = '0x...';
 ```
 
-Update `src/lib/pancakeswap/tokens.ts` with WFUMA address:
+Update `src/lib/fumaswap/tokens.ts` with WFUMA address:
 
 ```typescript
 export const WFUMA_TOKEN = new Token(
@@ -383,8 +383,8 @@ At current FUMA gas prices, estimate total deployment cost and ensure sufficient
 
 For deployment issues or questions:
 
-- PancakeSwap Discord: https://discord.gg/pancakeswap
-- PancakeSwap Docs: https://developer.pancakeswap.finance/
+- FumaSwap Discord: https://discord.gg/fumaswap
+- FumaSwap Docs: https://developer.fumaswap.finance/
 - Fushuma Support: https://help.manus.im
 
 ## Checklist

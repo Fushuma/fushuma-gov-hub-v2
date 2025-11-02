@@ -1,4 +1,4 @@
-import { Token } from '@pancakeswap/sdk';
+import { Token } from '@fumaswap/sdk';
 import { PAYMENT_TOKENS } from '../launchpad/contracts';
 
 /**
