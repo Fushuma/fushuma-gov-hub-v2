@@ -25,6 +25,7 @@ const navLinks = [
       { href: '/defi/fumaswap/liquidity', label: 'Liquidity' },
       { href: '/defi/fumaswap/pools', label: 'Pools' },
       { href: '/defi/fumaswap/positions', label: 'Positions' },
+      { href: '/defi/bridge', label: 'Bridge' },
     ]
   },
   { href: '/launchpad', label: 'Launchpad' },

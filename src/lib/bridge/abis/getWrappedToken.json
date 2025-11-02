@@ -1,0 +1,48 @@
+[
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "tuple",
+        "name": "",
+        "internalType": "struct BridgeV2.Token",
+        "components": [
+          {
+            "type": "address",
+            "name": "token",
+            "internalType": "address"
+          },
+          {
+            "type": "uint256",
+            "name": "chainID",
+            "internalType": "uint256"
+          },
+          {
+            "type": "address",
+            "name": "wrappedToken",
+            "internalType": "address"
+          },
+          {
+            "type": "address",
+            "name": "authority",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "name": "getToken",
+    "inputs": [
+      {
+        "type": "address",
+        "name": "originalToken",
+        "internalType": "address"
+      },
+      {
+        "type": "uint256",
+        "name": "originalChainID",
+        "internalType": "uint256"
+      }
+    ]
+  }
+]
