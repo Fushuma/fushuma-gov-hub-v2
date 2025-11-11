@@ -22,7 +22,7 @@ export const FUSHUMA_CONTRACTS = {
   
   // Standard Contracts
   permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3', // Canonical Permit2 (deploy if not exists)
-  wfuma: '0x0000000000000000000000000000000000000000', // Wrapped FUMA (to be deployed)
+  wfuma: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E', // Wrapped FUMA (deployed)
   
   // Custom Hooks
   fumaDiscountHook: '0x0000000000000000000000000000000000000000', // To be deployed
@@ -59,7 +59,7 @@ export function getContracts(chainId: number) {
  */
 export const COMMON_TOKENS = {
   FUMA: '0x0000000000000000000000000000000000000000', // Native FUMA token contract
-  WFUMA: '0x0000000000000000000000000000000000000000', // Wrapped FUMA
+  WFUMA: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E', // Wrapped FUMA
   USDC: '0x0000000000000000000000000000000000000000', // USDC on Fushuma
   USDT: '0x0000000000000000000000000000000000000000', // USDT on Fushuma
   WETH: '0x0000000000000000000000000000000000000000', // Wrapped ETH on Fushuma

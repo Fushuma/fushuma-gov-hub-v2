@@ -20,7 +20,7 @@ export const FUMA_TOKEN = new Token(
 
 export const WFUMA_TOKEN = new Token(
   FUSHUMA_CHAIN_ID,
-  '0x0000000000000000000000000000000000000000', // To be deployed
+  '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E', // Deployed
   18,
   'WFUMA',
   'Wrapped FUMA'
