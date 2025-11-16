@@ -15,8 +15,8 @@ export const GOVERNANCE_CONTRACTS = {
   FushumaGovernor: '0xF36107b3AA203C331284E5A467C1c58bDD5b591D',
   GaugeController: '0x41E7ba36C43CCd4b83a326bB8AEf929e109C9466',
   
-  // Grant System (commented out - needs initialization)
-  // GrantGauge: '0x6E56987a890FC377Ec9c6193e2FB68838b70b1D7',
+  // Grant System
+  GrantGauge: '0x0D6833778cf1fa803D21075b800483F68f57A153',
 } as const;
 
 export const GOVERNANCE_NETWORK = {
