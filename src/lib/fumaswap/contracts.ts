@@ -1,8 +1,9 @@
 /**
  * FumaSwap V4 Contract Addresses on Fushuma Network
  * 
- * Paris EVM Compatible Version - Deployed Nov 16, 2025
+ * Paris EVM Compatible Version - Fully Deployed Nov 16, 2025
  * Modified to use regular storage instead of transient storage
+ * All contracts deployed and operational
  */
 
 export const FUSHUMA_CONTRACTS = {
@@ -11,9 +12,16 @@ export const FUSHUMA_CONTRACTS = {
   clPoolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a', // ✅ Deployed
   binPoolManager: '0x3014809fBFF942C485A9F527242eC7C5A9ddC765', // ✅ Deployed
   
-  // Periphery Contracts
+  // Periphery Contracts - Concentrated Liquidity
   clQuoter: '0x9C82E4098805a00eAE3CE96D1eBFD117CeB1fAF8', // ✅ Deployed
-  clPositionManager: '0x0000000000000000000000000000000000000000', // ⏳ Pending (OpenZeppelin mcopy issue)
+  clPositionDescriptor: '0x181267d849a0a89bC45F4e96F70914AcFb631515', // ✅ Deployed
+  clPositionManager: '0x411755EeC7BaA85F8d6819189FE15d966F41Ad85', // ✅ Deployed
+  
+  // Periphery Contracts - Bin Pools
+  binQuoter: '0x24cc1bc41220e638204216FdB4252b1D3716561D', // ✅ Deployed
+  binPositionManager: '0x36eb7e5Ae00b2eEA50435084bb98Bb4Ebf5E2982', // ✅ Deployed
+  
+  // Router (to be deployed)
   infinityRouter: '0x0000000000000000000000000000000000000000', // To be deployed
   mixedQuoter: '0x0000000000000000000000000000000000000000', // ⏳ Skipped (uses transient storage)
   
@@ -34,10 +42,14 @@ export const FUSHUMA_TESTNET_CONTRACTS = {
   // Testnet contract addresses (if testnet is available)
   vault: '0x0000000000000000000000000000000000000000',
   clPoolManager: '0x0000000000000000000000000000000000000000',
+  binPoolManager: '0x0000000000000000000000000000000000000000',
+  clQuoter: '0x0000000000000000000000000000000000000000',
+  clPositionDescriptor: '0x0000000000000000000000000000000000000000',
   clPositionManager: '0x0000000000000000000000000000000000000000',
+  binQuoter: '0x0000000000000000000000000000000000000000',
+  binPositionManager: '0x0000000000000000000000000000000000000000',
   infinityRouter: '0x0000000000000000000000000000000000000000',
   mixedQuoter: '0x0000000000000000000000000000000000000000',
-  clQuoter: '0x0000000000000000000000000000000000000000',
   permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
   wfuma: '0x0000000000000000000000000000000000000000',
 } as const;
@@ -90,8 +102,11 @@ export const TICK_SPACINGS: { [amount in SDKFeeAmount]: number } = {
 export const VAULT_ADDRESS = FUSHUMA_CONTRACTS.vault;
 export const CL_POOL_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPoolManager;
 export const BIN_POOL_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.binPoolManager;
-export const CL_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPositionManager;
 export const CL_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.clQuoter;
+export const CL_POSITION_DESCRIPTOR_ADDRESS = FUSHUMA_CONTRACTS.clPositionDescriptor;
+export const CL_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPositionManager;
+export const BIN_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.binQuoter;
+export const BIN_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.binPositionManager;
 export const INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.infinityRouter;
 export const MIXED_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter;
 export const PERMIT2_ADDRESS = FUSHUMA_CONTRACTS.permit2;
