@@ -1,0 +1,202 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "_vault",
+        "type": "address",
+        "internalType": "contract IVault"
+      },
+      {
+        "name": "_clPoolManager",
+        "type": "address",
+        "internalType": "contract ICLPoolManager"
+      },
+      {
+        "name": "_binPoolManager",
+        "type": "address",
+        "internalType": "contract IBinPoolManager"
+      },
+      {
+        "name": "_permit2",
+        "type": "address",
+        "internalType": "contract IAllowanceTransfer"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "binPoolManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IBinPoolManager"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "clPoolManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract ICLPoolManager"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lockAcquired",
+    "inputs": [
+      {
+        "name": "data",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "msgSender",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permit2",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IAllowanceTransfer"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "vault",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IVault"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "error",
+    "name": "DeltaNotNegative",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "address",
+        "internalType": "Currency"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DeltaNotPositive",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "address",
+        "internalType": "Currency"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InputLengthMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InsufficientBalance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidBips",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotVault",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeCastOverflow",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TooLittleReceived",
+    "inputs": [
+      {
+        "name": "minAmountOutReceived",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amountReceived",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "TooMuchRequested",
+    "inputs": [
+      {
+        "name": "maxAmountInRequested",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amountRequested",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedAction",
+    "inputs": [
+      {
+        "name": "action",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  }
+]

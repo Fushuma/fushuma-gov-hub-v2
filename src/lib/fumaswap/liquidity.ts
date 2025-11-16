@@ -2,14 +2,16 @@
  * FumaSwap V4 Liquidity Operations
  * 
  * Functions for adding and removing liquidity
- * Ready to connect to deployed contracts
+ * Connected to deployed contracts
  */
 
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
+import { parseUnits, encodeFunctionData } from 'viem';
 import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';
 import { getNearestUsableTick, priceToTick } from './pools';
+import CLPositionManagerABI from './abis/CLPositionManager.json';
 
 export interface AddLiquidityParams {
   token0: Token;
@@ -51,9 +53,6 @@ export interface CollectFeesParams {
 
 /**
  * Add liquidity to a pool (mint new position)
- * 
- * TODO: Implement after contracts are deployed
- * This will call CLPositionManager.mint()
  */
 export async function addLiquidity(
   params: AddLiquidityParams,
@@ -65,40 +64,68 @@ export async function addLiquidity(
   }
 
   try {
-    // TODO: Call CLPositionManager.mint()
-    // const mintParams = {
-    //   token0: params.token0.address,
-    //   token1: params.token1.address,
-    //   fee: params.fee,
-    //   tickLower: params.tickLower,
-    //   tickUpper: params.tickUpper,
-    //   amount0Desired: params.amount0Desired,
-    //   amount1Desired: params.amount1Desired,
-    //   amount0Min: params.amount0Min,
-    //   amount1Min: params.amount1Min,
-    //   recipient: params.recipient,
-    //   deadline: params.deadline,
-    // };
+    // Determine token order (currency0 < currency1)
+    const token0 = params.token0.address.toLowerCase() < params.token1.address.toLowerCase() 
+      ? params.token0 
+      : params.token1;
+    const token1 = params.token0.address.toLowerCase() < params.token1.address.toLowerCase() 
+      ? params.token1 
+      : params.token0;
     
-    // writeContract({
-    //   address: CL_POSITION_MANAGER_ADDRESS,
-    //   abi: CL_POSITION_MANAGER_ABI,
-    //   functionName: 'mint',
-    //   args: [mintParams],
-    // });
+    // Adjust amounts based on token order
+    const amount0Desired = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
+      ? params.amount0Desired 
+      : params.amount1Desired;
+    const amount1Desired = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
+      ? params.amount1Desired 
+      : params.amount0Desired;
+    const amount0Min = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
+      ? params.amount0Min 
+      : params.amount1Min;
+    const amount1Min = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
+      ? params.amount1Min 
+      : params.amount0Min;
+    
+    // Prepare pool key
+    const poolKey = {
+      currency0: token0.address as Address,
+      currency1: token1.address as Address,
+      hooks: '0x0000000000000000000000000000000000000000' as Address,
+      poolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a' as Address, // CLPoolManager
+      fee: params.fee,
+      parameters: '0x00' as `0x${string}`,
+    };
+    
+    // Prepare mint params
+    const mintParams = {
+      poolKey,
+      tickLower: params.tickLower,
+      tickUpper: params.tickUpper,
+      amount0Desired,
+      amount1Desired,
+      amount0Min,
+      amount1Min,
+      recipient: params.recipient,
+      deadline: BigInt(params.deadline),
+    };
 
-    throw new Error('Add liquidity will be implemented after contract deployment');
+    // Call CLPositionManager.mint()
+    const hash = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'mint',
+      args: [mintParams],
+    });
+
+    return { hash };
   } catch (error) {
     console.error('Error adding liquidity:', error);
-    return null;
+    throw error;
   }
 }
 
 /**
  * Remove liquidity from a position (burn)
- * 
- * TODO: Implement after contracts are deployed
- * This will call CLPositionManager.decreaseLiquidity() and burn()
  */
 export async function removeLiquidity(
   params: RemoveLiquidityParams,
@@ -110,22 +137,32 @@ export async function removeLiquidity(
   }
 
   try {
-    // TODO: 
-    // 1. Call decreaseLiquidity()
-    // 2. Call collect() to withdraw tokens
-    // 3. Call burn() to burn the NFT
+    // Prepare decrease params
+    const decreaseParams = {
+      tokenId: BigInt(params.tokenId),
+      liquidity: params.liquidity,
+      amount0Min: params.amount0Min,
+      amount1Min: params.amount1Min,
+      deadline: BigInt(params.deadline),
+    };
 
-    throw new Error('Remove liquidity will be implemented after contract deployment');
+    // Call decreaseLiquidity()
+    const hash = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'decreaseLiquidity',
+      args: [decreaseParams],
+    });
+
+    return { hash };
   } catch (error) {
     console.error('Error removing liquidity:', error);
-    return null;
+    throw error;
   }
 }
 
 /**
  * Increase liquidity in an existing position
- * 
- * TODO: Implement after contracts are deployed
  */
 export async function increaseLiquidity(
   params: IncreaseLiquidityParams,
@@ -137,19 +174,33 @@ export async function increaseLiquidity(
   }
 
   try {
-    // TODO: Call CLPositionManager.increaseLiquidity()
+    // Prepare increase params
+    const increaseParams = {
+      tokenId: BigInt(params.tokenId),
+      amount0Desired: params.amount0Desired,
+      amount1Desired: params.amount1Desired,
+      amount0Min: params.amount0Min,
+      amount1Min: params.amount1Min,
+      deadline: BigInt(params.deadline),
+    };
 
-    throw new Error('Increase liquidity will be implemented after contract deployment');
+    // Call CLPositionManager.increaseLiquidity()
+    const hash = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'increaseLiquidity',
+      args: [increaseParams],
+    });
+
+    return { hash };
   } catch (error) {
     console.error('Error increasing liquidity:', error);
-    return null;
+    throw error;
   }
 }
 
 /**
  * Collect fees from a position
- * 
- * TODO: Implement after contracts are deployed
  */
 export async function collectFees(
   params: CollectFeesParams,
@@ -161,12 +212,26 @@ export async function collectFees(
   }
 
   try {
-    // TODO: Call CLPositionManager.collect()
+    // Prepare collect params
+    const collectParams = {
+      tokenId: BigInt(params.tokenId),
+      recipient: params.recipient,
+      amount0Max: params.amount0Max,
+      amount1Max: params.amount1Max,
+    };
 
-    throw new Error('Collect fees will be implemented after contract deployment');
+    // Call CLPositionManager.collect()
+    const hash = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'collect',
+      args: [collectParams],
+    });
+
+    return { hash };
   } catch (error) {
     console.error('Error collecting fees:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -262,8 +327,6 @@ export function calculateMinAmounts(
 
 /**
  * Estimate gas for adding liquidity
- * 
- * TODO: Implement after contracts are deployed
  */
 export async function estimateAddLiquidityGas(params: AddLiquidityParams): Promise<bigint> {
   // Mock gas estimate for development
@@ -272,8 +335,6 @@ export async function estimateAddLiquidityGas(params: AddLiquidityParams): Promi
 
 /**
  * Estimate gas for removing liquidity
- * 
- * TODO: Implement after contracts are deployed
  */
 export async function estimateRemoveLiquidityGas(params: RemoveLiquidityParams): Promise<bigint> {
   // Mock gas estimate for development

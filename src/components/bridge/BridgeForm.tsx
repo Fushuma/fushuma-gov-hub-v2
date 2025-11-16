@@ -125,6 +125,10 @@ export function BridgeForm() {
 
   // Handle approve
   const handleApprove = async () => {
+    if (!amount) {
+      setError('Please enter an amount');
+      return;
+    }
     const success = await approve(amount);
     if (success) {
       // Approval successful, can now bridge

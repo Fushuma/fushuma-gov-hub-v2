@@ -55,6 +55,11 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: var(--font-noto), sans-serif;
+  }
+  
+  h1, h2 {
+    font-family: var(--font-expletus), sans-serif;
   }
 }
 

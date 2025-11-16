@@ -46,7 +46,7 @@ export function AddLiquidity() {
   const [rangeType, setRangeType] = useState<'full' | 'custom'>('full');
   
   const handleAddLiquidity = async () => {
-    if (!isConnected) {
+    if (!isConnected || !address) {
       toast.error('Please connect your wallet');
       return;
     }
@@ -62,17 +62,66 @@ export function AddLiquidity() {
     }
     
     try {
-      toast.info('Add liquidity functionality will be available after contract deployment');
-      // TODO: Implement actual liquidity addition
-      // 1. Check if pool exists
-      // 2. If not, create pool with initial price
-      // 3. Calculate position parameters
-      // 4. Approve tokens
-      // 5. Mint position NFT
-      // 6. Wait for confirmation
-    } catch (error) {
+      toast.loading('Adding liquidity...', { id: 'liquidity-loading' });
+      
+      // Import required functions
+      const { writeContractAsync } = await import('wagmi/actions');
+      const { wagmiConfig } = await import('@/lib/web3/config');
+      const { addLiquidity, calculateTicksFromPrices, getFullRangeTicks, calculateMinAmounts } = await import('@/lib/fumaswap/liquidity');
+      const { parseUnits } = await import('viem');
+      const { TICK_SPACINGS } = await import('@/lib/fumaswap/contracts');
+      
+      // Parse amounts
+      const amount0Desired = parseUnits(amount0, token0.decimals);
+      const amount1Desired = parseUnits(amount1, token1.decimals);
+      
+      // Calculate minimum amounts with 0.5% slippage
+      const { amount0Min, amount1Min } = calculateMinAmounts(amount0Desired, amount1Desired, 0.5);
+      
+      // Calculate ticks based on range type
+      let tickLower: number;
+      let tickUpper: number;
+      
+      if (rangeType === 'full') {
+        const fullRange = getFullRangeTicks(TICK_SPACINGS[feeTier]);
+        tickLower = fullRange.tickLower;
+        tickUpper = fullRange.tickUpper;
+      } else {
+        const priceL = parseFloat(priceLower) || 0.5;
+        const priceU = parseFloat(priceUpper) || 2.0;
+        const ticks = calculateTicksFromPrices(priceL, priceU, TICK_SPACINGS[feeTier]);
+        tickLower = ticks.tickLower;
+        tickUpper = ticks.tickUpper;
+      }
+      
+      // Prepare liquidity params
+      const liquidityParams = {
+        token0,
+        token1,
+        fee: feeTier,
+        amount0Desired,
+        amount1Desired,
+        amount0Min,
+        amount1Min,
+        tickLower,
+        tickUpper,
+        recipient: address,
+        deadline: Math.floor(Date.now() / 1000) + 1200, // 20 minutes
+      };
+      
+      // Execute add liquidity
+      const result = await addLiquidity(liquidityParams, (args: any) => 
+        writeContractAsync(wagmiConfig, args)
+      );
+      
+      if (result) {
+        toast.success('Liquidity added successfully!', { id: 'liquidity-loading' });
+        setAmount0('');
+        setAmount1('');
+      }
+    } catch (error: any) {
       console.error('Add liquidity error:', error);
-      toast.error('Failed to add liquidity');
+      toast.error(error.message || 'Failed to add liquidity', { id: 'liquidity-loading' });
     }
   };
   

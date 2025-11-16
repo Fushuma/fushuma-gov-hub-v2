@@ -6,10 +6,11 @@
 
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { formatUnits, parseUnits } from 'viem';
-import { CL_QUOTER_ADDRESS, INFINITY_ROUTER_ADDRESS } from './contracts';
+import { formatUnits, parseUnits, encodeFunctionData } from 'viem';
+import { CL_QUOTER_ADDRESS, INFINITY_ROUTER_ADDRESS, VAULT_ADDRESS, PERMIT2_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';
 import CLQuoterABI from './abis/CLQuoter.json';
+import InfinityRouterABI from './abis/InfinityRouter.json';
 import { publicClient } from '@/lib/viem';
 
 export interface SwapQuote {
@@ -97,7 +98,7 @@ export async function getSwapQuote(
 }
 
 /**
- * Execute a swap transaction
+ * Execute a swap transaction using InfinityRouter
  */
 export async function executeSwap(
   params: SwapParams,
@@ -105,7 +106,7 @@ export async function executeSwap(
 ): Promise<{ hash: Address } | null> {
   // Check if router is deployed
   if (isPlaceholderAddress(INFINITY_ROUTER_ADDRESS)) {
-    throw new Error('InfinityRouter not deployed yet. Swap execution will be available after router deployment. You can still get quotes using CLQuoter.');
+    throw new Error('InfinityRouter not deployed yet. Swap execution will be available after router deployment.');
   }
 
   try {
@@ -120,33 +121,53 @@ export async function executeSwap(
       throw new Error('Failed to get swap quote');
     }
     
-    const minOutputWei = parseUnits(quote.minimumOutput, tokenOut.decimals);
+    const minOutputWei = parseUnits(
+      calculateMinimumOutput(quote.outputAmount, slippageTolerance), 
+      tokenOut.decimals
+    );
     const deadlineTimestamp = Math.floor(Date.now() / 1000) + (deadline * 60);
     
-    // Prepare swap params for InfinityRouter
-    // Note: This is a simplified version - adjust based on your actual router interface
+    // Determine token order (currency0 < currency1)
+    const token0 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenIn : tokenOut;
+    const token1 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenOut : tokenIn;
+    const zeroForOne = tokenIn.address.toLowerCase() === token0.address.toLowerCase();
+    
+    // Prepare pool key
+    const poolKey = {
+      currency0: token0.address as Address,
+      currency1: token1.address as Address,
+      hooks: '0x0000000000000000000000000000000000000000' as Address,
+      poolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a' as Address, // CLPoolManager
+      fee: 3000, // 0.3% fee tier
+      parameters: '0x00' as `0x${string}`,
+    };
+    
+    // Prepare swap params
     const swapParams = {
-      poolKey: {
-        currency0: tokenIn.address as Address,
-        currency1: tokenOut.address as Address,
-        hooks: '0x0000000000000000000000000000000000000000' as Address,
-        poolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a' as Address,
-        fee: 3000,
-        parameters: '0x00' as `0x${string}`,
-      },
-      zeroForOne: true,
-      amountSpecified: amountInWei,
-      amountOutMinimum: minOutputWei,
-      sqrtPriceLimitX96: BigInt(0),
+      poolKey,
+      zeroForOne,
+      amountSpecified: zeroForOne ? amountInWei : -amountInWei, // Negative for exact output
+      sqrtPriceLimitX96: BigInt(0), // No price limit
       hookData: '0x' as `0x${string}`,
     };
     
-    // Execute swap through router
+    // Execute swap through InfinityRouter
+    // Using the V4CLExactInputSingle action
     const hash = await writeContract({
       address: INFINITY_ROUTER_ADDRESS as Address,
-      abi: [], // TODO: Add InfinityRouter ABI
-      functionName: 'exactInputSingle',
-      args: [swapParams],
+      abi: InfinityRouterABI,
+      functionName: 'execute',
+      args: [
+        // commands: V4_CL_EXACT_INPUT_SINGLE (0x00)
+        '0x00',
+        // inputs: encoded swap params
+        [encodeFunctionData({
+          abi: InfinityRouterABI,
+          functionName: 'v4CLExactInputSingle',
+          args: [swapParams, minOutputWei, recipient],
+        })],
+        deadlineTimestamp,
+      ],
     });
     
     return { hash };

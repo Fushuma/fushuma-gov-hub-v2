@@ -1,9 +1,19 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Expletus_Sans, Noto_Sans } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const expletusSans = Expletus_Sans({ 
+  subsets: ['latin'],
+  variable: '--font-expletus',
+  weight: ['400', '500', '600', '700'],
+});
+
+const notoSans = Noto_Sans({ 
+  subsets: ['latin'],
+  variable: '--font-noto',
+  weight: ['400', '500', '600', '700'],
+});
 
 export const metadata: Metadata = {
   title: 'Fushuma Governance Hub',
@@ -31,7 +41,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${notoSans.variable} ${expletusSans.variable} font-sans`}>
         <Providers>
           {children}
         </Providers>

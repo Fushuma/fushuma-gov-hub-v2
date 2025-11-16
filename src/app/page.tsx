@@ -14,7 +14,7 @@ export default function HomePage() {
       <main className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <section className="text-center space-y-6 py-20">
-          <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-7xl font-bold text-[#ce1f2e]">
             Welcome to the Venture Club
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">

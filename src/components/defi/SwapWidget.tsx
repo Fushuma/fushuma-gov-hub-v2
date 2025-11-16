@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { DEFAULT_TOKEN_LIST, isPlaceholderAddress } from '@/lib/fumaswap/tokens';
-import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput } from '@/lib/fumaswap/swap';
+import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput, executeSwap } from '@/lib/fumaswap/swap';
 import { useTokenBalance } from '@/lib/fumaswap/hooks/useTokenBalance';
 import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
 import type { Token } from '@pancakeswap/sdk';
@@ -94,7 +94,7 @@ export function SwapWidget() {
   
   // Execute swap
   const handleSwap = async () => {
-    if (!isConnected) {
+    if (!isConnected || !address) {
       toast.error('Please connect your wallet');
       return;
     }
@@ -111,17 +111,34 @@ export function SwapWidget() {
     }
     
     try {
-      toast.info('Swap functionality will be available after contract deployment');
+      toast.loading('Executing swap...', { id: 'swap-loading' });
       
-      // TODO: Implement actual swap execution
-      // 1. Check token approvals
-      // 2. Approve tokens if needed
-      // 3. Execute swap transaction
-      // 4. Wait for confirmation
-      // 5. Show success message
-    } catch (error) {
+      // Import writeContract from wagmi
+      const { writeContractAsync } = await import('wagmi/actions');
+      const { wagmiConfig } = await import('@/lib/web3/config');
+      
+      // Execute swap
+      const swapParams = {
+        tokenIn,
+        tokenOut,
+        amountIn,
+        slippageTolerance: slippage / 100, // Convert basis points to percentage
+        deadline,
+        recipient: address,
+      };
+      
+      const result = await executeSwap(swapParams, (args: any) => 
+        writeContractAsync(wagmiConfig, args)
+      );
+      
+      if (result) {
+        toast.success('Swap executed successfully!', { id: 'swap-loading' });
+        setAmountIn('');
+        setAmountOut('');
+      }
+    } catch (error: any) {
       console.error('Swap error:', error);
-      toast.error('Failed to execute swap');
+      toast.error(error.message || 'Failed to execute swap', { id: 'swap-loading' });
     }
   };
   

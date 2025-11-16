@@ -32,11 +32,16 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'placehold
 const connectors = connectorsForWallets(
   [
     {
-      groupName: 'Recommended',
+      groupName: 'Popular',
       wallets: [
         metaMaskWallet,
         walletConnectWallet,
         coinbaseWallet,
+      ],
+    },
+    {
+      groupName: 'More',
+      wallets: [
         rainbowWallet,
         trustWallet,
       ],
