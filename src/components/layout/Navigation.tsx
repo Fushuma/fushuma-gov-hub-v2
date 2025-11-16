@@ -15,6 +15,9 @@ const navLinks = [
     label: 'Governance',
     items: [
       { href: '/governance', label: 'Proposals' },
+      { href: '/governance/wrap', label: 'Wrap FUMA' },
+      { href: '/governance/venft', label: 'veNFT' },
+      { href: '/governance/gauges', label: 'Gauges' },
       { href: '/grants', label: 'Grants' },
     ]
   },
