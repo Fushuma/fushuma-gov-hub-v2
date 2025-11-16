@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowDownUp, Coins, Info } from 'lucide-react';
+import { ArrowDownUp, Coins, Info, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { GOVERNANCE_CONTRACTS } from '@/lib/governance';
 import WFUMA_ABI from '@/lib/governance/abis/WFUMA.json';
@@ -122,6 +122,29 @@ export default function WrapPage() {
     }
   };
 
+  const addTokenToMetaMask = async () => {
+    try {
+      const wasAdded = await window.ethereum.request({
+        method: 'wallet_watchAsset',
+        params: {
+          type: 'ERC20',
+          options: {
+            address: WFUMA_ADDRESS,
+            symbol: 'WFUMA',
+            decimals: 18,
+            image: 'https://governance2.fushuma.com/fushuma-icon-2024.png',
+          },
+        },
+      });
+
+      if (wasAdded) {
+        toast.success('WFUMA added to MetaMask!');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add token to MetaMask');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -156,7 +179,18 @@ export default function WrapPage() {
               <p className="text-2xl font-bold">
                 {isConnected && wfumaBalance ? formatEther(wfumaBalance.value) : '0.00'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Wrapped Token</p>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">Wrapped Token</p>
+              {isConnected && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={addTokenToMetaMask}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Add to MetaMask
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
