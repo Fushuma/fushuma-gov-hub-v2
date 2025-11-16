@@ -21,8 +21,8 @@ export const FUSHUMA_CONTRACTS = {
   binQuoter: '0x24cc1bc41220e638204216FdB4252b1D3716561D', // ✅ Deployed
   binPositionManager: '0x36eb7e5Ae00b2eEA50435084bb98Bb4Ebf5E2982', // ✅ Deployed
   
-  // Router (to be deployed)
-  infinityRouter: '0x0000000000000000000000000000000000000000', // To be deployed
+  // Router
+  infinityRouter: '0x9E98f794bd1c4161898013fa0DEE406B7b06aB6B', // ✅ Deployed
   mixedQuoter: '0x0000000000000000000000000000000000000000', // ⏳ Skipped (uses transient storage)
   
   // Protocol Governance

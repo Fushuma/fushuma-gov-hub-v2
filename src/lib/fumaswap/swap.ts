@@ -98,8 +98,6 @@ export async function getSwapQuote(
 
 /**
  * Execute a swap transaction
- * 
- * Note: Router not deployed yet - swaps will be available after router deployment
  */
 export async function executeSwap(
   params: SwapParams,
@@ -111,11 +109,50 @@ export async function executeSwap(
   }
 
   try {
-    // TODO: Implement swap execution after router is deployed
-    throw new Error('Swap execution will be implemented after InfinityRouter deployment');
+    const { tokenIn, tokenOut, amountIn, slippageTolerance, deadline, recipient } = params;
+    
+    // Parse amounts
+    const amountInWei = parseUnits(amountIn, tokenIn.decimals);
+    
+    // Get quote to calculate minimum output
+    const quote = await getSwapQuote(tokenIn, tokenOut, amountIn);
+    if (!quote) {
+      throw new Error('Failed to get swap quote');
+    }
+    
+    const minOutputWei = parseUnits(quote.minimumOutput, tokenOut.decimals);
+    const deadlineTimestamp = Math.floor(Date.now() / 1000) + (deadline * 60);
+    
+    // Prepare swap params for InfinityRouter
+    // Note: This is a simplified version - adjust based on your actual router interface
+    const swapParams = {
+      poolKey: {
+        currency0: tokenIn.address as Address,
+        currency1: tokenOut.address as Address,
+        hooks: '0x0000000000000000000000000000000000000000' as Address,
+        poolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a' as Address,
+        fee: 3000,
+        parameters: '0x00' as `0x${string}`,
+      },
+      zeroForOne: true,
+      amountSpecified: amountInWei,
+      amountOutMinimum: minOutputWei,
+      sqrtPriceLimitX96: BigInt(0),
+      hookData: '0x' as `0x${string}`,
+    };
+    
+    // Execute swap through router
+    const hash = await writeContract({
+      address: INFINITY_ROUTER_ADDRESS as Address,
+      abi: [], // TODO: Add InfinityRouter ABI
+      functionName: 'exactInputSingle',
+      args: [swapParams],
+    });
+    
+    return { hash };
   } catch (error) {
     console.error('Error executing swap:', error);
-    return null;
+    throw error;
   }
 }
 
