@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useWriteContract } from 'wagmi';
 import { Plus, Info, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import type { Token } from '@pancakeswap/sdk';
 
 export function AddLiquidity() {
   const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
   
   // Token selection
   const [token0, setToken0] = useState<Token | null>(DEFAULT_TOKEN_LIST[0]);
@@ -65,8 +66,6 @@ export function AddLiquidity() {
       toast.loading('Adding liquidity...', { id: 'liquidity-loading' });
       
       // Import required functions
-      const { writeContractAsync } = await import('wagmi/actions');
-      const { wagmiConfig } = await import('@/lib/web3/config');
       const { addLiquidity, calculateTicksFromPrices, getFullRangeTicks, calculateMinAmounts } = await import('@/lib/fumaswap/liquidity');
       const { parseUnits } = await import('viem');
       const { TICK_SPACINGS } = await import('@/lib/fumaswap/contracts');
@@ -110,9 +109,7 @@ export function AddLiquidity() {
       };
       
       // Execute add liquidity
-      const result = await addLiquidity(liquidityParams, (args: any) => 
-        writeContractAsync(wagmiConfig, args)
-      );
+      const result = await addLiquidity(liquidityParams, writeContractAsync);
       
       if (result) {
         toast.success('Liquidity added successfully!', { id: 'liquidity-loading' });

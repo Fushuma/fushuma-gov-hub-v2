@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useWriteContract } from 'wagmi';
 import { ArrowDownUp, Settings, Info, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import type { SwapQuote } from '@/lib/fumaswap/swap';
 
 export function SwapWidget() {
   const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
   
   // Token selection
   const [tokenIn, setTokenIn] = useState<Token | null>(DEFAULT_TOKEN_LIST[0]);
@@ -113,10 +114,6 @@ export function SwapWidget() {
     try {
       toast.loading('Executing swap...', { id: 'swap-loading' });
       
-      // Import writeContract from wagmi
-      const { writeContractAsync } = await import('wagmi/actions');
-      const { wagmiConfig } = await import('@/lib/web3/config');
-      
       // Execute swap
       const swapParams = {
         tokenIn,
@@ -127,9 +124,7 @@ export function SwapWidget() {
         recipient: address,
       };
       
-      const result = await executeSwap(swapParams, (args: any) => 
-        writeContractAsync(wagmiConfig, args)
-      );
+      const result = await executeSwap(swapParams, writeContractAsync);
       
       if (result) {
         toast.success('Swap executed successfully!', { id: 'swap-loading' });
