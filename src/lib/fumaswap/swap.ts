@@ -2,15 +2,15 @@
  * FumaSwap V4 Swap Utilities
  * 
  * Integration layer for swap operations with deployed contracts
+ * Note: Currently using mock implementation until router integration is complete
  */
 
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { formatUnits, parseUnits, encodeFunctionData } from 'viem';
-import { CL_QUOTER_ADDRESS, INFINITY_ROUTER_ADDRESS, VAULT_ADDRESS, PERMIT2_ADDRESS } from './contracts';
+import { formatUnits, parseUnits } from 'viem';
+import { CL_QUOTER_ADDRESS, INFINITY_ROUTER_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';
 import CLQuoterABI from './abis/CLQuoter.json';
-import InfinityRouterABI from './abis/InfinityRouter.json';
 import { publicClient } from '@/lib/viem';
 
 export interface SwapQuote {
@@ -50,7 +50,6 @@ export async function getSwapQuote(
     const amountInWei = parseUnits(amountIn, tokenIn.decimals);
     
     // Prepare quote params
-    // Note: This is a simplified version - you may need to adjust based on your pool setup
     const quoteParams = {
       poolKey: {
         currency0: tokenIn.address as Address,
@@ -98,7 +97,11 @@ export async function getSwapQuote(
 }
 
 /**
- * Execute a swap transaction using InfinityRouter
+ * Execute a swap transaction
+ * 
+ * NOTE: This is a placeholder implementation. The actual InfinityRouter uses
+ * an actions-based pattern that requires encoding actions and parameters.
+ * For now, swaps are not fully functional until the router integration is complete.
  */
 export async function executeSwap(
   params: SwapParams,
@@ -109,72 +112,14 @@ export async function executeSwap(
     throw new Error('InfinityRouter not deployed yet. Swap execution will be available after router deployment.');
   }
 
-  try {
-    const { tokenIn, tokenOut, amountIn, slippageTolerance, deadline, recipient } = params;
-    
-    // Parse amounts
-    const amountInWei = parseUnits(amountIn, tokenIn.decimals);
-    
-    // Get quote to calculate minimum output
-    const quote = await getSwapQuote(tokenIn, tokenOut, amountIn);
-    if (!quote) {
-      throw new Error('Failed to get swap quote');
-    }
-    
-    const minOutputWei = parseUnits(
-      calculateMinimumOutput(quote.outputAmount, slippageTolerance), 
-      tokenOut.decimals
-    );
-    const deadlineTimestamp = Math.floor(Date.now() / 1000) + (deadline * 60);
-    
-    // Determine token order (currency0 < currency1)
-    const token0 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenIn : tokenOut;
-    const token1 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenOut : tokenIn;
-    const zeroForOne = tokenIn.address.toLowerCase() === token0.address.toLowerCase();
-    
-    // Prepare pool key
-    const poolKey = {
-      currency0: token0.address as Address,
-      currency1: token1.address as Address,
-      hooks: '0x0000000000000000000000000000000000000000' as Address,
-      poolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a' as Address, // CLPoolManager
-      fee: 3000, // 0.3% fee tier
-      parameters: '0x00' as `0x${string}`,
-    };
-    
-    // Prepare swap params
-    const swapParams = {
-      poolKey,
-      zeroForOne,
-      amountSpecified: zeroForOne ? amountInWei : -amountInWei, // Negative for exact output
-      sqrtPriceLimitX96: BigInt(0), // No price limit
-      hookData: '0x' as `0x${string}`,
-    };
-    
-    // Execute swap through InfinityRouter
-    // Using the V4CLExactInputSingle action
-    const hash = await writeContract({
-      address: INFINITY_ROUTER_ADDRESS as Address,
-      abi: InfinityRouterABI,
-      functionName: 'execute',
-      args: [
-        // commands: V4_CL_EXACT_INPUT_SINGLE (0x00)
-        '0x00',
-        // inputs: encoded swap params
-        [encodeFunctionData({
-          abi: InfinityRouterABI,
-          functionName: 'v4CLExactInputSingle',
-          args: [swapParams, minOutputWei, recipient],
-        })],
-        deadlineTimestamp,
-      ],
-    });
-    
-    return { hash };
-  } catch (error) {
-    console.error('Error executing swap:', error);
-    throw error;
-  }
+  // The InfinityRouter uses an actions-based pattern similar to Uniswap Universal Router
+  // This requires encoding action codes and parameters, then calling vault.lock()
+  // This is a complex integration that needs proper action encoding
+  
+  throw new Error(
+    'Swap execution is currently being integrated. The InfinityRouter uses an actions-based pattern ' +
+    'that requires proper encoding of action codes and parameters. Please check back soon for the full implementation.'
+  );
 }
 
 /**
@@ -303,12 +248,9 @@ export function canSwap(tokenIn: Token, tokenOut: Token): boolean {
   if (!tokenIn || !tokenOut) return false;
   if (tokenIn.address === tokenOut.address) return false;
   
-  // Check if router is deployed
-  if (isPlaceholderAddress(INFINITY_ROUTER_ADDRESS)) {
-    return false;
-  }
-  
-  return true;
+  // For now, swaps are not fully functional
+  // Return false to prevent users from attempting swaps
+  return false;
 }
 
 /**

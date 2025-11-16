@@ -2,16 +2,15 @@
  * FumaSwap V4 Liquidity Operations
  * 
  * Functions for adding and removing liquidity
- * Connected to deployed contracts
+ * Note: Currently being integrated with deployed contracts
  */
 
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { parseUnits, encodeFunctionData } from 'viem';
+import { parseUnits } from 'viem';
 import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';
 import { getNearestUsableTick, priceToTick } from './pools';
-import CLPositionManagerABI from './abis/CLPositionManager.json';
 
 export interface AddLiquidityParams {
   token0: Token;
@@ -53,6 +52,9 @@ export interface CollectFeesParams {
 
 /**
  * Add liquidity to a pool (mint new position)
+ * 
+ * NOTE: This is currently being integrated. The CLPositionManager requires
+ * proper encoding of position parameters and interaction with the vault.
  */
 export async function addLiquidity(
   params: AddLiquidityParams,
@@ -63,65 +65,12 @@ export async function addLiquidity(
     throw new Error('Position Manager contract not deployed yet. Liquidity functionality will be available after contract deployment.');
   }
 
-  try {
-    // Determine token order (currency0 < currency1)
-    const token0 = params.token0.address.toLowerCase() < params.token1.address.toLowerCase() 
-      ? params.token0 
-      : params.token1;
-    const token1 = params.token0.address.toLowerCase() < params.token1.address.toLowerCase() 
-      ? params.token1 
-      : params.token0;
-    
-    // Adjust amounts based on token order
-    const amount0Desired = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
-      ? params.amount0Desired 
-      : params.amount1Desired;
-    const amount1Desired = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
-      ? params.amount1Desired 
-      : params.amount0Desired;
-    const amount0Min = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
-      ? params.amount0Min 
-      : params.amount1Min;
-    const amount1Min = params.token0.address.toLowerCase() === token0.address.toLowerCase() 
-      ? params.amount1Min 
-      : params.amount0Min;
-    
-    // Prepare pool key
-    const poolKey = {
-      currency0: token0.address as Address,
-      currency1: token1.address as Address,
-      hooks: '0x0000000000000000000000000000000000000000' as Address,
-      poolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a' as Address, // CLPoolManager
-      fee: params.fee,
-      parameters: '0x00' as `0x${string}`,
-    };
-    
-    // Prepare mint params
-    const mintParams = {
-      poolKey,
-      tickLower: params.tickLower,
-      tickUpper: params.tickUpper,
-      amount0Desired,
-      amount1Desired,
-      amount0Min,
-      amount1Min,
-      recipient: params.recipient,
-      deadline: BigInt(params.deadline),
-    };
-
-    // Call CLPositionManager.mint()
-    const hash = await writeContract({
-      address: CL_POSITION_MANAGER_ADDRESS as Address,
-      abi: CLPositionManagerABI,
-      functionName: 'mint',
-      args: [mintParams],
-    });
-
-    return { hash };
-  } catch (error) {
-    console.error('Error adding liquidity:', error);
-    throw error;
-  }
+  // The CLPositionManager integration requires proper encoding of mint parameters
+  // and interaction with the vault lock mechanism
+  throw new Error(
+    'Add liquidity is currently being integrated. The CLPositionManager requires proper ' +
+    'encoding of position parameters. Please check back soon for the full implementation.'
+  );
 }
 
 /**
@@ -136,29 +85,7 @@ export async function removeLiquidity(
     throw new Error('Position Manager contract not deployed yet.');
   }
 
-  try {
-    // Prepare decrease params
-    const decreaseParams = {
-      tokenId: BigInt(params.tokenId),
-      liquidity: params.liquidity,
-      amount0Min: params.amount0Min,
-      amount1Min: params.amount1Min,
-      deadline: BigInt(params.deadline),
-    };
-
-    // Call decreaseLiquidity()
-    const hash = await writeContract({
-      address: CL_POSITION_MANAGER_ADDRESS as Address,
-      abi: CLPositionManagerABI,
-      functionName: 'decreaseLiquidity',
-      args: [decreaseParams],
-    });
-
-    return { hash };
-  } catch (error) {
-    console.error('Error removing liquidity:', error);
-    throw error;
-  }
+  throw new Error('Remove liquidity is currently being integrated.');
 }
 
 /**
@@ -173,30 +100,7 @@ export async function increaseLiquidity(
     throw new Error('Position Manager contract not deployed yet.');
   }
 
-  try {
-    // Prepare increase params
-    const increaseParams = {
-      tokenId: BigInt(params.tokenId),
-      amount0Desired: params.amount0Desired,
-      amount1Desired: params.amount1Desired,
-      amount0Min: params.amount0Min,
-      amount1Min: params.amount1Min,
-      deadline: BigInt(params.deadline),
-    };
-
-    // Call CLPositionManager.increaseLiquidity()
-    const hash = await writeContract({
-      address: CL_POSITION_MANAGER_ADDRESS as Address,
-      abi: CLPositionManagerABI,
-      functionName: 'increaseLiquidity',
-      args: [increaseParams],
-    });
-
-    return { hash };
-  } catch (error) {
-    console.error('Error increasing liquidity:', error);
-    throw error;
-  }
+  throw new Error('Increase liquidity is currently being integrated.');
 }
 
 /**
@@ -211,28 +115,7 @@ export async function collectFees(
     throw new Error('Position Manager contract not deployed yet.');
   }
 
-  try {
-    // Prepare collect params
-    const collectParams = {
-      tokenId: BigInt(params.tokenId),
-      recipient: params.recipient,
-      amount0Max: params.amount0Max,
-      amount1Max: params.amount1Max,
-    };
-
-    // Call CLPositionManager.collect()
-    const hash = await writeContract({
-      address: CL_POSITION_MANAGER_ADDRESS as Address,
-      abi: CLPositionManagerABI,
-      functionName: 'collect',
-      args: [collectParams],
-    });
-
-    return { hash };
-  } catch (error) {
-    console.error('Error collecting fees:', error);
-    throw error;
-  }
+  throw new Error('Collect fees is currently being integrated.');
 }
 
 /**

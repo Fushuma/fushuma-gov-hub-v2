@@ -63,8 +63,6 @@ export function AddLiquidity() {
     }
     
     try {
-      toast.loading('Adding liquidity...', { id: 'liquidity-loading' });
-      
       // Import required functions
       const { addLiquidity, calculateTicksFromPrices, getFullRangeTicks, calculateMinAmounts } = await import('@/lib/fumaswap/liquidity');
       const { parseUnits } = await import('viem');
@@ -112,13 +110,13 @@ export function AddLiquidity() {
       const result = await addLiquidity(liquidityParams, writeContractAsync);
       
       if (result) {
-        toast.success('Liquidity added successfully!', { id: 'liquidity-loading' });
+        toast.success('Liquidity added successfully!');
         setAmount0('');
         setAmount1('');
       }
     } catch (error: any) {
       console.error('Add liquidity error:', error);
-      toast.error(error.message || 'Failed to add liquidity', { id: 'liquidity-loading' });
+      toast.error(error.message || 'Failed to add liquidity');
     }
   };
   

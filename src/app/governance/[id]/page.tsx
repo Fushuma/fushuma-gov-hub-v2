@@ -167,19 +167,20 @@ export default function ProposalDetailPage() {
       return;
     }
 
+    setSelectedVote(voteType);
+    
     try {
-      setSelectedVote(voteType);
       await castVote({
         address: FUSHUMA_GOVERNOR_ADDRESS as `0x${string}`,
         abi: FushumaGovernorAbi,
         functionName: 'castVote',
         args: [proposal.id, voteType],
       });
-      toast.success('Vote cast successfully!');
+      // Success will be handled by transaction confirmation
+      // Don't show success toast here to avoid showing it before tx is confirmed
     } catch (error: any) {
       console.error('Vote error:', error);
       toast.error(error.message || 'Failed to cast vote');
-    } finally {
       setSelectedVote(null);
     }
   };

@@ -112,8 +112,6 @@ export function SwapWidget() {
     }
     
     try {
-      toast.loading('Executing swap...', { id: 'swap-loading' });
-      
       // Execute swap
       const swapParams = {
         tokenIn,
@@ -127,13 +125,13 @@ export function SwapWidget() {
       const result = await executeSwap(swapParams, writeContractAsync);
       
       if (result) {
-        toast.success('Swap executed successfully!', { id: 'swap-loading' });
+        toast.success('Swap executed successfully!');
         setAmountIn('');
         setAmountOut('');
       }
     } catch (error: any) {
       console.error('Swap error:', error);
-      toast.error(error.message || 'Failed to execute swap', { id: 'swap-loading' });
+      toast.error(error.message || 'Failed to execute swap');
     }
   };
   

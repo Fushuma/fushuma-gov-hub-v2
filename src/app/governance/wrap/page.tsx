@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { Navigation } from '@/components/layout/Navigation';
@@ -56,17 +56,21 @@ export default function WrapPage() {
     hash: unwrapHash,
   });
 
-  // Handle wrap success
-  if (isWrapSuccess) {
-    toast.success('Successfully wrapped FUMA to WFUMA!');
-    setWrapAmount('');
-  }
+  // Handle wrap success with useEffect to prevent infinite re-renders
+  React.useEffect(() => {
+    if (isWrapSuccess && wrapHash) {
+      toast.success('Successfully wrapped FUMA to WFUMA!');
+      setWrapAmount('');
+    }
+  }, [isWrapSuccess, wrapHash]);
 
-  // Handle unwrap success
-  if (isUnwrapSuccess) {
-    toast.success('Successfully unwrapped WFUMA to FUMA!');
-    setUnwrapAmount('');
-  }
+  // Handle unwrap success with useEffect to prevent infinite re-renders
+  React.useEffect(() => {
+    if (isUnwrapSuccess && unwrapHash) {
+      toast.success('Successfully unwrapped WFUMA to FUMA!');
+      setUnwrapAmount('');
+    }
+  }, [isUnwrapSuccess, unwrapHash]);
 
   const handleWrap = async () => {
     if (!wrapAmount || parseFloat(wrapAmount) <= 0) {
