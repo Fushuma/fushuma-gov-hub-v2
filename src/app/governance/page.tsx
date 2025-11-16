@@ -178,11 +178,11 @@ export default function GovernancePage() {
                   ? `There are no ${getProposalStateLabel(statusFilter as ProposalState).toLowerCase()} proposals at the moment.`
                   : 'Be the first to create a governance proposal!'}
               </p>
-              {isConnected && canCreateProposal && (
+              {isConnected && canCreateProposal ? (
                 <Link href="/governance/create">
                   <Button>Create First Proposal</Button>
                 </Link>
-              )}
+              ) : null}
             </CardContent>
           </Card>
         )}
