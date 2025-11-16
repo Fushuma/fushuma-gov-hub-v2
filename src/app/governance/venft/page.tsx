@@ -368,7 +368,7 @@ export default function VeNFTPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="text-center py-8 text-muted-foreground">
-                      <p className="mb-2">You have {veNFTBalance.toString()} veNFT(s)</p>
+                      <p className="mb-2">You have {veNFTBalance ? veNFTBalance.toString() : '0'} veNFT(s)</p>
                       <p className="text-sm">
                         Detailed lock management interface coming soon. You can view your locks on{' '}
                         <a
