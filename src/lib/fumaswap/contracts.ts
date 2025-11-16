@@ -7,9 +7,9 @@
 
 export const FUSHUMA_CONTRACTS = {
   // Core Contracts
-  vault: '0x0000000000000000000000000000000000000000', // To be deployed
-  clPoolManager: '0x0000000000000000000000000000000000000000', // To be deployed
-  binPoolManager: '0x0000000000000000000000000000000000000000', // To be deployed (optional)
+  vault: '0xd1AF417B5C2a1DEd602dE9068bf90Af0A8b93E27', // Deployed
+  clPoolManager: '0x103C72dB83e413B787596b2524a07dd6856C6bBf', // Deployed
+  binPoolManager: '0xCd9BE698a24f70Cc9903E3C59fd48B56dd565425', // Deployed
   
   // Periphery Contracts
   clPositionManager: '0x0000000000000000000000000000000000000000', // To be deployed
