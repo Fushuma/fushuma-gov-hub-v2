@@ -1,111 +1,137 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/layout/Navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { trpc } from '@/lib/trpc/client';
-import { ArrowLeft, Calendar, User, TrendingUp, TrendingDown } from 'lucide-react';
-import { format } from 'date-fns';
-import { useState } from 'react';
+import { ArrowLeft, Calendar, User, TrendingUp, TrendingDown, Clock, CheckCircle } from 'lucide-react';
+import { useAccount, useBlockNumber } from 'wagmi';
 import { toast } from 'sonner';
+import {
+  useCastVote,
+  useHasVoted,
+  useTotalVotingPower,
+  useProposalState,
+  getProposalStateLabel,
+  getProposalStateColor,
+  canVoteOnProposal,
+  estimateTimeUntilEnd,
+  formatLockDuration,
+  ProposalState,
+  VoteType,
+  FUSHUMA_GOVERNOR_ADDRESS,
+  FushumaGovernorAbi,
+} from '@/lib/governance';
+
+// Mock proposal data - in production, this would come from event indexing or subgraph
+const MOCK_PROPOSALS: Record<string, any> = {
+  '1': {
+    id: 1n,
+    title: 'Increase Grant Budget for Q1 2026',
+    description: `# Proposal: Increase Grant Budget for Q1 2026
+
+## Summary
+This proposal seeks to increase the quarterly grant budget from 100,000 WFUMA to 150,000 WFUMA to support more community projects and accelerate ecosystem growth.
+
+## Motivation
+The current grant program has been highly successful, with all allocated funds being distributed to quality projects. However, we've had to reject several promising proposals due to budget constraints.
+
+## Specification
+- Increase quarterly grant budget to 150,000 WFUMA
+- Maintain current application and review process
+- Add monthly progress reports from funded projects
+
+## Expected Outcomes
+- Support 5-7 additional projects per quarter
+- Faster ecosystem growth
+- Increased developer activity`,
+    proposer: '0xC8e420222d4c93355776eD77f9A34757fb6f3eea',
+    state: ProposalState.Active,
+    forVotes: 45000000000000000000000n,
+    againstVotes: 12000000000000000000000n,
+    abstainVotes: 3000000000000000000000n,
+    startBlock: 1000000n,
+    endBlock: 1050400n,
+    createdAt: new Date('2025-11-10'),
+    targets: [],
+    values: [],
+    calldatas: [],
+  },
+  '2': {
+    id: 2n,
+    title: 'Protocol Upgrade: Fushuma V3',
+    description: `# Proposal: Protocol Upgrade to Fushuma V3
+
+## Summary
+Major protocol upgrade to improve transaction speeds and reduce gas costs through zkEVM optimizations.
+
+## Technical Details
+- Implement batch transaction processing
+- Optimize state tree structure
+- Reduce proof generation time by 40%
+
+## Timeline
+- Development: 2 months
+- Testing: 1 month
+- Deployment: Phased rollout over 2 weeks`,
+    proposer: '0x7152B9A7BD708750892e577Fcc96ea24FDDF37a4',
+    state: ProposalState.Succeeded,
+    forVotes: 120000000000000000000000n,
+    againstVotes: 8000000000000000000000n,
+    abstainVotes: 2000000000000000000000n,
+    startBlock: 950000n,
+    endBlock: 1000400n,
+    createdAt: new Date('2025-11-05'),
+    targets: [],
+    values: [],
+    calldatas: [],
+  },
+  '3': {
+    id: 3n,
+    title: 'Add New Gauge for DeFi Rewards',
+    description: `# Proposal: Add New Gauge for DeFi Rewards
+
+## Summary
+Create a new gauge to distribute rewards to liquidity providers on FumaSwap.
+
+## Details
+- Allocate 10% of weekly emissions to FumaSwap LP rewards
+- Target FUMA/USDC and FUMA/ETH pairs
+- Implement time-weighted rewards`,
+    proposer: '0x45FAc82b24511927a201C2cdFC506625dECe3d22',
+    state: ProposalState.Pending,
+    forVotes: 0n,
+    againstVotes: 0n,
+    abstainVotes: 0n,
+    startBlock: 1100000n,
+    endBlock: 1150400n,
+    createdAt: new Date('2025-11-15'),
+    targets: [],
+    values: [],
+    calldatas: [],
+  },
+};
 
 export default function ProposalDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const proposalId = parseInt(params.id as string);
-  const [selectedVote, setSelectedVote] = useState<'for' | 'against' | 'abstain' | null>(null);
+  const { address, isConnected } = useAccount();
+  const proposalId = params.id as string;
 
-  const { data: proposal, isLoading, error } = trpc.proposals.getById.useQuery(
-    { id: proposalId },
-    { enabled: !isNaN(proposalId) }
-  );
+  // Get proposal data (mock for now)
+  const proposal = MOCK_PROPOSALS[proposalId];
 
-  const { data: votes } = trpc.proposals.getVotes.useQuery(
-    { proposalId },
-    { enabled: !isNaN(proposalId) }
-  );
+  // Contract hooks
+  const { data: currentBlock } = useBlockNumber({ watch: true });
+  const { data: votingPower } = useTotalVotingPower(address);
+  const { data: hasVoted } = useHasVoted(proposal?.id, address);
+  const { writeContract: castVote, isPending: isVoting } = useCastVote();
 
-  const { data: userVote } = trpc.proposals.getUserVote.useQuery(
-    { proposalId },
-    { enabled: !isNaN(proposalId) }
-  );
+  const [selectedVote, setSelectedVote] = useState<VoteType | null>(null);
 
-  const voteMutation = trpc.proposals.vote.useMutation({
-    onSuccess: () => {
-      toast.success('Vote submitted successfully!');
-      setSelectedVote(null);
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to submit vote');
-    },
-  });
-
-  const handleVote = (voteChoice: 'for' | 'against' | 'abstain') => {
-    if (!proposal) return;
-    
-    voteMutation.mutate({
-      proposalId: proposal.id,
-      voteChoice,
-      votingPower: 1,
-    });
-  };
-
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-blue-500';
-      case 'passed':
-        return 'bg-green-500';
-      case 'rejected':
-      case 'cancelled':
-        return 'bg-red-500';
-      case 'executed':
-        return 'bg-purple-500';
-      case 'pending':
-        return 'bg-yellow-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
-
-  if (isNaN(proposalId)) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
-        <main className="container mx-auto px-4 py-16">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Invalid Proposal ID</h1>
-            <Button onClick={() => router.push('/governance')}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Proposals
-            </Button>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
-        <main className="container mx-auto px-4 py-16">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-300 rounded w-1/4"></div>
-            <div className="h-64 bg-gray-300 rounded"></div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error || !proposal) {
+  if (!proposal) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
@@ -113,7 +139,7 @@ export default function ProposalDetailPage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Proposal Not Found</h1>
             <p className="text-muted-foreground mb-4">
-              The proposal you're looking for doesn't exist or has been removed.
+              The proposal you're looking for doesn't exist.
             </p>
             <Button onClick={() => router.push('/governance')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -125,12 +151,47 @@ export default function ProposalDetailPage() {
     );
   }
 
-  const totalVotes = proposal.votesFor + proposal.votesAgainst;
-  const forPercentage = totalVotes > 0 ? (proposal.votesFor / totalVotes) * 100 : 0;
-  const againstPercentage = totalVotes > 0 ? (proposal.votesAgainst / totalVotes) * 100 : 0;
+  const handleVote = async (voteType: VoteType) => {
+    if (!isConnected) {
+      toast.error('Please connect your wallet to vote');
+      return;
+    }
 
-  const isActive = proposal.status === 'active';
-  const hasVoted = !!userVote;
+    if (!votingPower || votingPower === 0n) {
+      toast.error('You need voting power to vote. Lock WFUMA to get voting power.');
+      return;
+    }
+
+    if (hasVoted) {
+      toast.error('You have already voted on this proposal');
+      return;
+    }
+
+    try {
+      setSelectedVote(voteType);
+      await castVote({
+        address: FUSHUMA_GOVERNOR_ADDRESS as `0x${string}`,
+        abi: FushumaGovernorAbi,
+        functionName: 'castVote',
+        args: [proposal.id, voteType],
+      });
+      toast.success('Vote cast successfully!');
+    } catch (error: any) {
+      console.error('Vote error:', error);
+      toast.error(error.message || 'Failed to cast vote');
+    } finally {
+      setSelectedVote(null);
+    }
+  };
+
+  const totalVotes = proposal.forVotes + proposal.againstVotes + proposal.abstainVotes;
+  const forPercentage = totalVotes > 0n ? Number((proposal.forVotes * 10000n) / totalVotes) / 100 : 0;
+  const againstPercentage = totalVotes > 0n ? Number((proposal.againstVotes * 10000n) / totalVotes) / 100 : 0;
+  const abstainPercentage = totalVotes > 0n ? Number((proposal.abstainVotes * 10000n) / totalVotes) / 100 : 0;
+
+  const isActive = canVoteOnProposal(proposal.state);
+  const blocksRemaining = currentBlock && proposal.endBlock > currentBlock ? proposal.endBlock - currentBlock : 0n;
+  const timeRemaining = currentBlock ? estimateTimeUntilEnd(proposal.endBlock, currentBlock) : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -152,24 +213,34 @@ export default function ProposalDetailPage() {
               <CardHeader>
                 <div className="flex justify-between items-start mb-4">
                   <CardTitle className="text-3xl font-bold">{proposal.title}</CardTitle>
-                  <Badge className={getStatusClass(proposal.status)}>
-                    {getStatusLabel(proposal.status)}
+                  <Badge className={getProposalStateColor(proposal.state)}>
+                    {getProposalStateLabel(proposal.state)}
                   </Badge>
                 </div>
-                <div className="flex gap-4 text-sm text-muted-foreground">
+                <div className="flex gap-4 text-sm text-muted-foreground flex-wrap">
                   <div className="flex items-center gap-1">
                     <User className="h-4 w-4" />
-                    <span>{proposal.proposer}</span>
+                    <span>
+                      {proposal.proposer.slice(0, 6)}...{proposal.proposer.slice(-4)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>Created {format(new Date(proposal.createdAt), 'MMM dd, yyyy')}</span>
+                    <span>
+                      Created {proposal.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
                   </div>
+                  {isActive && timeRemaining > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      <span>Ends in {formatLockDuration(timeRemaining)}</span>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="prose dark:prose-invert max-w-none">
-                  <p className="whitespace-pre-wrap">{proposal.description}</p>
+                  <div className="whitespace-pre-wrap">{proposal.description}</div>
                 </div>
               </CardContent>
             </Card>
@@ -177,73 +248,38 @@ export default function ProposalDetailPage() {
             {/* Voting Timeline */}
             <Card>
               <CardHeader>
-                <CardTitle>Voting Timeline</CardTitle>
+                <CardTitle>Voting Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Start Date:</span>
-                    <span className="font-medium">
-                      {format(new Date(proposal.startDate), 'MMM dd, yyyy HH:mm')}
-                    </span>
+                    <span className="text-muted-foreground">Start Block:</span>
+                    <span className="font-medium">{proposal.startBlock.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">End Date:</span>
-                    <span className="font-medium">
-                      {format(new Date(proposal.endDate), 'MMM dd, yyyy HH:mm')}
-                    </span>
+                    <span className="text-muted-foreground">End Block:</span>
+                    <span className="font-medium">{proposal.endBlock.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Quorum:</span>
-                    <span className="font-medium">{proposal.quorum.toLocaleString()}</span>
-                  </div>
+                  {currentBlock && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Current Block:</span>
+                        <span className="font-medium">{currentBlock.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Blocks Remaining:</span>
+                        <span className="font-medium">{blocksRemaining.toLocaleString()}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
-
-            {/* Recent Votes */}
-            {votes && votes.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Votes ({votes.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {votes.slice(0, 10).map((vote) => (
-                      <div
-                        key={vote.id}
-                        className="flex justify-between items-center py-2 border-b last:border-b-0"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-mono">
-                            {vote.voterAddress.slice(0, 6)}...{vote.voterAddress.slice(-4)}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className={
-                              vote.voteChoice === 'for'
-                                ? 'border-green-500 text-green-500'
-                                : vote.voteChoice === 'against'
-                                ? 'border-red-500 text-red-500'
-                                : 'border-gray-500 text-gray-500'
-                            }
-                          >
-                            {vote.voteChoice}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {vote.votingPower.toLocaleString()} votes
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Voting Panel */}
           <div className="space-y-6">
+            {/* Current Results */}
             <Card>
               <CardHeader>
                 <CardTitle>Current Results</CardTitle>
@@ -257,7 +293,7 @@ export default function ProposalDetailPage() {
                       <span className="font-medium">For</span>
                     </div>
                     <span className="font-bold text-green-500">
-                      {proposal.votesFor.toLocaleString()}
+                      {(Number(proposal.forVotes) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -279,7 +315,7 @@ export default function ProposalDetailPage() {
                       <span className="font-medium">Against</span>
                     </div>
                     <span className="font-bold text-red-500">
-                      {proposal.votesAgainst.toLocaleString()}
+                      {(Number(proposal.againstVotes) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -293,10 +329,33 @@ export default function ProposalDetailPage() {
                   </div>
                 </div>
 
+                {/* Abstain Votes */}
+                {proposal.abstainVotes > 0n && (
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="font-medium">Abstain</span>
+                      <span className="font-bold">
+                        {(Number(proposal.abstainVotes) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-gray-500 h-2 rounded-full transition-all"
+                        style={{ width: `${abstainPercentage}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-right text-sm text-muted-foreground mt-1">
+                      {abstainPercentage.toFixed(1)}%
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-4 border-t">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Votes:</span>
-                    <span className="font-medium">{totalVotes.toLocaleString()}</span>
+                    <span className="font-medium">
+                      {(Number(totalVotes) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -308,12 +367,24 @@ export default function ProposalDetailPage() {
                 <CardTitle>Cast Your Vote</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {hasVoted ? (
+                {!isConnected ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Connect your wallet to vote
+                  </div>
+                ) : !votingPower || votingPower === 0n ? (
                   <div className="text-center py-4">
+                    <p className="text-muted-foreground mb-2">You need voting power to vote</p>
+                    <Button onClick={() => router.push('/governance/venft')} size="sm">
+                      Lock WFUMA to get voting power
+                    </Button>
+                  </div>
+                ) : hasVoted ? (
+                  <div className="text-center py-4">
+                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
                     <p className="text-muted-foreground mb-2">You have already voted</p>
-                    <Badge variant="outline" className="text-lg">
-                      {userVote.voteChoice.toUpperCase()}
-                    </Badge>
+                    <p className="text-sm">
+                      Your voting power: {(Number(votingPower) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </p>
                   </div>
                 ) : !isActive ? (
                   <div className="text-center py-4 text-muted-foreground">
@@ -321,27 +392,33 @@ export default function ProposalDetailPage() {
                   </div>
                 ) : (
                   <>
+                    <div className="text-sm text-center mb-3">
+                      <span className="text-muted-foreground">Your voting power:</span>
+                      <span className="font-bold ml-2">
+                        {(Number(votingPower) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
                     <Button
-                      onClick={() => handleVote('for')}
-                      disabled={voteMutation.isPending}
+                      onClick={() => handleVote(VoteType.For)}
+                      disabled={isVoting}
                       className="w-full bg-green-500 hover:bg-green-600"
                     >
-                      Vote For
+                      {isVoting && selectedVote === VoteType.For ? 'Voting...' : 'Vote For'}
                     </Button>
                     <Button
-                      onClick={() => handleVote('against')}
-                      disabled={voteMutation.isPending}
+                      onClick={() => handleVote(VoteType.Against)}
+                      disabled={isVoting}
                       className="w-full bg-red-500 hover:bg-red-600"
                     >
-                      Vote Against
+                      {isVoting && selectedVote === VoteType.Against ? 'Voting...' : 'Vote Against'}
                     </Button>
                     <Button
-                      onClick={() => handleVote('abstain')}
-                      disabled={voteMutation.isPending}
+                      onClick={() => handleVote(VoteType.Abstain)}
+                      disabled={isVoting}
                       variant="outline"
                       className="w-full"
                     >
-                      Abstain
+                      {isVoting && selectedVote === VoteType.Abstain ? 'Voting...' : 'Abstain'}
                     </Button>
                   </>
                 )}
