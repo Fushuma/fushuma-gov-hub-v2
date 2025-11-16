@@ -70,7 +70,8 @@ export default function GaugesPage() {
   const [voteAllocations, setVoteAllocations] = useState<Record<string, string>>({});
 
   const epochDuration = GOVERNANCE_PARAMS.EpochManager.epochDuration;
-  const epochStartTime = currentEpoch ? BigInt(Date.now() / 1000) - BigInt(currentEpoch) * BigInt(epochDuration) : 0n;
+  const currentEpochNum = currentEpoch ? Number(currentEpoch) : 0;
+  const epochStartTime = currentEpochNum > 0 ? BigInt(Date.now() / 1000) - BigInt(currentEpochNum) * BigInt(epochDuration) : 0n;
   const epochProgress = calculateEpochProgress(epochStartTime, epochDuration);
 
   const handleVoteAllocationChange = (gaugeId: string, value: string) => {
