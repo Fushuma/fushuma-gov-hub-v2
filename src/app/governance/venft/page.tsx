@@ -103,9 +103,9 @@ export default function VeNFTPage() {
   };
 
   const needsApproval = () => {
-    if (!lockAmount || !allowance) return true;
+    if (!lockAmount || !allowance || typeof allowance !== 'bigint') return true;
     const amountWei = parseWFUMAAmount(lockAmount);
-    return allowance < amountWei;
+    return BigInt(allowance) < amountWei;
   };
 
   return (
