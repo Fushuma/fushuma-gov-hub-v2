@@ -7,10 +7,9 @@ import { etc } from '@/config/chains/etc';
 export const config = createConfig({
   chains: [fushuma, bttc, callisto, etc],
   transports: {
-    [fushuma.id]: http(),
+    [fushuma.id]: http('https://rpc.fushuma.com'),
     [bttc.id]: http(),
     [callisto.id]: http(),
     [etc.id]: http(),
   },
 });
-

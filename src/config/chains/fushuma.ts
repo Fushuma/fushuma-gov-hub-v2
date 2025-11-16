@@ -10,15 +10,14 @@ export const fushuma = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.fushuma.network"],
+      http: ["https://rpc.fushuma.com"],
     },
   },
   blockExplorers: {
     default: {
       name: "Fushuma Explorer",
-      url: "https://explorer.fushuma.network",
+      url: "https://explorer.fushuma.com",
     },
   },
   testnet: false,
 });
-

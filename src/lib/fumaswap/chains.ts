@@ -14,11 +14,11 @@ export const fushuma = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ['https://rpc.fushuma.network'], // Replace with actual RPC
+      http: ['https://rpc.fushuma.com'], // Replace with actual RPC
       webSocket: ['wss://ws.fushuma.network'], // Replace with actual WebSocket
     },
     public: {
-      http: ['https://rpc.fushuma.network'],
+      http: ['https://rpc.fushuma.com'],
       webSocket: ['wss://ws.fushuma.network'],
     },
   },
