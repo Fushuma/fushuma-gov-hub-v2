@@ -156,7 +156,7 @@ export default function GaugesPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Current Epoch</p>
                   <p className="text-2xl font-bold">
-                    {currentEpoch !== undefined ? currentEpoch.toString() : '-'}
+                    {currentEpoch !== undefined && currentEpoch !== null ? currentEpoch.toString() : '-'}
                   </p>
                 </div>
                 <Calendar className="h-8 w-8 text-muted-foreground" />
