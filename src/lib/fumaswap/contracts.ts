@@ -1,28 +1,29 @@
 /**
  * FumaSwap V4 Contract Addresses on Fushuma Network
  * 
- * These addresses will be populated after deployment
- * See deployment-guide.md for deployment instructions
+ * Paris EVM Compatible Version - Deployed Nov 16, 2025
+ * Modified to use regular storage instead of transient storage
  */
 
 export const FUSHUMA_CONTRACTS = {
-  // Core Contracts
-  vault: '0xd1AF417B5C2a1DEd602dE9068bf90Af0A8b93E27', // Deployed
-  clPoolManager: '0x103C72dB83e413B787596b2524a07dd6856C6bBf', // Deployed
-  binPoolManager: '0xCd9BE698a24f70Cc9903E3C59fd48B56dd565425', // Deployed
+  // Core Contracts (Paris EVM Compatible)
+  vault: '0x4FB212Ed5038b0EcF2c8322B3c71FC64d66073A1', // ✅ Deployed
+  clPoolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a', // ✅ Deployed
+  binPoolManager: '0x3014809fBFF942C485A9F527242eC7C5A9ddC765', // ✅ Deployed
   
   // Periphery Contracts
-  clPositionManager: '0x0000000000000000000000000000000000000000', // To be deployed
+  clQuoter: '0x9C82E4098805a00eAE3CE96D1eBFD117CeB1fAF8', // ✅ Deployed
+  clPositionManager: '0x0000000000000000000000000000000000000000', // ⏳ Pending (OpenZeppelin mcopy issue)
   infinityRouter: '0x0000000000000000000000000000000000000000', // To be deployed
-  mixedQuoter: '0x0000000000000000000000000000000000000000', // To be deployed
+  mixedQuoter: '0x0000000000000000000000000000000000000000', // ⏳ Skipped (uses transient storage)
   
   // Protocol Governance
   clProtocolFeeController: '0x0000000000000000000000000000000000000000', // To be deployed
   clPoolManagerOwner: '0x0000000000000000000000000000000000000000', // To be deployed
   
   // Standard Contracts
-  permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3', // Canonical Permit2 (deploy if not exists)
-  wfuma: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E', // Wrapped FUMA (deployed)
+  permit2: '0x1d5E963f9581F5416Eae6C9978246B7dDf559Ff0', // ✅ Deployed
+  wfuma: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E', // ✅ Wrapped FUMA
   
   // Custom Hooks
   fumaDiscountHook: '0x0000000000000000000000000000000000000000', // To be deployed
@@ -36,6 +37,7 @@ export const FUSHUMA_TESTNET_CONTRACTS = {
   clPositionManager: '0x0000000000000000000000000000000000000000',
   infinityRouter: '0x0000000000000000000000000000000000000000',
   mixedQuoter: '0x0000000000000000000000000000000000000000',
+  clQuoter: '0x0000000000000000000000000000000000000000',
   permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
   wfuma: '0x0000000000000000000000000000000000000000',
 } as const;
@@ -89,11 +91,10 @@ export const VAULT_ADDRESS = FUSHUMA_CONTRACTS.vault;
 export const CL_POOL_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPoolManager;
 export const BIN_POOL_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.binPoolManager;
 export const CL_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPositionManager;
+export const CL_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.clQuoter;
 export const INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.infinityRouter;
 export const MIXED_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter;
-export const CL_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter; // Alias for compatibility
 export const PERMIT2_ADDRESS = FUSHUMA_CONTRACTS.permit2;
 export const WFUMA_ADDRESS = FUSHUMA_CONTRACTS.wfuma;
 export const FUMA_DISCOUNT_HOOK_ADDRESS = FUSHUMA_CONTRACTS.fumaDiscountHook;
 export const LAUNCHPAD_HOOK_ADDRESS = FUSHUMA_CONTRACTS.launchpadHook;
-
