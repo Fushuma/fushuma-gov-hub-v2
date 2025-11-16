@@ -6,7 +6,7 @@
 
 export const GOVERNANCE_CONTRACTS = {
   // Token
-  WFUMA: '0xf4C3914B127571fDfDdB3B5caCE6a9428DB0183b',
+  WFUMA: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E',
   
   // Core Governance Contracts
   VotingEscrow: '0x80Ebf301efc7b0FF1825dC3B4e8d69e414eaa26f',
