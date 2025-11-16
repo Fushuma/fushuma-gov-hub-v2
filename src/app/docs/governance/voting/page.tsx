@@ -23,10 +23,13 @@ export default function HowToVotePage() {
         WFUMA (Wrapped FUMA) is the governance token of the Fushuma ecosystem. You can acquire WFUMA through:
       </p>
       <ul>
-        <li>Wrapping your FUMA tokens using the WFUMA contract</li>
-        <li>Trading on decentralized exchanges like FumaSwap</li>
-        <li>Receiving grants or rewards from the ecosystem</li>
+        <li><strong>Wrap FUMA:</strong> Visit the <a href="/governance/wrap">Wrap FUMA page</a> to convert your FUMA tokens to WFUMA (1:1 exchange rate)</li>
+        <li><strong>Trade:</strong> Buy WFUMA on decentralized exchanges like FumaSwap</li>
+        <li><strong>Earn:</strong> Receive WFUMA through grants or ecosystem rewards</li>
       </ul>
+      <p>
+        The easiest method is to wrap your existing FUMA tokens. Simply navigate to the wrap page, enter the amount you want to convert, and confirm the transaction. The process is instant and you can unwrap back to FUMA at any time.
+      </p>
 
       <h3>Step 2: Lock WFUMA to Get a veNFT</h3>
       <p>

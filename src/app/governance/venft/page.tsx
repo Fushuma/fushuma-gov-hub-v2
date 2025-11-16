@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Lock, TrendingUp, Calendar, Wallet, Plus, ArrowRight } from 'lucide-react';
+import { Lock, TrendingUp, Calendar, Wallet, Plus, ArrowRight, ArrowDownUp } from 'lucide-react';
+import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 import {
@@ -125,7 +126,7 @@ export default function VeNFTPage() {
           <div className="grid gap-4 md:grid-cols-4 mb-8">
             <Card>
               <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="text-sm text-muted-foreground">WFUMA Balance</p>
                     <p className="text-2xl font-bold">
@@ -134,6 +135,12 @@ export default function VeNFTPage() {
                   </div>
                   <Wallet className="h-8 w-8 text-muted-foreground" />
                 </div>
+                <Link href="/governance/wrap">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <ArrowDownUp className="h-4 w-4 mr-2" />
+                    Wrap FUMA
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
 

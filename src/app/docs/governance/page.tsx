@@ -104,8 +104,8 @@ export default function GovernanceOverviewPage() {
         Ready to participate? Here's how to get started:
       </p>
       <ol>
-        <li><strong>Acquire WFUMA:</strong> You need WFUMA tokens to participate</li>
-        <li><strong>Lock Tokens:</strong> Visit the <a href="/governance/venft">veNFT Management</a> page to lock your tokens and receive voting power</li>
+        <li><strong>Wrap FUMA:</strong> Visit the <a href="/governance/wrap">Wrap FUMA page</a> to convert your FUMA tokens to WFUMA (1:1 exchange rate)</li>
+        <li><strong>Lock Tokens:</strong> Go to the <a href="/governance/venft">veNFT Management</a> page to lock your WFUMA and receive voting power</li>
         <li><strong>Vote on Proposals:</strong> Browse <a href="/governance">active proposals</a> and cast your votes</li>
         <li><strong>Allocate Resources:</strong> Use <a href="/governance/gauges">gauge voting</a> to influence how ecosystem funds are distributed</li>
       </ol>
