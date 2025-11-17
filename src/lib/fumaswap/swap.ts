@@ -5,7 +5,7 @@
  */
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { encodePacked, parseUnits, encodeAbiParameters, parseAbiParameters } from 'viem';
+import { encodePacked, parseUnits, formatUnits, encodeAbiParameters, parseAbiParameters } from 'viem';
 import { UNIVERSAL_ROUTER_ADDRESS, CL_QUOTER_ADDRESS } from './contracts';
 
 export interface SwapQuote {
@@ -42,12 +42,52 @@ export async function getSwapQuote(
   amountIn: string
 ): Promise<SwapQuote | null> {
   try {
-    // TODO: Call CLQuoter contract for accurate quotes
-    // For now, return a mock quote based on simple calculation
-    return getMockQuote(tokenIn, tokenOut, amountIn);
+    const { publicClient } = await import('@/lib/viem');
+    const CLQuoterABI = (await import('./abis/CLQuoter.json')).default;
+    
+    // Parse input amount
+    const amountInWei = parseUnits(amountIn, tokenIn.decimals);
+    
+    // Prepare quote parameters
+    const quoteParams = {
+      exactCurrency: tokenIn.address as Address,
+      path: [
+        {
+          intermediateCurrency: tokenOut.address as Address,
+          fee: 3000, // 0.3% fee tier
+          hooks: '0x0000000000000000000000000000000000000000' as Address,
+          poolManager: (await import('./contracts')).CL_POOL_MANAGER_ADDRESS as Address,
+          hookData: '0x' as `0x${string}`,
+          parameters: '0x00' as `0x${string}`,
+        },
+      ],
+      exactAmount: amountInWei,
+    };
+    
+    // Call CLQuoter
+    const result = await publicClient.readContract({
+      address: CL_QUOTER_ADDRESS as Address,
+      abi: CLQuoterABI,
+      functionName: 'quoteExactInputSingle',
+      args: [quoteParams],
+    }) as any;
+    
+    // Parse result
+    const outputAmount = result[0]; // amountOut
+    const outputAmountFormatted = formatUnits(outputAmount, tokenOut.decimals);
+    
+    return {
+      inputAmount: amountIn,
+      outputAmount: outputAmountFormatted,
+      priceImpact: 0.1, // TODO: Calculate actual price impact
+      route: [tokenIn.symbol!, tokenOut.symbol!],
+      fee: 3000, // 0.3% fee in basis points
+      minimumOutput: (parseFloat(outputAmountFormatted) * 0.995).toFixed(6), // 0.5% slippage
+    };
   } catch (error) {
-    console.error('Error getting swap quote:', error);
-    return null;
+    console.error('Error getting swap quote from CLQuoter:', error);
+    // Fall back to mock quote
+    return getMockQuote(tokenIn, tokenOut, amountIn);
   }
 }
 

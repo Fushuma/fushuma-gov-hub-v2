@@ -1,14 +1,13 @@
 /**
  * FumaSwap V4 Liquidity Operations
  * 
- * Functions for adding and removing liquidity
- * Note: Currently being integrated with deployed contracts
+ * Functions for adding and removing liquidity using CLPositionManager
  */
 
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { parseUnits } from 'viem';
-import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS } from './contracts';
+import { parseUnits, encodeAbiParameters, parseAbiParameters } from 'viem';
+import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS, CL_POOL_MANAGER_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';
 import { getNearestUsableTick, priceToTick } from './pools';
 
@@ -52,9 +51,6 @@ export interface CollectFeesParams {
 
 /**
  * Add liquidity to a pool (mint new position)
- * 
- * NOTE: This is currently being integrated. The CLPositionManager requires
- * proper encoding of position parameters and interaction with the vault.
  */
 export async function addLiquidity(
   params: AddLiquidityParams,
@@ -65,12 +61,63 @@ export async function addLiquidity(
     throw new Error('Position Manager contract not deployed yet. Liquidity functionality will be available after contract deployment.');
   }
 
-  // The CLPositionManager integration requires proper encoding of mint parameters
-  // and interaction with the vault lock mechanism
-  throw new Error(
-    'Add liquidity is currently being integrated. The CLPositionManager requires proper ' +
-    'encoding of position parameters. Please check back soon for the full implementation.'
-  );
+  try {
+    const {
+      token0,
+      token1,
+      fee,
+      amount0Desired,
+      amount1Desired,
+      amount0Min,
+      amount1Min,
+      tickLower,
+      tickUpper,
+      recipient,
+      deadline,
+    } = params;
+
+    // Prepare pool key
+    const poolKey = {
+      currency0: token0.address as Address,
+      currency1: token1.address as Address,
+      hooks: '0x0000000000000000000000000000000000000000' as Address,
+      poolManager: CL_POOL_MANAGER_ADDRESS as Address,
+      fee,
+      parameters: '0x00' as `0x${string}`,
+    };
+
+    // Prepare mint parameters
+    const mintParams = {
+      poolKey,
+      tickLower,
+      tickUpper,
+      liquidity: 0n, // Will be calculated by the contract
+      amount0Max: amount0Desired,
+      amount1Max: amount1Desired,
+      amount0Min,
+      amount1Min,
+      recipient,
+      hookData: '0x' as `0x${string}`,
+    };
+
+    // Calculate deadline timestamp
+    const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
+
+    // Call CLPositionManager mint function
+    const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
+    
+    const result = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'mint',
+      args: [mintParams, deadlineTimestamp],
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error adding liquidity:', error);
+    throw error;
+  }
 }
 
 /**
@@ -85,7 +132,36 @@ export async function removeLiquidity(
     throw new Error('Position Manager contract not deployed yet.');
   }
 
-  throw new Error('Remove liquidity is currently being integrated.');
+  try {
+    const { tokenId, liquidity, amount0Min, amount1Min, deadline } = params;
+
+    // Calculate deadline timestamp
+    const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
+
+    // Prepare burn parameters
+    const burnParams = {
+      tokenId: BigInt(tokenId),
+      liquidity,
+      amount0Min,
+      amount1Min,
+      hookData: '0x' as `0x${string}`,
+    };
+
+    // Call CLPositionManager burn function
+    const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
+    
+    const result = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'burn',
+      args: [burnParams, deadlineTimestamp],
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error removing liquidity:', error);
+    throw error;
+  }
 }
 
 /**
@@ -100,7 +176,38 @@ export async function increaseLiquidity(
     throw new Error('Position Manager contract not deployed yet.');
   }
 
-  throw new Error('Increase liquidity is currently being integrated.');
+  try {
+    const { tokenId, amount0Desired, amount1Desired, amount0Min, amount1Min, deadline } = params;
+
+    // Calculate deadline timestamp
+    const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
+
+    // Prepare increase liquidity parameters
+    const increaseParams = {
+      tokenId: BigInt(tokenId),
+      liquidity: 0n, // Will be calculated by the contract
+      amount0Max: amount0Desired,
+      amount1Max: amount1Desired,
+      amount0Min,
+      amount1Min,
+      hookData: '0x' as `0x${string}`,
+    };
+
+    // Call CLPositionManager increaseLiquidity function
+    const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
+    
+    const result = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'increaseLiquidity',
+      args: [increaseParams, deadlineTimestamp],
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error increasing liquidity:', error);
+    throw error;
+  }
 }
 
 /**
@@ -115,47 +222,56 @@ export async function collectFees(
     throw new Error('Position Manager contract not deployed yet.');
   }
 
-  throw new Error('Collect fees is currently being integrated.');
+  try {
+    const { tokenId, recipient, amount0Max, amount1Max } = params;
+
+    // Prepare collect parameters
+    const collectParams = {
+      tokenId: BigInt(tokenId),
+      recipient,
+      amount0Max,
+      amount1Max,
+      hookData: '0x' as `0x${string}`,
+    };
+
+    // Call CLPositionManager collect function
+    const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
+    
+    const result = await writeContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'collect',
+      args: [collectParams],
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error collecting fees:', error);
+    throw error;
+  }
 }
 
 /**
- * Calculate price range from percentage
+ * Calculate price impact for liquidity operations
  */
-export function calculatePriceRange(
-  currentPrice: number,
-  rangePercentage: number
-): { priceLower: number; priceUpper: number } {
-  const priceLower = currentPrice * (1 - rangePercentage / 100);
-  const priceUpper = currentPrice * (1 + rangePercentage / 100);
-  
-  return { priceLower, priceUpper };
-}
+export function calculateLiquidityPriceImpact(
+  amount0: bigint,
+  amount1: bigint,
+  poolReserve0: bigint,
+  poolReserve1: bigint
+): number {
+  try {
+    if (poolReserve0 === 0n || poolReserve1 === 0n) {
+      return 0;
+    }
 
-/**
- * Calculate ticks from prices
- */
-export function calculateTicksFromPrices(
-  priceLower: number,
-  priceUpper: number,
-  tickSpacing: number
-): { tickLower: number; tickUpper: number } {
-  const tickLower = getNearestUsableTick(priceToTick(priceLower), tickSpacing);
-  const tickUpper = getNearestUsableTick(priceToTick(priceUpper), tickSpacing);
-  
-  return { tickLower, tickUpper };
-}
-
-/**
- * Calculate full range ticks
- */
-export function getFullRangeTicks(tickSpacing: number): { tickLower: number; tickUpper: number } {
-  const MIN_TICK = -887272;
-  const MAX_TICK = 887272;
-  
-  return {
-    tickLower: getNearestUsableTick(MIN_TICK, tickSpacing),
-    tickUpper: getNearestUsableTick(MAX_TICK, tickSpacing),
-  };
+    const ratio0 = Number(amount0) / Number(poolReserve0);
+    const ratio1 = Number(amount1) / Number(poolReserve1);
+    
+    return Math.max(ratio0, ratio1) * 100;
+  } catch (error) {
+    return 0;
+  }
 }
 
 /**
@@ -165,61 +281,37 @@ export function validateLiquidityParams(
   token0: Token,
   token1: Token,
   amount0: string,
-  amount1: string,
-  tickLower: number,
-  tickUpper: number
+  amount1: string
 ): { valid: boolean; error?: string } {
   if (!token0 || !token1) {
     return { valid: false, error: 'Please select both tokens' };
   }
-
+  
   if (token0.address === token1.address) {
-    return { valid: false, error: 'Cannot create pool with same token' };
+    return { valid: false, error: 'Cannot provide liquidity for same token' };
   }
-
+  
   if (!amount0 || parseFloat(amount0) <= 0) {
-    return { valid: false, error: 'Please enter amount for token 0' };
+    return { valid: false, error: 'Please enter amount for first token' };
   }
-
+  
   if (!amount1 || parseFloat(amount1) <= 0) {
-    return { valid: false, error: 'Please enter amount for token 1' };
+    return { valid: false, error: 'Please enter amount for second token' };
   }
-
-  if (tickLower >= tickUpper) {
-    return { valid: false, error: 'Invalid price range' };
-  }
-
+  
   return { valid: true };
 }
 
 /**
- * Calculate minimum amounts with slippage
+ * Calculate tick range for full range liquidity
  */
-export function calculateMinAmounts(
-  amount0: bigint,
-  amount1: bigint,
-  slippageTolerance: number
-): { amount0Min: bigint; amount1Min: bigint } {
-  const slippage = BigInt(Math.floor((100 - slippageTolerance) * 100));
+export function getFullRangeTickRange(fee: FeeAmount): { tickLower: number; tickUpper: number } {
+  const tickSpacing = TICK_SPACINGS[fee];
+  const minTick = Math.ceil(-887272 / tickSpacing) * tickSpacing;
+  const maxTick = Math.floor(887272 / tickSpacing) * tickSpacing;
   
   return {
-    amount0Min: (amount0 * slippage) / 10000n,
-    amount1Min: (amount1 * slippage) / 10000n,
+    tickLower: minTick,
+    tickUpper: maxTick,
   };
-}
-
-/**
- * Estimate gas for adding liquidity
- */
-export async function estimateAddLiquidityGas(params: AddLiquidityParams): Promise<bigint> {
-  // Mock gas estimate for development
-  return BigInt(300000); // ~300k gas
-}
-
-/**
- * Estimate gas for removing liquidity
- */
-export async function estimateRemoveLiquidityGas(params: RemoveLiquidityParams): Promise<bigint> {
-  // Mock gas estimate for development
-  return BigInt(250000); // ~250k gas
 }

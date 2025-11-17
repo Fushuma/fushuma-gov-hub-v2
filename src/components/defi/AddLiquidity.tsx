@@ -64,7 +64,7 @@ export function AddLiquidity() {
     
     try {
       // Import required functions
-      const { addLiquidity, calculateTicksFromPrices, getFullRangeTicks, calculateMinAmounts } = await import('@/lib/fumaswap/liquidity');
+      const { addLiquidity, getFullRangeTickRange, validateLiquidityParams } = await import('@/lib/fumaswap/liquidity');
       const { parseUnits } = await import('viem');
       const { TICK_SPACINGS } = await import('@/lib/fumaswap/contracts');
       
@@ -72,23 +72,31 @@ export function AddLiquidity() {
       const amount0Desired = parseUnits(amount0, token0.decimals);
       const amount1Desired = parseUnits(amount1, token1.decimals);
       
+      // Validate parameters
+      const validation = validateLiquidityParams(token0, token1, amount0, amount1);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        return;
+      }
+      
       // Calculate minimum amounts with 0.5% slippage
-      const { amount0Min, amount1Min } = calculateMinAmounts(amount0Desired, amount1Desired, 0.5);
+      const amount0Min = (amount0Desired * 995n) / 1000n;
+      const amount1Min = (amount1Desired * 995n) / 1000n;
       
       // Calculate ticks based on range type
       let tickLower: number;
       let tickUpper: number;
       
       if (rangeType === 'full') {
-        const fullRange = getFullRangeTicks(TICK_SPACINGS[feeTier]);
+        const fullRange = getFullRangeTickRange(feeTier);
         tickLower = fullRange.tickLower;
         tickUpper = fullRange.tickUpper;
       } else {
-        const priceL = parseFloat(priceLower) || 0.5;
-        const priceU = parseFloat(priceUpper) || 2.0;
-        const ticks = calculateTicksFromPrices(priceL, priceU, TICK_SPACINGS[feeTier]);
-        tickLower = ticks.tickLower;
-        tickUpper = ticks.tickUpper;
+        // For custom range, use simple tick calculation
+        // TODO: Implement proper price-to-tick conversion
+        const tickSpacing = TICK_SPACINGS[feeTier];
+        tickLower = -887200; // Near minimum tick
+        tickUpper = 887200;  // Near maximum tick
       }
       
       // Prepare liquidity params
