@@ -192,6 +192,17 @@ export function canSwap(tokenIn: Token, tokenOut: Token): boolean {
 }
 
 /**
+ * Format price for display
+ */
+export function formatPrice(price: number): string {
+  if (price === 0) return '0';
+  if (price < 0.000001) return price.toExponential(4);
+  if (price < 1) return price.toFixed(6);
+  if (price < 1000) return price.toFixed(4);
+  return price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+/**
  * Estimate gas for swap
  */
 export async function estimateSwapGas(params: SwapParams): Promise<bigint> {
