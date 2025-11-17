@@ -78,7 +78,8 @@ export function BridgeForm() {
     }
 
     // Check if token is available on selected network
-    if (selectedToken && fromNetwork && !tokenAddress) {
+    // Note: Native tokens have empty string '' as address, which is valid
+    if (selectedToken && fromNetwork && tokenAddress === undefined) {
       setError(`${selectedToken.symbol} is not available on ${fromNetwork.name}`);
       return;
     }

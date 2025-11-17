@@ -28,6 +28,15 @@ export const fushuma = defineChain({
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'placeholder-project-id-get-from-walletconnect';
 
+// Check if MetaMask is available (for debugging)
+if (typeof window !== 'undefined') {
+  console.log('MetaMask detection:', {
+    ethereum: typeof window.ethereum !== 'undefined',
+    isMetaMask: window.ethereum?.isMetaMask,
+    providers: window.ethereum?.providers ? 'Multiple providers detected' : 'Single provider'
+  });
+}
+
 // Configure wallet connectors with MetaMask first
 const connectors = connectorsForWallets(
   [

@@ -106,9 +106,8 @@ export async function addLiquidity(
     // Call CLPositionManager modifyLiquidities function
     const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
     
-    // Encode actions for modifyLiquidities
-    // Action: MINT (0x00)
-    const actions = '0x00';
+    // Encode actions and params for modifyLiquidities
+    // The payload format is: actions (bytes) + encoded params
     const params_encoded = encodeAbiParameters(
       parseAbiParameters('(address,address,address,address,uint24,bytes32),int24,int24,uint256,uint128,uint128,uint128,uint128,address,bytes'),
       [
@@ -132,11 +131,15 @@ export async function addLiquidity(
       ]
     );
     
+    // Combine actions and params into a single payload
+    // Action: MINT (0x00)
+    const payload = ('0x00' + params_encoded.slice(2)) as `0x${string}`;
+    
     const result = await writeContract({
       address: CL_POSITION_MANAGER_ADDRESS as Address,
       abi: CLPositionManagerABI,
       functionName: 'modifyLiquidities',
-      args: [actions, [params_encoded], deadlineTimestamp],
+      args: [payload, deadlineTimestamp],
     });
 
     return result;

@@ -375,7 +375,18 @@ export default function ProposalDetailPage() {
                 ) : !votingPower || votingPower === 0n ? (
                   <div className="text-center py-4">
                     <p className="text-muted-foreground mb-2">You need voting power to vote</p>
-                    <Button onClick={() => router.push('/governance/venft')} size="sm">
+                    <Button 
+                      onClick={() => {
+                        try {
+                          console.log('Navigating to /governance/venft');
+                          router.push('/governance/venft');
+                        } catch (error) {
+                          console.error('Navigation error:', error);
+                          toast.error('Failed to navigate. Please try refreshing the page.');
+                        }
+                      }} 
+                      size="sm"
+                    >
                       Lock WFUMA to get voting power
                     </Button>
                   </div>

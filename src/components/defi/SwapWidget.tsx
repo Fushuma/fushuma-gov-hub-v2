@@ -93,20 +93,32 @@ export function SwapWidget() {
   useEffect(() => {
     // Native tokens (ETH/FSM) don't need approval
     if (!amountIn || !tokenIn || tokenIn.address === '0x0000000000000000000000000000000000000000') {
+      console.log('No approval needed: native token or no amount');
       setNeedsApproval(false);
       return;
     }
     
     if (!allowance) {
       // If allowance is not loaded yet, assume approval is needed
+      console.log('Allowance not loaded, assuming approval needed');
       setNeedsApproval(true);
       return;
     }
     
     try {
       const amountInWei = parseUnits(amountIn, tokenIn.decimals);
-      setNeedsApproval(BigInt(allowance.toString()) < amountInWei);
-    } catch {
+      const currentAllowance = BigInt(allowance.toString());
+      const needsApprove = currentAllowance < amountInWei;
+      console.log('Approval check:', {
+        token: tokenIn.symbol,
+        amount: amountIn,
+        amountInWei: amountInWei.toString(),
+        currentAllowance: currentAllowance.toString(),
+        needsApproval: needsApprove
+      });
+      setNeedsApproval(needsApprove);
+    } catch (error) {
+      console.error('Error checking approval:', error);
       setNeedsApproval(false);
     }
   }, [amountIn, tokenIn, allowance]);
