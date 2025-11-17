@@ -376,16 +376,24 @@ export default function ProposalDetailPage() {
                   <div className="text-center py-4">
                     <p className="text-muted-foreground mb-2">You need voting power to vote</p>
                     <Button 
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('=== CREATE LOCK BUTTON CLICKED ===');
+                        console.log('Voting power:', votingPower);
+                        console.log('Is connected:', isConnected);
+                        console.log('Current path:', window.location.pathname);
                         try {
-                          console.log('Navigating to /governance/venft');
+                          console.log('Attempting navigation to /governance/venft');
                           router.push('/governance/venft');
+                          console.log('Navigation initiated successfully');
                         } catch (error) {
                           console.error('Navigation error:', error);
                           toast.error('Failed to navigate. Please try refreshing the page.');
                         }
                       }} 
                       size="sm"
+                      type="button"
                     >
                       Lock WFUMA to get voting power
                     </Button>

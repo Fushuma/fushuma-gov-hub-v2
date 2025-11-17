@@ -48,20 +48,24 @@ export async function getSwapQuote(
     // Parse input amount
     const amountInWei = parseUnits(amountIn, tokenIn.decimals);
     
-    // Prepare quote parameters
+    // Determine swap direction (zeroForOne)
+    const token0 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenIn : tokenOut;
+    const token1 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenOut : tokenIn;
+    const zeroForOne = tokenIn.address.toLowerCase() === token0.address.toLowerCase();
+    
+    // Prepare quote parameters with correct structure
     const quoteParams = {
-      exactCurrency: tokenIn.address as Address,
-      path: [
-        {
-          intermediateCurrency: tokenOut.address as Address,
-          fee: 3000, // 0.3% fee tier
-          hooks: '0x0000000000000000000000000000000000000000' as Address,
-          poolManager: (await import('./contracts')).CL_POOL_MANAGER_ADDRESS as Address,
-          hookData: '0x' as `0x${string}`,
-          parameters: '0x00' as `0x${string}`,
-        },
-      ],
+      poolKey: {
+        currency0: token0.address as Address,
+        currency1: token1.address as Address,
+        hooks: '0x0000000000000000000000000000000000000000' as Address,
+        poolManager: (await import('./contracts')).CL_POOL_MANAGER_ADDRESS as Address,
+        fee: 3000, // 0.3% fee tier
+        parameters: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
+      },
+      zeroForOne,
       exactAmount: amountInWei,
+      hookData: '0x' as `0x${string}`,
     };
     
     // Call CLQuoter
