@@ -22,7 +22,8 @@ export const FUSHUMA_CONTRACTS = {
   binPositionManager: '0x36eb7e5Ae00b2eEA50435084bb98Bb4Ebf5E2982', // ✅ Deployed
   
   // Router
-  infinityRouter: '0x9E98f794bd1c4161898013fa0DEE406B7b06aB6B', // ✅ Deployed
+  infinityRouter: '0x9E98f794bd1c4161898013fa0DEE406B7b06aB6B', // ✅ Deployed (abstract, use Universal Router)
+  universalRouter: '0xE489902A6F5926C68B8dc3431FAaF28A73C1AE95', // ✅ Deployed
   mixedQuoter: '0x0000000000000000000000000000000000000000', // ⏳ Skipped (uses transient storage)
   
   // Protocol Governance
@@ -108,6 +109,7 @@ export const CL_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPositionManager;
 export const BIN_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.binQuoter;
 export const BIN_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.binPositionManager;
 export const INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.infinityRouter;
+export const UNIVERSAL_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.universalRouter;
 export const MIXED_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter;
 export const PERMIT2_ADDRESS = FUSHUMA_CONTRACTS.permit2;
 export const WFUMA_ADDRESS = FUSHUMA_CONTRACTS.wfuma;
