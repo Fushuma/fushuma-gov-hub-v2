@@ -88,10 +88,17 @@ export async function getSwapQuote(
       fee: 3000, // 0.3% fee in basis points
       minimumOutput: (parseFloat(outputAmountFormatted) * 0.995).toFixed(6), // 0.5% slippage
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting swap quote from CLQuoter:', error);
-    // Fall back to mock quote
-    return getMockQuote(tokenIn, tokenOut, amountIn);
+    
+    // Check if error is due to insufficient liquidity
+    if (error?.message?.includes('UnexpectedRevertBytes') || 
+        error?.message?.includes('0x486aa307')) {
+      throw new Error('Pool has no liquidity yet. Please add liquidity first to enable swaps.');
+    }
+    
+    // Fall back to null for other errors (don't use mock quotes in production)
+    return null;
   }
 }
 

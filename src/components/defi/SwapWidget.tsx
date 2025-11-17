@@ -140,10 +140,19 @@ export function SwapWidget() {
         if (swapQuote) {
           setQuote(swapQuote);
           setAmountOut(swapQuote.outputAmount);
+        } else {
+          setAmountOut('');
+          setQuote(null);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching quote:', error);
-        toast.error('Failed to fetch quote');
+        if (error?.message?.includes('no liquidity')) {
+          toast.error(error.message);
+        } else {
+          toast.error('Failed to fetch quote. Pool may not have liquidity yet.');
+        }
+        setAmountOut('');
+        setQuote(null);
       } finally {
         setIsLoadingQuote(false);
       }
