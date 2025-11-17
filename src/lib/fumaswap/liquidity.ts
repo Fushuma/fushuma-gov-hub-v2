@@ -103,14 +103,40 @@ export async function addLiquidity(
     // Calculate deadline timestamp
     const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
 
-    // Call CLPositionManager mint function
+    // Call CLPositionManager modifyLiquidities function
     const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
+    
+    // Encode actions for modifyLiquidities
+    // Action: MINT (0x00)
+    const actions = '0x00';
+    const params_encoded = encodeAbiParameters(
+      parseAbiParameters('(address,address,address,address,uint24,bytes32),int24,int24,uint256,uint128,uint128,uint128,uint128,address,bytes'),
+      [
+        [
+          poolKey.currency0,
+          poolKey.currency1,
+          poolKey.hooks,
+          poolKey.poolManager,
+          poolKey.fee,
+          poolKey.parameters,
+        ],
+        tickLower,
+        tickUpper,
+        0n, // liquidity (calculated by contract)
+        amount0Desired,
+        amount1Desired,
+        amount0Min,
+        amount1Min,
+        recipient,
+        '0x' as `0x${string}`,
+      ]
+    );
     
     const result = await writeContract({
       address: CL_POSITION_MANAGER_ADDRESS as Address,
       abi: CLPositionManagerABI,
-      functionName: 'mint',
-      args: [mintParams, deadlineTimestamp],
+      functionName: 'modifyLiquidities',
+      args: [actions, [params_encoded], deadlineTimestamp],
     });
 
     return result;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useWriteContract } from 'wagmi';
+import { useAccount, useWriteContract, useReadContract } from 'wagmi';
 import { ArrowDownUp, Settings, Info, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,8 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { DEFAULT_TOKEN_LIST, isPlaceholderAddress } from '@/lib/fumaswap/tokens';
 import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput, executeSwap } from '@/lib/fumaswap/swap';
+import { UNIVERSAL_ROUTER_ADDRESS } from '@/lib/fumaswap/contracts';
+import { parseUnits } from 'viem';
 import { useTokenBalance } from '@/lib/fumaswap/hooks/useTokenBalance';
 import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
 import type { Token } from '@pancakeswap/sdk';
@@ -50,6 +52,10 @@ export function SwapWidget() {
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   
+  // Token approval
+  const [needsApproval, setNeedsApproval] = useState(false);
+  const { writeContractAsync: approveToken } = useWriteContract();
+  
   // Token balances
   const { balance: balanceIn } = useTokenBalance(
     tokenIn && !isPlaceholderAddress(tokenIn.address) ? tokenIn.address as `0x${string}` : undefined
@@ -62,6 +68,41 @@ export function SwapWidget() {
     setAmountIn(amountOut);
     setAmountOut(amountIn);
   };
+  
+  // Check token allowance
+  const { data: allowance } = useReadContract({
+    address: tokenIn?.address as `0x${string}`,
+    abi: [{
+      name: 'allowance',
+      type: 'function',
+      stateMutability: 'view',
+      inputs: [
+        { name: 'owner', type: 'address' },
+        { name: 'spender', type: 'address' }
+      ],
+      outputs: [{ name: '', type: 'uint256' }]
+    }],
+    functionName: 'allowance',
+    args: address && tokenIn ? [address, UNIVERSAL_ROUTER_ADDRESS as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address && !!tokenIn && tokenIn.address !== '0x0000000000000000000000000000000000000000',
+    },
+  });
+  
+  // Check if approval is needed
+  useEffect(() => {
+    if (!amountIn || !tokenIn || !allowance) {
+      setNeedsApproval(false);
+      return;
+    }
+    
+    try {
+      const amountInWei = parseUnits(amountIn, tokenIn.decimals);
+      setNeedsApproval(BigInt(allowance.toString()) < amountInWei);
+    } catch {
+      setNeedsApproval(false);
+    }
+  }, [amountIn, tokenIn, allowance]);
   
   // Get quote when amount changes
   useEffect(() => {
@@ -92,6 +133,39 @@ export function SwapWidget() {
     const debounce = setTimeout(fetchQuote, 500);
     return () => clearTimeout(debounce);
   }, [amountIn, tokenIn, tokenOut]);
+  
+  // Handle token approval
+  const handleApprove = async () => {
+    if (!isConnected || !address || !tokenIn) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+    
+    try {
+      const amountInWei = parseUnits(amountIn, tokenIn.decimals);
+      
+      await approveToken({
+        address: tokenIn.address as `0x${string}`,
+        abi: [{
+          name: 'approve',
+          type: 'function',
+          stateMutability: 'nonpayable',
+          inputs: [
+            { name: 'spender', type: 'address' },
+            { name: 'amount', type: 'uint256' }
+          ],
+          outputs: [{ name: '', type: 'bool' }]
+        }],
+        functionName: 'approve',
+        args: [UNIVERSAL_ROUTER_ADDRESS as `0x${string}`, amountInWei],
+      });
+      
+      toast.success('Token approved successfully!');
+    } catch (error: any) {
+      console.error('Approval error:', error);
+      toast.error(error.message || 'Failed to approve token');
+    }
+  };
   
   // Execute swap
   const handleSwap = async () => {
@@ -322,15 +396,26 @@ export function SwapWidget() {
           </div>
         </div>
         
-        {/* Swap Button */}
-        <Button
-          onClick={handleSwap}
-          disabled={!isConnected || !amountIn || !amountOut || isLoadingQuote}
-          className="w-full"
-          size="lg"
-        >
-          {!isConnected ? 'Connect Wallet' : isLoadingQuote ? 'Loading...' : 'Swap'}
-        </Button>
+        {/* Approval/Swap Button */}
+        {needsApproval ? (
+          <Button
+            onClick={handleApprove}
+            disabled={!isConnected || !amountIn}
+            className="w-full"
+            size="lg"
+          >
+            Approve {tokenIn?.symbol}
+          </Button>
+        ) : (
+          <Button
+            onClick={handleSwap}
+            disabled={!isConnected || !amountIn || !amountOut || isLoadingQuote}
+            className="w-full"
+            size="lg"
+          >
+            {!isConnected ? 'Connect Wallet' : isLoadingQuote ? 'Loading...' : 'Swap'}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

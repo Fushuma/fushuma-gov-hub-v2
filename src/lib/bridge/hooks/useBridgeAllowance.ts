@@ -62,8 +62,23 @@ export function useBridgeAllowance(
    */
   const approve = useCallback(
     async (approveAmount?: string) => {
-      if (!account || !chainId || !tokenAddress || !bridgeAddress) {
-        toast.error('Missing required parameters');
+      if (!account) {
+        toast.error('Please connect your wallet');
+        return false;
+      }
+      
+      if (!chainId) {
+        toast.error('Network not detected');
+        return false;
+      }
+      
+      if (!tokenAddress) {
+        toast.error('Token address not found');
+        return false;
+      }
+      
+      if (!bridgeAddress) {
+        toast.error('Bridge contract not found for this network');
         return false;
       }
 

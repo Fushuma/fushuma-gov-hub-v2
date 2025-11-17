@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/layout/Navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Lock, TrendingUp, Calendar, Wallet, Plus, ArrowRight, ArrowDownUp } from 'lucide-react';
 import Link from 'next/link';
-import { useAccount } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { toast } from 'sonner';
 import {
   useWFUMABalance,
@@ -38,8 +38,32 @@ export default function VeNFTPage() {
   const { data: allowance } = useWFUMAAllowance(address);
   const { data: veNFTBalance } = useVeNFTBalance(address);
   const { data: totalVotingPower } = useTotalVotingPower(address);
-  const { writeContract: approve, isPending: isApproving } = useApproveWFUMA();
-  const { writeContract: createLock, isPending: isCreating } = useCreateLock();
+  const { writeContract: approve, isPending: isApproving, data: approveHash } = useApproveWFUMA();
+  const { writeContract: createLock, isPending: isCreating, data: createLockHash } = useCreateLock();
+  
+  // Wait for transactions
+  const { isLoading: isApproveConfirming, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({
+    hash: approveHash,
+  });
+  
+  const { isLoading: isCreateLockConfirming, isSuccess: isCreateLockSuccess } = useWaitForTransactionReceipt({
+    hash: createLockHash,
+  });
+  
+  // Handle approve success
+  useEffect(() => {
+    if (isApproveSuccess && approveHash) {
+      toast.success('WFUMA approved successfully!');
+    }
+  }, [isApproveSuccess, approveHash]);
+  
+  // Handle create lock success
+  useEffect(() => {
+    if (isCreateLockSuccess && createLockHash) {
+      toast.success('Lock created successfully!');
+      setLockAmount('');
+    }
+  }, [isCreateLockSuccess, createLockHash]);
 
   // Form state
   const [lockAmount, setLockAmount] = useState('');
@@ -63,13 +87,12 @@ export default function VeNFTPage() {
 
     try {
       const amountWei = parseWFUMAAmount(lockAmount);
-      await approve({
+      approve({
         address: WFUMA_ADDRESS as `0x${string}`,
         abi: WFUMAAbi,
         functionName: 'approve',
         args: [VOTING_ESCROW_ADDRESS as `0x${string}`, amountWei],
       });
-      toast.success('WFUMA approved successfully!');
     } catch (error: any) {
       console.error('Approve error:', error);
       toast.error(error.message || 'Failed to approve WFUMA');
@@ -89,14 +112,12 @@ export default function VeNFTPage() {
 
     try {
       const amountWei = parseWFUMAAmount(lockAmount);
-      await createLock({
+      createLock({
         address: VOTING_ESCROW_ADDRESS as `0x${string}`,
         abi: VotingEscrowAbi,
         functionName: 'createLock',
         args: [amountWei, BigInt(duration)],
       });
-      toast.success('Lock created successfully!');
-      setLockAmount('');
     } catch (error: any) {
       console.error('Create lock error:', error);
       toast.error(error.message || 'Failed to create lock');
@@ -311,21 +332,21 @@ export default function VeNFTPage() {
                   {needsApproval() ? (
                     <Button
                       onClick={handleApprove}
-                      disabled={!isConnected || !lockAmount || amount < minDeposit || isApproving}
+                      disabled={!isConnected || !lockAmount || amount < minDeposit || isApproving || isApproveConfirming}
                       className="w-full"
                       size="lg"
                     >
-                      {isApproving ? 'Approving...' : `Approve WFUMA`}
+                      {isApproving || isApproveConfirming ? 'Approving...' : `Approve WFUMA`}
                     </Button>
                   ) : (
                     <Button
                       onClick={handleCreateLock}
-                      disabled={!isConnected || !lockAmount || amount < minDeposit || isCreating}
+                      disabled={!isConnected || !lockAmount || amount < minDeposit || isCreating || isCreateLockConfirming}
                       className="w-full"
                       size="lg"
                     >
                       <Lock className="mr-2 h-4 w-4" />
-                      {isCreating ? 'Creating Lock...' : 'Create Lock'}
+                      {isCreating || isCreateLockConfirming ? 'Creating Lock...' : 'Create Lock'}
                     </Button>
                   )}
                 </div>
