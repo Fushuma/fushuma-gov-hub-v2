@@ -91,8 +91,15 @@ export function SwapWidget() {
   
   // Check if approval is needed
   useEffect(() => {
-    if (!amountIn || !tokenIn || !allowance) {
+    // Native tokens (ETH/FSM) don't need approval
+    if (!amountIn || !tokenIn || tokenIn.address === '0x0000000000000000000000000000000000000000') {
       setNeedsApproval(false);
+      return;
+    }
+    
+    if (!allowance) {
+      // If allowance is not loaded yet, assume approval is needed
+      setNeedsApproval(true);
       return;
     }
     

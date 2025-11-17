@@ -77,6 +77,12 @@ export function BridgeForm() {
       return;
     }
 
+    // Check if token is available on selected network
+    if (selectedToken && fromNetwork && !tokenAddress) {
+      setError(`${selectedToken.symbol} is not available on ${fromNetwork.name}`);
+      return;
+    }
+
     const minGas = getMinGasAmount(fromNetwork?.chainId);
     const validation = validateBridgeAmount(amount, balance, minGas.toString());
     
@@ -85,7 +91,7 @@ export function BridgeForm() {
     } else {
       setError(null);
     }
-  }, [amount, balance, fromNetwork]);
+  }, [amount, balance, fromNetwork, selectedToken, tokenAddress]);
 
   // Handle max button
   const handleMax = () => {

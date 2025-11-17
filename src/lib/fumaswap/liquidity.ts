@@ -83,7 +83,7 @@ export async function addLiquidity(
       hooks: '0x0000000000000000000000000000000000000000' as Address,
       poolManager: CL_POOL_MANAGER_ADDRESS as Address,
       fee,
-      parameters: '0x00' as `0x${string}`,
+      parameters: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
     };
 
     // Prepare mint parameters
