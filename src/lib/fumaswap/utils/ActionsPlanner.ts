@@ -15,14 +15,30 @@ type Plan = {
   param: any[];
 };
 
+// ABI struct definitions matching PancakeSwap V4
+const ABI_STRUCT_POOL_KEY = [
+  'struct PoolKey { address currency0; address currency1; address hooks; address poolManager; uint24 fee; bytes32 parameters; }'
+];
+
+const ABI_STRUCT_POSITION_CONFIG = [
+  'struct PositionConfig { PoolKey poolKey; int24 tickLower; int24 tickUpper; }',
+  ...ABI_STRUCT_POOL_KEY
+];
+
 // ABI definitions for each action type
-const ACTIONS_ABI: Record<number, string> = {
-  [ACTIONS.CL_MINT_POSITION]: '(address,address,int24,int24,bytes32,uint256,uint128,uint128,address,bytes)',
-  [ACTIONS.CL_INCREASE_LIQUIDITY]: '(uint256,(address,address,int24,int24,bytes32),uint256,uint128,uint128,bytes)',
-  [ACTIONS.SETTLE_PAIR]: '(address,address)',
-  [ACTIONS.SWEEP]: '(address,address)',
-  [ACTIONS.TAKE]: '(address,address,uint256)',
-  [ACTIONS.CLOSE_CURRENCY]: '(address)',
+const ACTIONS_ABI: Record<number, ReturnType<typeof parseAbiParameters>> = {
+  [ACTIONS.CL_MINT_POSITION]: parseAbiParameters([
+    'PositionConfig positionConfig, uint128 liquidity, uint128 amount0Max, uint128 amount1Max, address owner, bytes hookData',
+    ...ABI_STRUCT_POSITION_CONFIG,
+  ]),
+  [ACTIONS.CL_INCREASE_LIQUIDITY]: parseAbiParameters([
+    'uint256 tokenId, uint128 liquidity, uint128 amount0Max, uint128 amount1Max, bytes hookData',
+    ...ABI_STRUCT_POSITION_CONFIG,
+  ]),
+  [ACTIONS.SETTLE_PAIR]: parseAbiParameters('address currency0, address currency1'),
+  [ACTIONS.SWEEP]: parseAbiParameters('address currency, address to'),
+  [ACTIONS.TAKE]: parseAbiParameters('address currency, address recipient, uint256 amount'),
+  [ACTIONS.CLOSE_CURRENCY]: parseAbiParameters('address currency'),
 };
 
 export class ActionsPlanner {
@@ -47,7 +63,7 @@ export class ActionsPlanner {
       if (!abi) {
         throw new Error(`No ABI defined for action ${plan.action}`);
       }
-      return encodeAbiParameters(parseAbiParameters(abi), plan.param as any);
+      return encodeAbiParameters(abi, plan.param as any);
     });
 
     return encodeAbiParameters(encodeAbi, [actions, params]);

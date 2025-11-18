@@ -109,17 +109,13 @@ export async function addLiquidity(
     const planner = new ActionsPlanner();
 
     // Add CL_MINT_POSITION action
-    // Parameters: (positionConfig, liquidity, amount0Max, amount1Max, recipient, hookData)
+    // Parameters: (PositionConfig struct, liquidity, amount0Max, amount1Max, owner, hookData)
     planner.add(ACTIONS.CL_MINT_POSITION, [
-      positionConfig.poolKey.currency0,
-      positionConfig.poolKey.currency1,
-      positionConfig.tickLower,
-      positionConfig.tickUpper,
-      positionConfig.poolKey.parameters,
+      positionConfig, // PositionConfig struct
       0n, // liquidity (will be calculated by contract)
       amount0Desired, // amount0Max
       amount1Desired, // amount1Max
-      recipient,
+      recipient, // owner
       '0x' as `0x${string}`, // hookData
     ]);
 
