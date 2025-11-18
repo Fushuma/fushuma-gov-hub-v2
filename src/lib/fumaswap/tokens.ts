@@ -94,6 +94,17 @@ export const DEPLOYED_TOKENS = [
 ];
 
 /**
+ * Token list for liquidity provision
+ * Only includes tokens that can be used in liquidity pairs
+ * (excludes native FUMA, use WFUMA instead)
+ */
+export const LIQUIDITY_TOKEN_LIST = [
+  WFUMA_TOKEN,
+  USDC_TOKEN,
+  USDT_TOKEN,
+];
+
+/**
  * Create a token instance from address and metadata
  */
 export function createToken(
