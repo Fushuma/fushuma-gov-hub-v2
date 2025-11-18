@@ -6,7 +6,8 @@
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
 import { encodePacked, parseUnits, formatUnits, encodeAbiParameters, parseAbiParameters } from 'viem';
-import { UNIVERSAL_ROUTER_ADDRESS, CL_QUOTER_ADDRESS } from './contracts';
+import { UNIVERSAL_ROUTER_ADDRESS, CL_QUOTER_ADDRESS, FeeAmount } from './contracts';
+import { getParametersForFee } from './poolKeyHelper';
 
 export interface SwapQuote {
   inputAmount: string;
@@ -54,14 +55,15 @@ export async function getSwapQuote(
     const zeroForOne = tokenIn.address.toLowerCase() === token0.address.toLowerCase();
     
     // Prepare quote parameters with correct structure
+    const fee = 3000; // 0.3% fee tier (TODO: make this dynamic based on pool)
     const quoteParams = {
       poolKey: {
         currency0: token0.address as Address,
         currency1: token1.address as Address,
         hooks: '0x0000000000000000000000000000000000000000' as Address,
         poolManager: (await import('./contracts')).CL_POOL_MANAGER_ADDRESS as Address,
-        fee: 3000, // 0.3% fee tier
-        parameters: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
+        fee: fee,
+        parameters: getParametersForFee(fee as FeeAmount), // Correctly encode tick spacing
       },
       zeroForOne,
       exactAmount: amountInWei,

@@ -8,6 +8,7 @@ import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
 import { parseUnits, encodeAbiParameters, parseAbiParameters } from 'viem';
 import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS, CL_POOL_MANAGER_ADDRESS } from './contracts';
+import { getParametersForFee } from './poolKeyHelper';
 import { isPlaceholderAddress } from './tokens';
 import { getNearestUsableTick, priceToTick } from './pools';
 
@@ -76,14 +77,14 @@ export async function addLiquidity(
       deadline,
     } = params;
 
-    // Prepare pool key
+    // Prepare pool key with correctly encoded parameters
     const poolKey = {
       currency0: token0.address as Address,
       currency1: token1.address as Address,
       hooks: '0x0000000000000000000000000000000000000000' as Address,
       poolManager: CL_POOL_MANAGER_ADDRESS as Address,
       fee,
-      parameters: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
+      parameters: getParametersForFee(fee), // Correctly encode tick spacing
     };
 
     // Prepare mint parameters
