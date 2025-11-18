@@ -67,7 +67,7 @@ export function AddLiquidity() {
     
     if (isWFUMA_USDT || isWFUMA_USDC) {
       setPoolExists(true);
-      setFeeTier(3000); // 0.30% for initialized pools
+      setFeeTier(500); // 0.05% for initialized pools (fixed November 18, 2025)
     } else {
       setPoolExists(false);
     }
