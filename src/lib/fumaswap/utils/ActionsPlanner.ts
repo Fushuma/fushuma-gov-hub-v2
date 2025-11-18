@@ -71,6 +71,16 @@ export class ActionsPlanner {
   }
 
   /**
+   * Close currency pair by settling debts. This is the recommended method for minting new positions.
+   * CLOSE_CURRENCY will automatically handle token transfers by either taking or settling.
+   */
+  public finalizeModifyLiquidityWithClose(poolKey: PoolKey | EncodedPoolKey) {
+    this.add(ACTIONS.CLOSE_CURRENCY, [poolKey.currency0]);
+    this.add(ACTIONS.CLOSE_CURRENCY, [poolKey.currency1]);
+    return this.encode();
+  }
+
+  /**
    * Pay and settle currency pair. User's token0 and token1 will be transferred from user and paid.
    * This is commonly used for increase liquidity or mint action.
    */

@@ -208,8 +208,8 @@ export async function addLiquidity(
       '0x' as `0x${string}`, // hookData
     ]);
 
-    // Finalize with settlement (use DECODED poolKey for currency addresses)
-    const calls = planner.finalizeModifyLiquidityWithSettlePair(poolKey, recipient);
+    // Finalize with CLOSE_CURRENCY actions (use DECODED poolKey for currency addresses)
+    const calls = planner.finalizeModifyLiquidityWithClose(poolKey);
 
     // Calculate deadline timestamp
     const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + deadline * 60);
