@@ -88,14 +88,14 @@ export async function addLiquidity(
       throw new Error(`Invalid fee tier: ${fee}`);
     }
 
-    // Prepare pool key with properly encoded parameters
+    // Prepare pool key with OBJECT parameters (will be encoded later)
     const poolKey: PoolKey = {
       currency0: token0.address as Address,
       currency1: token1.address as Address,
       hooks: zeroAddress as Address,
       poolManager: CL_POOL_MANAGER_ADDRESS as Address,
       fee,
-      parameters: encodeCLPoolParameters({ tickSpacing }), // Properly encode parameters
+      parameters: { tickSpacing }, // Keep as object, encode later
     };
 
     // Prepare position config
@@ -105,13 +105,21 @@ export async function addLiquidity(
       tickUpper,
     };
 
+    // Encode the position config (convert parameters object to Bytes32)
+    const encodedPositionConfig = {
+      ...positionConfig,
+      poolKey: {
+        ...positionConfig.poolKey,
+        parameters: encodeCLPoolParameters(positionConfig.poolKey.parameters),
+      },
+    };
+
     // Create ActionsPlanner
     const planner = new ActionsPlanner();
 
-    // Add CL_MINT_POSITION action
-    // Parameters: (PositionConfig struct, liquidity, amount0Max, amount1Max, owner, hookData)
+    // Add CL_MINT_POSITION action with ENCODED position config
     planner.add(ACTIONS.CL_MINT_POSITION, [
-      positionConfig, // PositionConfig struct
+      encodedPositionConfig, // EncodedCLPositionConfig struct
       0n, // liquidity (will be calculated by contract)
       amount0Desired, // amount0Max
       amount1Desired, // amount1Max
@@ -119,8 +127,8 @@ export async function addLiquidity(
       '0x' as `0x${string}`, // hookData
     ]);
 
-    // Finalize with settlement
-    const calls = planner.finalizeModifyLiquidityWithSettlePair(poolKey, recipient);
+    // Finalize with settlement (use encoded poolKey)
+    const calls = planner.finalizeModifyLiquidityWithSettlePair(encodedPositionConfig.poolKey, recipient);
 
     // Calculate deadline timestamp
     const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + deadline * 60);
