@@ -63,7 +63,7 @@ export interface Pool {
   token1: Address;
   token0Symbol: string;
   token1Symbol: string;
-  fee: FeeAmount;
+  fee: FeeAmount | number;
   liquidity: string;
   sqrtPriceX96: string;
   tick: number;
@@ -347,7 +347,7 @@ export function calculatePoolAPR(pool: Pool, volume24h: string): number {
 /**
  * Format fee amount as percentage
  */
-export function formatFee(fee: FeeAmount): string {
+export function formatFee(fee: FeeAmount | number): string {
   return `${(fee / 10000).toFixed(2)}%`;
 }
 

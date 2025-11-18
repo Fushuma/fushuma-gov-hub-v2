@@ -92,11 +92,12 @@ export { FeeAmount } from '@pancakeswap/v3-sdk';
  * Note: These are from Uniswap V3, FumaSwap may use different values
  */
 import { FeeAmount as SDKFeeAmount } from '@pancakeswap/v3-sdk';
-export const TICK_SPACINGS: { [amount in SDKFeeAmount]: number } = {
+export const TICK_SPACINGS: { [key: number]: number } = {
   [SDKFeeAmount.LOWEST]: 1,
   [SDKFeeAmount.LOW]: 10,
   [SDKFeeAmount.MEDIUM]: 60,
   [SDKFeeAmount.HIGH]: 200,
+  3000: 60, // 0.3% fee tier (Uniswap V3 standard)
 };
 
 // Export individual contract addresses for easier imports

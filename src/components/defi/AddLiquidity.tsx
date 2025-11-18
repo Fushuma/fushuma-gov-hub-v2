@@ -31,8 +31,8 @@ export function AddLiquidity() {
   const [token0, setToken0] = useState<Token | null>(DEFAULT_TOKEN_LIST[0]);
   const [token1, setToken1] = useState<Token | null>(DEFAULT_TOKEN_LIST[1]);
   
-  // Fee tier
-  const [feeTier, setFeeTier] = useState<FeeAmount>(FeeAmount.MEDIUM);
+  // Fee tier - using 3000 (0.3%) to match initialized pools
+  const [feeTier, setFeeTier] = useState<number>(3000);
   
   // Amounts
   const [amount0, setAmount0] = useState('');

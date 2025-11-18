@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Search, TrendingUp, Droplet, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -187,10 +188,16 @@ export function PoolBrowser() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="outline" size="sm">
-                          Add Liquidity
-                        </Button>
-                        <Button variant="ghost" size="sm">
+                        <Link href="/defi/fumaswap/liquidity">
+                          <Button variant="outline" size="sm">
+                            Add Liquidity
+                          </Button>
+                        </Link>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => window.open(`https://explorer.fushuma.com/address/${pool.token0}`, '_blank')}
+                        >
                           <ExternalLink className="h-4 w-4" />
                         </Button>
                       </div>
