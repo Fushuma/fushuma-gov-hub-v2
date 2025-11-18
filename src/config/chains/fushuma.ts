@@ -15,8 +15,8 @@ export const fushuma = defineChain({
   },
   blockExplorers: {
     default: {
-      name: "Fushuma Explorer",
-      url: "https://explorer.fushuma.com",
+      name: "Fumascan",
+      url: "https://fumascan.com",
     },
   },
   testnet: false,

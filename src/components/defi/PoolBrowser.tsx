@@ -196,7 +196,7 @@ export function PoolBrowser() {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => window.open(`https://explorer.fushuma.com/address/${pool.token0}`, '_blank')}
+                          onClick={() => window.open(`https://fumascan.com/address/${pool.token0}`, '_blank')}
                         >
                           <ExternalLink className="h-4 w-4" />
                         </Button>
