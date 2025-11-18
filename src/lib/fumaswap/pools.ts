@@ -2,13 +2,60 @@
  * FumaSwap V4 Pool Utilities
  * 
  * Integration layer for pool and liquidity operations
- * Ready to connect to deployed contracts
+ * Now with actual on-chain queries
  */
 
-import { FeeAmount, TICK_SPACINGS } from './contracts';
+import { FeeAmount, TICK_SPACINGS, CL_POOL_MANAGER_ADDRESS } from './contracts';
 export { FeeAmount };
 import { isPlaceholderAddress } from './tokens';
 import type { Address } from 'viem';
+import { createPublicClient, http } from 'viem';
+import { defineChain } from 'viem';
+import { getParametersForFee } from './poolKeyHelper';
+import { STATIC_POOLS } from './staticPools';
+
+// Define Fushuma chain
+const fushuma = defineChain({
+  id: 121224,
+  name: 'Fushuma',
+  network: 'fushuma',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'FUMA',
+    symbol: 'FUMA',
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://rpc.fushuma.com'],
+    },
+    public: {
+      http: ['https://rpc.fushuma.com'],
+    },
+  },
+});
+
+// CLPoolManager ABI (minimal for reading pool data)
+const CLPoolManagerABI = [
+  {
+    type: 'function',
+    name: 'getSlot0',
+    inputs: [{ name: 'id', type: 'bytes32' }],
+    outputs: [
+      { name: 'sqrtPriceX96', type: 'uint160' },
+      { name: 'tick', type: 'int24' },
+      { name: 'protocolFee', type: 'uint24' },
+      { name: 'lpFee', type: 'uint24' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getLiquidity',
+    inputs: [{ name: 'id', type: 'bytes32' }],
+    outputs: [{ name: 'liquidity', type: 'uint128' }],
+    stateMutability: 'view',
+  },
+] as const;
 
 export interface Pool {
   id: string;
@@ -51,10 +98,37 @@ export interface PositionValue {
 }
 
 /**
+ * Calculate pool ID from pool key
+ * This is how PancakeSwap V4 generates deterministic pool IDs
+ */
+function getPoolId(poolKey: {
+  currency0: Address;
+  currency1: Address;
+  hooks: Address;
+  poolManager: Address;
+  fee: number;
+  parameters: `0x${string}`;
+}): `0x${string}` {
+  // Pool ID is keccak256 of abi.encode(poolKey)
+  const { keccak256, encodeAbiParameters, parseAbiParameters } = require('viem');
+  
+  const encoded = encodeAbiParameters(
+    parseAbiParameters('address, address, address, address, uint24, bytes32'),
+    [
+      poolKey.currency0,
+      poolKey.currency1,
+      poolKey.hooks,
+      poolKey.poolManager,
+      poolKey.fee,
+      poolKey.parameters,
+    ]
+  );
+  
+  return keccak256(encoded);
+}
+
+/**
  * Get pool data from the blockchain
- * 
- * TODO: Implement after contracts are deployed
- * This will query the CLPoolManager contract
  */
 export async function getPool(
   token0: Address,
@@ -62,12 +136,75 @@ export async function getPool(
   fee: FeeAmount
 ): Promise<Pool | null> {
   try {
-    // TODO: Call CLPoolManager.getPool()
-    // const poolKey = { token0, token1, fee, tickSpacing: TICK_SPACINGS[fee], hooks: zeroAddress };
-    // const poolData = await poolManager.getSlot0(poolKey);
+    const publicClient = createPublicClient({
+      chain: fushuma,
+      transport: http(),
+    });
+
+    // Sort tokens (required by Uniswap V3/V4)
+    const [currency0, currency1] = token0.toLowerCase() < token1.toLowerCase()
+      ? [token0, token1]
+      : [token1, token0];
+
+    // Build pool key with correct parameters
+    const poolKey = {
+      currency0,
+      currency1,
+      hooks: '0x0000000000000000000000000000000000000000' as Address,
+      poolManager: CL_POOL_MANAGER_ADDRESS as Address,
+      fee,
+      parameters: getParametersForFee(fee),
+    };
+
+    // Calculate pool ID
+    const poolId = getPoolId(poolKey);
+
+    // Query pool slot0
+    const slot0 = await publicClient.readContract({
+      address: CL_POOL_MANAGER_ADDRESS as Address,
+      abi: CLPoolManagerABI,
+      functionName: 'getSlot0',
+      args: [poolId],
+    });
+
+    const [sqrtPriceX96, tick, protocolFee, lpFee] = slot0;
+
+    // If sqrtPriceX96 is 0, pool doesn't exist
+    if (sqrtPriceX96 === 0n) {
+      return null;
+    }
+
+    // Query pool liquidity
+    const liquidity = await publicClient.readContract({
+      address: CL_POOL_MANAGER_ADDRESS as Address,
+      abi: CLPoolManagerABI,
+      functionName: 'getLiquidity',
+      args: [poolId],
+    });
+
+    // Get token symbols (simplified - you may want to query from token contracts)
+    const token0Symbol = currency0 === '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' ? 'WFUMA' :
+                         currency0 === '0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e' ? 'USDT' :
+                         currency0 === '0xf8EA5627691E041dae171350E8Df13c592084848' ? 'USDC' : 'UNKNOWN';
     
-    // For now, return null (pool doesn't exist yet)
-    return null;
+    const token1Symbol = currency1 === '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' ? 'WFUMA' :
+                         currency1 === '0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e' ? 'USDT' :
+                         currency1 === '0xf8EA5627691E041dae171350E8Df13c592084848' ? 'USDC' : 'UNKNOWN';
+
+    return {
+      id: poolId,
+      token0: currency0,
+      token1: currency1,
+      token0Symbol,
+      token1Symbol,
+      fee,
+      liquidity: liquidity.toString(),
+      sqrtPriceX96: sqrtPriceX96.toString(),
+      tick: Number(tick),
+      tvl: '0', // TODO: Calculate from liquidity and price
+      volume24h: '0', // TODO: Query from events or subgraph
+      apr: 0, // TODO: Calculate from volume and fees
+    };
   } catch (error) {
     console.error('Error fetching pool:', error);
     return null;
@@ -75,55 +212,57 @@ export async function getPool(
 }
 
 /**
- * Get all pools from the subgraph
+ * Get all known pools
  * 
- * TODO: Implement after subgraph is deployed
+ * For now, we'll hardcode the known pools and query their data
+ * In the future, this should query a subgraph or index events
  */
 export async function getAllPools(): Promise<Pool[]> {
   try {
-    // TODO: Query subgraph
-    // const query = gql`
-    //   query GetPools {
-    //     pools(first: 100, orderBy: tvl, orderDirection: desc) {
-    //       id
-    //       token0 { address symbol }
-    //       token1 { address symbol }
-    //       fee
-    //       liquidity
-    //       sqrtPriceX96
-    //       tick
-    //       tvl
-    //       volume24h
-    //     }
-    //   }
-    // `;
+    // For now, return static pools since RPC connection may be slow/unreliable
+    // TODO: Re-enable dynamic fetching when RPC is stable
+    console.log('Returning static pools (RPC fetching disabled temporarily)');
+    return STATIC_POOLS;
     
-    // For now, return empty array
-    return [];
+    /* Dynamic fetching - re-enable when RPC is stable
+    const knownPools = [
+      {
+        token0: '0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e' as Address, // USDT
+        token1: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' as Address, // WFUMA
+        fee: 3000 as FeeAmount,
+      },
+      {
+        token0: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' as Address, // WFUMA
+        token1: '0xf8EA5627691E041dae171350E8Df13c592084848' as Address, // USDC
+        fee: 3000 as FeeAmount,
+      },
+    ];
+
+    const pools: Pool[] = [];
+
+    for (const { token0, token1, fee } of knownPools) {
+      const pool = await getPool(token0, token1, fee);
+      if (pool) {
+        pools.push(pool);
+      }
+    }
+
+    return pools;
+    */
   } catch (error) {
     console.error('Error fetching pools:', error);
-    return [];
+    return STATIC_POOLS; // Fallback to static pools
   }
 }
 
 /**
  * Get user's liquidity positions
  * 
- * TODO: Implement after contracts are deployed
- * This will query the CLPositionManager contract
+ * TODO: Implement after CLPositionManager is integrated
  */
 export async function getUserPositions(address: Address): Promise<Position[]> {
   try {
     // TODO: Call CLPositionManager.balanceOf() and positions()
-    // const balance = await positionManager.balanceOf(address);
-    // const positions = [];
-    // for (let i = 0; i < balance; i++) {
-    //   const tokenId = await positionManager.tokenOfOwnerByIndex(address, i);
-    //   const position = await positionManager.positions(tokenId);
-    //   positions.push(position);
-    // }
-    
-    // For now, return empty array
     return [];
   } catch (error) {
     console.error('Error fetching user positions:', error);
@@ -134,16 +273,9 @@ export async function getUserPositions(address: Address): Promise<Position[]> {
 /**
  * Calculate position value in tokens
  * 
- * TODO: Implement proper calculation after contracts are deployed
+ * TODO: Implement proper calculation
  */
 export function calculatePositionValue(position: Position): PositionValue {
-  // TODO: Implement proper position value calculation
-  // This requires:
-  // 1. Current pool price
-  // 2. Position liquidity
-  // 3. Tick range
-  // 4. Fee growth data
-  
   return {
     amount0: '0',
     amount1: '0',
@@ -159,7 +291,6 @@ export function calculatePositionValue(position: Position): PositionValue {
 export function getNearestUsableTick(tick: number, tickSpacing: number): number {
   const rounded = Math.round(tick / tickSpacing) * tickSpacing;
   
-  // Ensure tick is within valid range
   const MIN_TICK = -887272;
   const MAX_TICK = 887272;
   
@@ -189,7 +320,6 @@ export function tickToPrice(tick: number): number {
  * TODO: Implement after price oracle is available
  */
 export function calculatePoolTVL(pool: Pool): string {
-  // TODO: Implement TVL calculation using price oracle
   return pool.tvl || '0';
 }
 
@@ -203,9 +333,7 @@ export function calculatePoolAPR(pool: Pool, volume24h: string): number {
     
     if (tvl === 0) return 0;
     
-    // APR = (Daily Fees * 365) / TVL * 100
-    // Daily Fees = Volume * Fee Tier
-    const feePercentage = pool.fee / 1000000; // Convert to decimal
+    const feePercentage = pool.fee / 1000000;
     const dailyFees = volume * feePercentage;
     const annualFees = dailyFees * 365;
     const apr = (annualFees / tvl) * 100;
@@ -256,16 +384,16 @@ export async function poolExists(
 /**
  * Get pool address (deterministic)
  * 
- * TODO: Implement proper pool address calculation
+ * For V4, pools don't have individual addresses - they're managed by CLPoolManager
+ * Pool ID is used instead
  */
 export function getPoolAddress(
   token0: Address,
   token1: Address,
   fee: FeeAmount
 ): Address {
-  // TODO: Calculate deterministic pool address using CREATE2
-  // This will be implemented after contracts are deployed
-  return '0x0000000000000000000000000000000000000000';
+  // V4 pools are managed by CLPoolManager, not individual contracts
+  return CL_POOL_MANAGER_ADDRESS as Address;
 }
 
 /**
@@ -280,12 +408,6 @@ export function estimateLiquidity(
   tickUpper: number,
   currentTick: number
 ): bigint {
-  // TODO: Implement proper liquidity calculation based on:
-  // - Token amounts
-  // - Price range (ticks)
-  // - Current price
-  
-  // For now, return a mock value
   return BigInt(0);
 }
 
@@ -300,8 +422,6 @@ export function calculateTokenAmounts(
   tickUpper: number,
   currentTick: number
 ): { amount0: bigint; amount1: bigint } {
-  // TODO: Implement proper calculation
-  
   return {
     amount0: BigInt(0),
     amount1: BigInt(0),

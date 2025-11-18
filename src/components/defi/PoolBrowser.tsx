@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, TrendingUp, Droplet, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,71 +14,44 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatFee } from '@/lib/fumaswap/pools';
-import { FeeAmount } from '@/lib/fumaswap/contracts';
-
-// Mock pool data - will be replaced with actual data from contracts
-const MOCK_POOLS = [
-  {
-    id: '1',
-    token0: { symbol: 'FUMA', name: 'Fushuma Token' },
-    token1: { symbol: 'USDC', name: 'USD Coin' },
-    fee: FeeAmount.MEDIUM,
-    tvl: 1250000,
-    volume24h: 85000,
-    apr: 15.5,
-    liquidity: 1250000,
-  },
-  {
-    id: '2',
-    token0: { symbol: 'FUMA', name: 'Fushuma Token' },
-    token1: { symbol: 'WETH', name: 'Wrapped Ether' },
-    fee: FeeAmount.MEDIUM,
-    tvl: 850000,
-    volume24h: 125000,
-    apr: 22.3,
-    liquidity: 850000,
-  },
-  {
-    id: '3',
-    token0: { symbol: 'USDC', name: 'USD Coin' },
-    token1: { symbol: 'USDT', name: 'Tether USD' },
-    fee: FeeAmount.LOWEST,
-    tvl: 2100000,
-    volume24h: 450000,
-    apr: 8.2,
-    liquidity: 2100000,
-  },
-  {
-    id: '4',
-    token0: { symbol: 'WETH', name: 'Wrapped Ether' },
-    token1: { symbol: 'WBTC', name: 'Wrapped Bitcoin' },
-    fee: FeeAmount.LOW,
-    tvl: 3500000,
-    volume24h: 680000,
-    apr: 18.7,
-    liquidity: 3500000,
-  },
-];
+import { formatFee, getAllPools, type Pool } from '@/lib/fumaswap/pools';
 
 export function PoolBrowser() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'tvl' | 'volume' | 'apr'>('tvl');
+  const [pools, setPools] = useState<Pool[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  const filteredPools = MOCK_POOLS.filter((pool) => {
+  // Fetch pools on mount
+  useEffect(() => {
+    async function fetchPools() {
+      try {
+        setLoading(true);
+        const fetchedPools = await getAllPools();
+        console.log('Fetched pools:', fetchedPools);
+        setPools(fetchedPools);
+      } catch (error) {
+        console.error('Error fetching pools:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchPools();
+  }, []);
+  
+  const filteredPools = pools.filter((pool) => {
     const query = searchQuery.toLowerCase();
     return (
-      pool.token0.symbol.toLowerCase().includes(query) ||
-      pool.token1.symbol.toLowerCase().includes(query) ||
-      pool.token0.name.toLowerCase().includes(query) ||
-      pool.token1.name.toLowerCase().includes(query)
+      pool.token0Symbol.toLowerCase().includes(query) ||
+      pool.token1Symbol.toLowerCase().includes(query)
     );
   }).sort((a, b) => {
     switch (sortBy) {
       case 'tvl':
-        return b.tvl - a.tvl;
+        return parseFloat(b.tvl) - parseFloat(a.tvl);
       case 'volume':
-        return b.volume24h - a.volume24h;
+        return parseFloat(b.volume24h) - parseFloat(a.volume24h);
       case 'apr':
         return b.apr - a.apr;
       default:
@@ -86,15 +59,19 @@ export function PoolBrowser() {
     }
   });
   
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(2)}M`;
+  const formatCurrency = (value: string | number) => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (numValue >= 1000000) {
+      return `$${(numValue / 1000000).toFixed(2)}M`;
     }
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(2)}K`;
+    if (numValue >= 1000) {
+      return `$${(numValue / 1000).toFixed(2)}K`;
     }
-    return `$${value.toFixed(2)}`;
+    return `$${numValue.toFixed(2)}`;
   };
+  
+  const totalTVL = pools.reduce((sum, pool) => sum + parseFloat(pool.tvl || '0'), 0);
+  const totalVolume = pools.reduce((sum, pool) => sum + parseFloat(pool.volume24h || '0'), 0);
   
   return (
     <Card className="w-full">
@@ -153,7 +130,13 @@ export function PoolBrowser() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPools.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Loading pools...
+                  </TableCell>
+                </TableRow>
+              ) : filteredPools.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No pools found
@@ -166,18 +149,18 @@ export function PoolBrowser() {
                       <div className="flex items-center gap-2">
                         <div className="flex -space-x-2">
                           <div className="w-8 h-8 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center text-xs font-bold">
-                            {pool.token0.symbol[0]}
+                            {pool.token0Symbol[0]}
                           </div>
                           <div className="w-8 h-8 rounded-full bg-secondary/20 border-2 border-background flex items-center justify-center text-xs font-bold">
-                            {pool.token1.symbol[0]}
+                            {pool.token1Symbol[0]}
                           </div>
                         </div>
                         <div>
                           <p className="font-medium">
-                            {pool.token0.symbol}/{pool.token1.symbol}
+                            {pool.token0Symbol}/{pool.token1Symbol}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {pool.token0.name} / {pool.token1.name}
+                            Liquidity: {pool.liquidity}
                           </p>
                         </div>
                       </div>
@@ -227,7 +210,7 @@ export function PoolBrowser() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total TVL</p>
                   <p className="text-2xl font-bold mt-1">
-                    {formatCurrency(MOCK_POOLS.reduce((sum, pool) => sum + pool.tvl, 0))}
+                    {formatCurrency(totalTVL)}
                   </p>
                 </div>
                 <Droplet className="h-8 w-8 text-blue-500" />
@@ -241,7 +224,7 @@ export function PoolBrowser() {
                 <div>
                   <p className="text-sm text-muted-foreground">24h Volume</p>
                   <p className="text-2xl font-bold mt-1">
-                    {formatCurrency(MOCK_POOLS.reduce((sum, pool) => sum + pool.volume24h, 0))}
+                    {formatCurrency(totalVolume)}
                   </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-500" />
@@ -254,10 +237,10 @@ export function PoolBrowser() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Pools</p>
-                  <p className="text-2xl font-bold mt-1">{MOCK_POOLS.length}</p>
+                  <p className="text-2xl font-bold mt-1">{pools.length}</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-lg font-bold">{MOCK_POOLS.length}</span>
+                  <span className="text-lg font-bold">{pools.length}</span>
                 </div>
               </div>
             </CardContent>
@@ -267,4 +250,3 @@ export function PoolBrowser() {
     </Card>
   );
 }
-
