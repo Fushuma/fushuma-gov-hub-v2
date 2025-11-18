@@ -7,13 +7,14 @@
 
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { parseUnits, encodeFunctionData, zeroAddress } from 'viem';
+import { parseUnits, encodeFunctionData, zeroAddress, keccak256, encodePacked } from 'viem';
 import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS, CL_POOL_MANAGER_ADDRESS } from './contracts';
 import { isPlaceholderAddress } from './tokens';
 import { getNearestUsableTick, priceToTick } from './pools';
 import { ActionsPlanner } from './utils/ActionsPlanner';
 import { ACTIONS } from './utils/constants';
 import { encodeCLPoolParameters } from './utils/encodePoolParameters';
+import { maxLiquidityForAmounts, getSqrtRatioAtTick } from './utils/liquidityMath';
 import type { PoolKey } from './types';
 
 export interface AddLiquidityParams {
@@ -55,6 +56,26 @@ export interface CollectFeesParams {
 }
 
 /**
+ * Calculate pool ID from pool key
+ */
+function getPoolId(poolKey: PoolKey): `0x${string}` {
+  const encodedParams = encodeCLPoolParameters(poolKey.parameters);
+  return keccak256(
+    encodePacked(
+      ['address', 'address', 'address', 'address', 'uint24', 'bytes32'],
+      [
+        poolKey.currency0,
+        poolKey.currency1,
+        poolKey.hooks,
+        poolKey.poolManager,
+        poolKey.fee,
+        encodedParams,
+      ]
+    )
+  );
+}
+
+/**
  * Add liquidity to a pool (mint new position)
  * Uses PancakeSwap V4 ActionsPlanner pattern
  */
@@ -82,6 +103,14 @@ export async function addLiquidity(
       deadline,
     } = params;
 
+    console.log('🔢 Calculating liquidity...');
+    console.log('  Token0 decimals:', token0.decimals);
+    console.log('  Token1 decimals:', token1.decimals);
+    console.log('  Amount0Desired:', amount0Desired.toString());
+    console.log('  Amount1Desired:', amount1Desired.toString());
+    console.log('  TickLower:', tickLower);
+    console.log('  TickUpper:', tickUpper);
+
     // Get tick spacing for the fee tier
     const tickSpacing = TICK_SPACINGS[fee];
     if (!tickSpacing) {
@@ -97,6 +126,57 @@ export async function addLiquidity(
       fee,
       parameters: { tickSpacing }, // Keep as object, encode later
     };
+
+    // Get pool ID and fetch current sqrt price
+    const poolId = getPoolId(poolKey);
+    console.log('📊 Pool ID:', poolId);
+
+    // Import viem client
+    const { createPublicClient, http } = await import('viem');
+    const { fushuma } = await import('@/lib/chains');
+    
+    const publicClient = createPublicClient({
+      chain: fushuma,
+      transport: http(),
+    });
+
+    // Load PoolManager ABI and fetch slot0
+    const CLPoolManagerABI = (await import('./abis/CLPoolManager.json')).default;
+    
+    console.log('📞 Fetching pool slot0...');
+    const slot0 = await publicClient.readContract({
+      address: CL_POOL_MANAGER_ADDRESS as Address,
+      abi: CLPoolManagerABI,
+      functionName: 'getSlot0',
+      args: [poolId],
+    }) as [bigint, number, number, number];
+
+    const sqrtPriceX96 = slot0[0];
+    const currentTick = slot0[1];
+    console.log('✅ Pool state fetched:');
+    console.log('  sqrtPriceX96:', sqrtPriceX96.toString());
+    console.log('  currentTick:', currentTick);
+
+    // Calculate sqrt ratios at tick boundaries
+    const sqrtRatioAX96 = getSqrtRatioAtTick(tickLower);
+    const sqrtRatioBX96 = getSqrtRatioAtTick(tickUpper);
+    console.log('  sqrtRatioAX96 (lower):', sqrtRatioAX96.toString());
+    console.log('  sqrtRatioBX96 (upper):', sqrtRatioBX96.toString());
+
+    // Calculate liquidity using the proper formula
+    const liquidity = maxLiquidityForAmounts(
+      sqrtPriceX96,
+      sqrtRatioAX96,
+      sqrtRatioBX96,
+      amount0Desired,
+      amount1Desired
+    );
+
+    console.log('✅ Calculated liquidity:', liquidity.toString());
+
+    if (liquidity === 0n) {
+      throw new Error('Calculated liquidity is zero. Please check your amounts and price range.');
+    }
 
     // Prepare position config
     const positionConfig = {
@@ -117,10 +197,11 @@ export async function addLiquidity(
     // Create ActionsPlanner
     const planner = new ActionsPlanner();
 
-    // Add CL_MINT_POSITION action with ENCODED position config
+    // Add CL_MINT_POSITION action with CALCULATED liquidity
+    console.log('📝 Adding CL_MINT_POSITION action with liquidity:', liquidity.toString());
     planner.add(ACTIONS.CL_MINT_POSITION, [
       encodedPositionConfig, // EncodedCLPositionConfig struct
-      0n, // liquidity (will be calculated by contract)
+      liquidity, // CALCULATED liquidity (not 0!)
       amount0Desired, // amount0Max
       amount1Desired, // amount1Max
       recipient, // owner
