@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
   // Experimental features
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    serverComponentsExternalPackages: ['thread-stream', 'pino', 'pino-pretty'],
   },
   
   // Headers for security
