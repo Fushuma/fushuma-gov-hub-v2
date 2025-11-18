@@ -345,8 +345,10 @@ export function AddLiquidity() {
         console.error('Short message:', error.shortMessage);
       }
       
-      // Log the full error object
-      console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      // Log the full error object (with BigInt support)
+      console.error('Full error object:', JSON.stringify(error, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      , 2));
       
       // User-friendly error message
       let userMessage = 'Failed to add liquidity';
