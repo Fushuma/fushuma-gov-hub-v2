@@ -1,38 +1,38 @@
 /**
  * FumaSwap V4 Contract Addresses on Fushuma Network
  * 
- * Paris EVM Compatible Version - Fully Deployed Nov 16, 2025
- * Modified to use regular storage instead of transient storage
- * All contracts deployed and operational
+ * Shanghai EVM + Solidity 0.8.20 - Deployed Nov 18, 2025
+ * Complete redeployment with Shanghai EVM compatibility
+ * All contracts deployed and operational including Universal Router
  */
 
 export const FUSHUMA_CONTRACTS = {
-  // Core Contracts (Paris EVM Compatible)
-  vault: '0x4FB212Ed5038b0EcF2c8322B3c71FC64d66073A1', // ✅ Deployed
-  clPoolManager: '0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a', // ✅ Deployed
-  binPoolManager: '0x3014809fBFF942C485A9F527242eC7C5A9ddC765', // ✅ Deployed
+  // Core Contracts (Shanghai EVM + Solidity 0.8.20)
+  vault: '0xcf842B77660ccEBD24fB3f860Ab2304c5B9F5A4E', // ✅ Deployed (Shanghai)
+  clPoolManager: '0xef02f995FEC090E21709A7eBAc2197d249B1a605', // ✅ Deployed (Shanghai)
+  binPoolManager: '0xCF6C0074c43C00234cC83D0f009B1db933EbF280', // ✅ Deployed (Shanghai)
   
   // Periphery Contracts - Concentrated Liquidity
-  clQuoter: '0x9C82E4098805a00eAE3CE96D1eBFD117CeB1fAF8', // ✅ Deployed
-  clPositionDescriptor: '0x181267d849a0a89bC45F4e96F70914AcFb631515', // ✅ Deployed
-  clPositionManager: '0x411755EeC7BaA85F8d6819189FE15d966F41Ad85', // ✅ Deployed
+  clQuoter: '0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a', // ✅ Deployed (Shanghai)
+  clPositionDescriptor: '0x8349289AC7c186b79783Bf77D35A42B78b1Dd1dE', // ✅ Deployed (Shanghai)
+  clPositionManager: '0xd61D426f27E83dcD7CD37D31Ea53BCaE4aDa501E', // ✅ Deployed (Shanghai)
   
   // Periphery Contracts - Bin Pools
-  binQuoter: '0x24cc1bc41220e638204216FdB4252b1D3716561D', // ✅ Deployed
-  binPositionManager: '0x36eb7e5Ae00b2eEA50435084bb98Bb4Ebf5E2982', // ✅ Deployed
+  binQuoter: '0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305', // ✅ Deployed (Shanghai)
+  binPositionManager: '0x0e4410CEE0BEf7C441B7b025d2de38aE05727d20', // ✅ Deployed (Shanghai)
   
   // Router
-  infinityRouter: '0x9E98f794bd1c4161898013fa0DEE406B7b06aB6B', // ✅ Deployed (abstract, use Universal Router)
-  universalRouter: '0xE489902A6F5926C68B8dc3431FAaF28A73C1AE95', // ✅ Deployed
-  mixedQuoter: '0x0000000000000000000000000000000000000000', // ⏳ Skipped (uses transient storage)
+  infinityRouter: '0x0000000000000000000000000000000000000000', // Not deployed (use Universal Router)
+  universalRouter: '0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a', // ✅ Deployed (Shanghai) - NEW!
+  mixedQuoter: '0x8349289AC7c186b79783Bf77D35A42B78b1Dd1dE', // ✅ Deployed (Shanghai)
   
   // Protocol Governance
   clProtocolFeeController: '0x0000000000000000000000000000000000000000', // To be deployed
   clPoolManagerOwner: '0x0000000000000000000000000000000000000000', // To be deployed
   
   // Standard Contracts
-  permit2: '0x1d5E963f9581F5416Eae6C9978246B7dDf559Ff0', // ✅ Deployed
-  wfuma: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E', // ✅ Wrapped FUMA
+  permit2: '0x1d5E963f9581F5416Eae6C9978246B7dDf559Ff0', // ✅ Deployed (unchanged)
+  wfuma: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E', // ✅ Wrapped FUMA (unchanged)
   
   // Custom Hooks
   fumaDiscountHook: '0x0000000000000000000000000000000000000000', // To be deployed

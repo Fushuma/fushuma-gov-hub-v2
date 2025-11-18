@@ -1,13 +1,54 @@
 # Smart Contract Deployment Guide
 
-This guide provides step-by-step instructions for deploying all FumaSwap V4 (Infinity) smart contracts to the Fushuma Network.
+**DEPLOYMENT STATUS: ✅ COMPLETE**  
+**Date:** November 18, 2025  
+**Configuration:** Shanghai EVM + Solidity 0.8.20  
+**Network:** Fushuma Mainnet (Chain ID: 121224)
+
+---
+
+## 🎉 Current Deployment
+
+All FumaSwap V4 (Infinity) smart contracts have been successfully deployed to the Fushuma Network with **Shanghai EVM** and **Solidity 0.8.20** configuration.
+
+### Deployed Contract Addresses
+
+```typescript
+// Core Contracts (Shanghai EVM + Solidity 0.8.20)
+VAULT = '0xcf842B77660ccEBD24fB3f860Ab2304c5B9F5A4E'
+CL_POOL_MANAGER = '0xef02f995FEC090E21709A7eBAc2197d249B1a605'
+BIN_POOL_MANAGER = '0xCF6C0074c43C00234cC83D0f009B1db933EbF280'
+
+// Periphery Contracts
+CL_POSITION_DESCRIPTOR = '0x8349289AC7c186b79783Bf77D35A42B78b1Dd1dE'
+CL_POSITION_MANAGER = '0xd61D426f27E83dcD7CD37D31Ea53BCaE4aDa501E'
+BIN_POSITION_MANAGER = '0x0e4410CEE0BEf7C441B7b025d2de38aE05727d20'
+CL_QUOTER = '0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a'
+BIN_QUOTER = '0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305'
+MIXED_QUOTER = '0x8349289AC7c186b79783Bf77D35A42B78b1Dd1dE'
+
+// Router
+UNIVERSAL_ROUTER = '0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a'
+
+// Standard Contracts (Unchanged)
+PERMIT2 = '0x1d5E963f9581F5416Eae6C9978246B7dDf559Ff0'
+WFUMA = '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E'
+```
+
+### Deployment Cost
+
+- **Total Cost:** 6,321.23 FUMA
+- **Gas Used:** ~26,345,211 gas
+- **Transactions:** 12 successful deployments
+
+---
 
 ## Prerequisites
 
-Before starting the deployment process, ensure you have:
+Before starting a new deployment, ensure you have:
 
 1. **Foundry installed** - https://book.getfoundry.sh/getting-started/installation
-2. **Private key** with sufficient FUMA tokens for deployment gas fees
+2. **Private key** with sufficient FUMA tokens for deployment gas fees (~10,000 FUMA recommended)
 3. **Fushuma Network RPC URL** - https://rpc.fushuma.com
 4. **Fushuma Block Explorer API key** (optional, for contract verification)
 
@@ -17,302 +58,116 @@ Before starting the deployment process, ensure you have:
 - **RPC URL:** https://rpc.fushuma.com
 - **Block Explorer:** https://explorer.fushuma.com
 - **Native Token:** FUMA
+- **Minimum Transaction Fee:** 5 FUMA
 
 ## Deployment Order
 
 Contracts must be deployed in the following order due to dependencies:
 
-1. WFUMA (Wrapped FUMA)
-2. Permit2 (if not already at canonical address)
-3. Vault (Core)
-4. CLPoolManager (Core)
-5. BinPoolManager (Core - Optional)
-6. CLPositionManager (Periphery)
-7. BinPositionManager (Periphery - Optional)
-8. CLQuoter (Periphery)
-9. BinQuoter (Periphery - Optional)
-10. MixedQuoter (Periphery)
-11. UniversalRouter (Router)
-12. Custom Hooks (FUMA Discount Hook, Launchpad Hook)
+1. WFUMA (Wrapped FUMA) - ✅ Deployed
+2. Permit2 (if not already at canonical address) - ✅ Deployed
+3. Vault (Core) - ✅ Deployed
+4. CLPoolManager (Core) - ✅ Deployed
+5. BinPoolManager (Core) - ✅ Deployed
+6. CLPositionManager (Periphery) - ✅ Deployed
+7. BinPositionManager (Periphery) - ✅ Deployed
+8. CLQuoter (Periphery) - ✅ Deployed
+9. BinQuoter (Periphery) - ✅ Deployed
+10. MixedQuoter (Periphery) - ✅ Deployed
+11. UniversalRouter (Router) - ✅ Deployed
+12. Custom Hooks (FUMA Discount Hook, Launchpad Hook) - ⏳ To be deployed
 
-## Step-by-Step Deployment
+---
 
-### 1. Deploy WFUMA (Wrapped FUMA)
+## Quick Deployment (Using Existing Scripts)
 
-WFUMA is essential for trading the native FUMA token in DeFi pools.
+The contracts repository at `/home/azureuser/fushuma-contracts` on Azure server (40.124.72.151) contains ready-to-use deployment scripts.
+
+### 1. Connect to Azure Server
 
 ```bash
-# Clone WETH9 repository (standard wrapped token implementation)
-git clone https://github.com/gnosis/canonical-weth.git
-cd canonical-weth
+ssh azureuser@40.124.72.151
+cd /home/azureuser/fushuma-contracts
+```
 
-# Set environment variables
-export PRIVATE_KEY=0x...
+### 2. Set Environment Variables
+
+```bash
+export PATH="$HOME/.foundry/bin:$PATH"
+export PRIVATE_KEY=0x...  # Your deployer private key
 export RPC_URL=https://rpc.fushuma.com
-
-# Deploy using Foundry
-forge create --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  contracts/WETH9.sol:WETH9 \
-  --constructor-args
-
-# Save the deployed address
-export WFUMA_ADDRESS=0x...
 ```
 
-**Update:** Add the WFUMA address to `src/lib/fumaswap/contracts.ts`
-
-### 2. Check/Deploy Permit2
-
-Permit2 is typically deployed at the canonical address: `0x000000000022D473030F116dDEE9F6B43aC78BA3`
-
-Check if it exists on Fushuma Network:
+### 3. Deploy Core Contracts
 
 ```bash
-cast code 0x000000000022D473030F116dDEE9F6B43aC78BA3 --rpc-url $RPC_URL
-```
-
-If it doesn't exist, deploy it:
-
-```bash
-git clone https://github.com/Uniswap/permit2.git
-cd permit2
-
-forge create --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  src/Permit2.sol:Permit2
-```
-
-### 3. Deploy Core Contracts (Vault, Pool Managers)
-
-```bash
-# Clone FumaSwap Infinity Core
-git clone https://github.com/fumaswap/infinity-core.git
-cd infinity-core
-
-# Install dependencies
-forge install
-yarn install
-
-# Set environment variables
-export SCRIPT_CONFIG=fushuma-mainnet
-export RPC_URL=https://rpc.fushuma.com
-export PRIVATE_KEY=0x...
-
-# Create config file
-mkdir -p script/config
-cat > script/config/fushuma-mainnet.json << EOF
-{
-  "wfuma": "$WFUMA_ADDRESS",
-  "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
-}
-EOF
-
-# Deploy Vault
-forge script script/01_DeployVault.s.sol:DeployVaultScript -vvv \
-  --rpc-url $RPC_URL \
-  --broadcast \
-  --slow
-
-# Save the Vault address
-export VAULT_ADDRESS=0x...
-
-# Deploy CLPoolManager
-forge script script/02_DeployCLPoolManager.s.sol:DeployCLPoolManagerScript -vvv \
-  --rpc-url $RPC_URL \
-  --broadcast \
-  --slow
-
-# Save the CLPoolManager address
-export CL_POOL_MANAGER_ADDRESS=0x...
-
-# Optional: Deploy BinPoolManager for Liquidity Book pools
-forge script script/03_DeployBinPoolManager.s.sol:DeployBinPoolManagerScript -vvv \
-  --rpc-url $RPC_URL \
-  --broadcast \
-  --slow
-
-export BIN_POOL_MANAGER_ADDRESS=0x...
+forge script script/FushumaDeployCore.s.sol:FushumaDeployCore \
+    --rpc-url $RPC_URL \
+    --broadcast \
+    --legacy \
+    --slow \
+    -vv
 ```
 
 ### 4. Deploy Periphery Contracts
 
+Update addresses in `script/DeployPeripheryFixed.s.sol` with your core contract addresses, then:
+
 ```bash
-# Clone FumaSwap Infinity Periphery
-cd ..
-git clone https://github.com/fumaswap/infinity-periphery.git
-cd infinity-periphery
-
-# Install dependencies
-forge install
-yarn install
-
-# Update config with core contract addresses
-cat > script/config/fushuma-mainnet.json << EOF
-{
-  "vault": "$VAULT_ADDRESS",
-  "clPoolManager": "$CL_POOL_MANAGER_ADDRESS",
-  "binPoolManager": "$BIN_POOL_MANAGER_ADDRESS",
-  "wfuma": "$WFUMA_ADDRESS",
-  "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
-}
-EOF
-
-# Deploy CLPositionManager
-forge script script/01_DeployCLPositionManager.s.sol:DeployCLPositionManagerScript -vvv \
-  --rpc-url $RPC_URL \
-  --broadcast \
-  --slow
-
-export CL_POSITION_MANAGER_ADDRESS=0x...
-
-# Deploy CLQuoter
-forge script script/02_DeployCLQuoter.s.sol:DeployCLQuoterScript -vvv \
-  --rpc-url $RPC_URL \
-  --broadcast \
-  --slow
-
-export CL_QUOTER_ADDRESS=0x...
-
-# Deploy MixedQuoter
-forge script script/03_DeployMixedQuoter.s.sol:DeployMixedQuoterScript -vvv \
-  --rpc-url $RPC_URL \
-  --broadcast \
-  --slow
-
-export MIXED_QUOTER_ADDRESS=0x...
+forge script script/DeployPeripheryFixed.s.sol:DeployPeripheryFixed \
+    --rpc-url $RPC_URL \
+    --broadcast \
+    --legacy \
+    --slow \
+    -vv
 ```
 
 ### 5. Deploy Universal Router
 
-```bash
-# Clone FumaSwap Infinity Universal Router
-cd ..
-git clone https://github.com/fumaswap/infinity-universal-router.git
-cd infinity-universal-router
-
-# Install dependencies
-forge install
-yarn install
-
-# Update config
-cat > script/config/fushuma-mainnet.json << EOF
-{
-  "vault": "$VAULT_ADDRESS",
-  "clPoolManager": "$CL_POOL_MANAGER_ADDRESS",
-  "binPoolManager": "$BIN_POOL_MANAGER_ADDRESS",
-  "clPositionManager": "$CL_POSITION_MANAGER_ADDRESS",
-  "wfuma": "$WFUMA_ADDRESS",
-  "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
-}
-EOF
-
-# Deploy UniversalRouter
-forge script script/01_DeployUniversalRouter.s.sol:DeployUniversalRouterScript -vvv \
-  --rpc-url $RPC_URL \
-  --broadcast \
-  --slow
-
-export UNIVERSAL_ROUTER_ADDRESS=0x...
-```
-
-### 6. Deploy Custom Hooks
-
-#### FUMA Discount Hook
-
-This hook provides fee discounts to FUMA/WFUMA holders.
+Update addresses in `script/DeployUniversalRouter.s.sol`, then:
 
 ```bash
-# Clone FumaSwap Infinity Hooks template
-cd ..
-git clone https://github.com/fumaswap/infinity-hooks.git fushuma-hooks
-cd fushuma-hooks
-
-# Create FUMA Discount Hook
-# (You'll need to implement this custom hook based on your requirements)
-# Example structure:
-
-# src/FumaDiscountHook.sol
-# - Check user's FUMA/WFUMA balance
-# - Apply fee discount based on balance tiers
-# - Implement beforeSwap hook to modify fees
-
-# Deploy the hook
-forge create --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  src/FumaDiscountHook.sol:FumaDiscountHook \
-  --constructor-args $CL_POOL_MANAGER_ADDRESS $WFUMA_ADDRESS
-
-export FUMA_DISCOUNT_HOOK_ADDRESS=0x...
+forge script script/DeployUniversalRouter.s.sol:DeployUniversalRouter \
+    --rpc-url $RPC_URL \
+    --broadcast \
+    --legacy \
+    --slow \
+    -vv
 ```
 
-#### Launchpad Hook
+---
 
-This hook integrates DeFi pools with the Fushuma Launchpad.
+## Configuration
 
-```bash
-# Create Launchpad Hook
-# This hook can:
-# - Lock liquidity for launchpad tokens
-# - Enforce vesting schedules
-# - Integrate with launchpad contracts
+### Shanghai EVM Configuration
 
-forge create --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  src/LaunchpadHook.sol:LaunchpadHook \
-  --constructor-args $CL_POOL_MANAGER_ADDRESS $LAUNCHPAD_PROXY_ADDRESS
+All contracts are compiled with:
 
-export LAUNCHPAD_HOOK_ADDRESS=0x...
+```toml
+[profile.default]
+solc_version = "0.8.20"
+evm_version = "shanghai"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
 ```
 
-### 7. Verify Contracts on Block Explorer
+### Key Changes from Paris EVM
 
-```bash
-# Set explorer API key
-export ETHERSCAN_API_KEY=your_api_key
+- **Transient Storage:** Replaced TLOAD/TSTORE with regular storage
+- **Storage Cleanup:** Added cleanup functions for gas optimization
+- **Solidity Version:** Downgraded from 0.8.26 to 0.8.20
+- **EVM Target:** Changed from Paris to Shanghai
 
-# Verify each contract
-forge verify-contract $VAULT_ADDRESS Vault --watch --chain 121224
-forge verify-contract $CL_POOL_MANAGER_ADDRESS CLPoolManager --watch --chain 121224
-forge verify-contract $CL_POSITION_MANAGER_ADDRESS CLPositionManager --watch --chain 121224
-# ... repeat for all contracts
-```
-
-### 8. Update Frontend Configuration
-
-Update `src/lib/fumaswap/contracts.ts` with all deployed addresses:
-
-```typescript
-export const VAULT_ADDRESS = '0x...';
-export const CL_POOL_MANAGER_ADDRESS = '0x...';
-export const BIN_POOL_MANAGER_ADDRESS = '0x...';
-export const CL_POSITION_MANAGER_ADDRESS = '0x...';
-export const INFINITY_ROUTER_ADDRESS = '0x...';
-export const CL_QUOTER_ADDRESS = '0x...';
-export const MIXED_QUOTER_ADDRESS = '0x...';
-export const PERMIT2_ADDRESS = '0x000000000022D473030F116dDEE9F6B43aC78BA3';
-export const WFUMA_ADDRESS = '0x...';
-
-// Custom Hooks
-export const FUMA_DISCOUNT_HOOK_ADDRESS = '0x...';
-export const LAUNCHPAD_HOOK_ADDRESS = '0x...';
-```
-
-Update `src/lib/fumaswap/tokens.ts` with WFUMA address:
-
-```typescript
-export const WFUMA_TOKEN = new Token(
-  FUSHUMA_CHAIN_ID,
-  '0x...', // WFUMA address
-  18,
-  'WFUMA',
-  'Wrapped FUMA'
-);
-```
+---
 
 ## Post-Deployment Steps
 
-### 1. Create Initial Pools
+### 1. Update Frontend Configuration
+
+Update `src/lib/fumaswap/contracts.ts` with deployed addresses (already done for current deployment).
+
+### 2. Create Initial Pools
 
 Create the core trading pairs:
 
@@ -322,38 +177,41 @@ Create the core trading pairs:
 - WFUMA/WETH (0.25% fee)
 - WFUMA/WBTC (0.25% fee)
 
-### 2. Add Initial Liquidity
+### 3. Add Initial Liquidity
 
 Provide initial liquidity to the core pools to enable trading.
 
-### 3. Deploy Subgraph
+### 4. Deploy Subgraph
 
 Follow the instructions in `subgraph/README.md` to deploy the subgraph for data indexing.
 
-### 4. Test All Functionality
+### 5. Test All Functionality
 
 - Test swaps on all pairs
 - Test adding/removing liquidity
 - Test position management
 - Test fee collection
-- Verify hook functionality
+- Verify router functionality
 
-### 5. Security Audit
+### 6. Security Audit
 
 **CRITICAL:** Before allowing public access, conduct a thorough security audit of all deployed contracts and custom hooks.
+
+---
 
 ## Troubleshooting
 
 ### Deployment Fails
 
-- Ensure sufficient FUMA balance for gas fees
+- Ensure sufficient FUMA balance for gas fees (minimum 10,000 FUMA recommended)
 - Check RPC URL is correct and accessible
 - Verify private key has correct permissions
 - Check for constructor argument errors
+- Remember: Fushuma has a 5 FUMA minimum transaction fee
 
 ### Contract Verification Fails
 
-- Ensure correct compiler version
+- Ensure correct compiler version (0.8.20)
 - Check optimization settings match deployment
 - Verify constructor arguments are correct
 - Try manual verification on block explorer
@@ -364,47 +222,56 @@ Follow the instructions in `subgraph/README.md` to deploy the subgraph for data 
 - Verify token approvals
 - Ensure sufficient token balances
 - Check gas limits
+- Verify Shanghai EVM compatibility
+
+---
 
 ## Cost Estimation
 
-Approximate gas costs for full deployment:
+Approximate gas costs for full deployment (based on actual deployment):
 
-- WFUMA: ~1,000,000 gas
-- Core Contracts: ~10,000,000 gas
-- Periphery Contracts: ~8,000,000 gas
-- Router: ~3,000,000 gas
-- Hooks: ~2,000,000 gas each
+- Core Contracts (Vault + Pool Managers): ~2,935 FUMA
+- Periphery Contracts (Position Managers + Quoters): ~1,965 FUMA
+- Universal Router: ~1,397 FUMA
+- **Total:** ~6,300 FUMA
 
-**Total:** ~25,000,000 gas
+**Note:** Costs may vary based on network congestion and contract complexity.
 
-At current FUMA gas prices, estimate total deployment cost and ensure sufficient balance.
+---
 
 ## Support
 
 For deployment issues or questions:
 
-- FumaSwap Discord: https://discord.gg/fumaswap
-- FumaSwap Docs: https://developer.fumaswap.finance/
+- GitHub Issues: https://github.com/Fushuma/fushuma-contracts/issues
 - Fushuma Support: https://help.manus.im
 
-## Checklist
+---
 
-- [ ] WFUMA deployed and verified
-- [ ] Permit2 deployed/verified at canonical address
-- [ ] Vault deployed and verified
-- [ ] CLPoolManager deployed and verified
-- [ ] BinPoolManager deployed and verified (optional)
-- [ ] CLPositionManager deployed and verified
-- [ ] CLQuoter deployed and verified
-- [ ] MixedQuoter deployed and verified
-- [ ] UniversalRouter deployed and verified
+## Deployment Checklist
+
+- [x] WFUMA deployed and verified
+- [x] Permit2 deployed/verified at canonical address
+- [x] Vault deployed and verified
+- [x] CLPoolManager deployed and verified
+- [x] BinPoolManager deployed and verified
+- [x] CLPositionManager deployed and verified
+- [x] BinPositionManager deployed and verified
+- [x] CLQuoter deployed and verified
+- [x] BinQuoter deployed and verified
+- [x] MixedQuoter deployed and verified
+- [x] UniversalRouter deployed and verified
+- [x] Frontend contracts.ts updated
 - [ ] FUMA Discount Hook deployed and verified
 - [ ] Launchpad Hook deployed and verified
-- [ ] Frontend contracts.ts updated
-- [ ] Frontend tokens.ts updated
 - [ ] Initial pools created
 - [ ] Initial liquidity added
 - [ ] Subgraph deployed
 - [ ] All functionality tested
 - [ ] Security audit completed
-- [ ] Documentation updated
+
+---
+
+**Last Updated:** November 18, 2025  
+**Deployment Status:** ✅ Complete (Shanghai EVM)  
+**Next Steps:** Create initial pools and add liquidity
