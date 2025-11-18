@@ -1,4 +1,5 @@
 import {
+  AbiParameter,
   Address,
   concat,
   encodeAbiParameters,
@@ -26,7 +27,7 @@ const ABI_STRUCT_POSITION_CONFIG = [
 ];
 
 // ABI definitions for each action type
-const ACTIONS_ABI: Record<number, readonly unknown[]> = {
+const ACTIONS_ABI: Record<number, readonly AbiParameter[]> = {
   [ACTIONS.CL_MINT_POSITION]: parseAbiParameters([
     'PositionConfig positionConfig, uint128 liquidity, uint128 amount0Max, uint128 amount1Max, address owner, bytes hookData',
     ...ABI_STRUCT_POSITION_CONFIG,
