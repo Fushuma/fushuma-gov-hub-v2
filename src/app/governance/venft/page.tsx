@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Lock, TrendingUp, Calendar, Wallet, Plus, ArrowRight, ArrowDownUp } from 'lucide-react';
+import { Lock, TrendingUp, Calendar, Wallet, Plus, ArrowRight, ArrowDownUp, Info } from 'lucide-react';
 import Link from 'next/link';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { toast } from 'sonner';
@@ -19,9 +19,6 @@ import {
   useVeNFTBalance,
   useTotalVotingPower,
   useCreateLock,
-  calculateVotingMultiplier,
-  calculateExpectedVotingPower,
-  formatLockDuration,
   parseWFUMAAmount,
   WFUMA_ADDRESS,
   VOTING_ESCROW_ADDRESS,
@@ -67,17 +64,13 @@ export default function VeNFTPage() {
 
   // Form state
   const [lockAmount, setLockAmount] = useState('');
-  const [lockDuration, setLockDuration] = useState('31536000'); // 1 year in seconds
 
   const minDeposit = Number(GOVERNANCE_PARAMS.VotingEscrow.minDeposit) / 1e18;
-  const maxDuration = GOVERNANCE_PARAMS.VotingEscrow.maxLockDuration;
   const maxMultiplier = GOVERNANCE_PARAMS.VotingEscrow.maxMultiplier;
+  const maxLockDuration = GOVERNANCE_PARAMS.VotingEscrow.maxLockDuration;
 
-  // Calculate expected voting power
+  // Calculate expected voting power at different time points
   const amount = lockAmount ? parseFloat(lockAmount) : 0;
-  const duration = parseInt(lockDuration);
-  const multiplier = calculateVotingMultiplier(duration);
-  const expectedPower = amount * multiplier;
 
   const handleApprove = async () => {
     if (!isConnected) {
@@ -116,7 +109,7 @@ export default function VeNFTPage() {
         address: VOTING_ESCROW_ADDRESS as `0x${string}`,
         abi: VotingEscrowAbi,
         functionName: 'createLock',
-        args: [amountWei, BigInt(duration)],
+        args: [amountWei],
       });
     } catch (error: any) {
       console.error('Create lock error:', error);
@@ -128,6 +121,23 @@ export default function VeNFTPage() {
     if (!lockAmount || !allowance || typeof allowance !== 'bigint') return true;
     const amountWei = parseWFUMAAmount(lockAmount);
     return BigInt(allowance) < amountWei;
+  };
+
+  // Calculate voting power at different time milestones
+  const calculateVotingPowerAtTime = (months: number) => {
+    const secondsInMonth = 2592000; // 30 days
+    const timeElapsed = months * secondsInMonth;
+    const maxDuration = maxLockDuration;
+    
+    if (timeElapsed >= maxDuration) {
+      return amount * maxMultiplier;
+    }
+    
+    const progressBps = (timeElapsed * 10000) / maxDuration;
+    const multiplierIncrease = ((maxMultiplier - 1) * progressBps) / 10000;
+    const currentMultiplier = 1 + multiplierIncrease;
+    
+    return amount * currentMultiplier;
   };
 
   return (
@@ -227,11 +237,29 @@ export default function VeNFTPage() {
 
           {/* Create Lock Tab */}
           <TabsContent value="create" className="space-y-6">
+            {/* How It Works Info Box */}
+            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+              <CardContent className="pt-6">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-900 dark:text-blue-100">
+                    <p className="font-semibold mb-2">🚀 Automatic Voting Power Growth</p>
+                    <p className="mb-2">
+                      Your voting power grows automatically over time! Lock WFUMA once and watch your influence increase linearly from <strong>1x to {maxMultiplier}x</strong> over {maxLockDuration / 31536000} year.
+                    </p>
+                    <p>
+                      No need to choose a lock duration - your tokens work harder for you the longer you hold them. Exit anytime via the exit queue.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Create New Lock</CardTitle>
                 <CardDescription>
-                  Lock WFUMA tokens to receive veNFT and voting power. Longer lock periods provide higher voting power multipliers.
+                  Lock WFUMA tokens to receive veNFT and voting power that grows automatically over time.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -268,59 +296,45 @@ export default function VeNFTPage() {
                   </p>
                 </div>
 
-                {/* Duration Selector */}
-                <div className="space-y-2">
-                  <Label>Lock Duration</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {[
-                      { label: '1 Month', value: 2592000 },
-                      { label: '3 Months', value: 7776000 },
-                      { label: '6 Months', value: 15552000 },
-                      { label: '1 Year', value: 31536000 },
-                    ].map((option) => (
-                      <Button
-                        key={option.value}
-                        variant={lockDuration === option.value.toString() ? 'default' : 'outline'}
-                        onClick={() => setLockDuration(option.value.toString())}
-                        disabled={!isConnected}
-                        className="w-full"
-                      >
-                        {option.label}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Duration: {formatLockDuration(duration)}
-                    </span>
-                    <span className="font-medium">
-                      Multiplier: {multiplier.toFixed(2)}x
-                    </span>
-                  </div>
-                </div>
-
-                {/* Expected Voting Power */}
+                {/* Voting Power Growth Timeline */}
                 {amount > 0 && (
                   <Card className="bg-muted">
                     <CardContent className="pt-6">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Lock Amount:</span>
-                          <span className="font-medium">{amount.toLocaleString()} WFUMA</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Lock Duration:</span>
-                          <span className="font-medium">{formatLockDuration(duration)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Voting Multiplier:</span>
-                          <span className="font-medium">{multiplier.toFixed(2)}x</span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t">
-                          <span className="font-semibold">Expected Voting Power:</span>
-                          <span className="font-bold text-lg text-primary">
-                            {expectedPower.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </span>
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm mb-3">📈 Your Voting Power Growth Timeline</h4>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">At Lock Creation:</span>
+                            <span className="font-medium">
+                              {amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} 
+                              <span className="text-muted-foreground text-xs ml-1">(1.00x)</span>
+                            </span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">After 3 Months:</span>
+                            <span className="font-medium">
+                              {calculateVotingPowerAtTime(3).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              <span className="text-muted-foreground text-xs ml-1">(1.75x)</span>
+                            </span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">After 6 Months:</span>
+                            <span className="font-medium">
+                              {calculateVotingPowerAtTime(6).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              <span className="text-muted-foreground text-xs ml-1">(2.50x)</span>
+                            </span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center pt-2 border-t">
+                            <span className="text-sm font-semibold">After 1 Year (Max):</span>
+                            <span className="font-bold text-lg text-primary">
+                              {calculateVotingPowerAtTime(12).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              <span className="text-muted-foreground text-xs ml-1">({maxMultiplier}.00x)</span>
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -349,66 +363,90 @@ export default function VeNFTPage() {
                       {isCreating || isCreateLockConfirming ? 'Creating Lock...' : 'Create Lock'}
                     </Button>
                   )}
+                  
+                  <p className="text-xs text-center text-muted-foreground">
+                    By creating a lock, you agree to the exit queue mechanism. You can withdraw your tokens anytime after completing the cooldown period.
+                  </p>
                 </div>
 
-                {/* Info Box */}
-                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">Important Information:</h4>
-                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
-                    <li>Minimum lock amount: {minDeposit} WFUMA</li>
-                    <li>Maximum lock duration: {formatLockDuration(maxDuration)}</li>
-                    <li>Voting power increases linearly with lock duration (up to {maxMultiplier}x)</li>
-                    <li>Tokens are locked until the expiration date</li>
-                    <li>You can extend your lock or increase the amount at any time</li>
-                    <li>After expiration, you can withdraw your tokens</li>
-                  </ul>
-                </div>
+                {/* Important Information */}
+                <Card className="bg-muted border-0">
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-sm mb-3">Important Information:</h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Minimum lock amount: {minDeposit} WFUMA</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Voting power grows automatically from 1x to {maxMultiplier}x over {maxLockDuration / 31536000} year</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Warmup period: {GOVERNANCE_PARAMS.VotingEscrow.warmupPeriod / 86400} days before voting power becomes active</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>You can increase your lock amount at any time</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>To withdraw, enter the exit queue and wait {GOVERNANCE_PARAMS.VotingEscrow.cooldownPeriod / 86400} days cooldown</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Voting power is zero while in exit queue</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Manage Locks Tab */}
+          {/* My Locks Tab */}
           <TabsContent value="manage" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>My veNFT Locks</CardTitle>
                 <CardDescription>
-                  View and manage your existing veNFT positions
+                  Manage your existing locks, increase amounts, or initiate withdrawals
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {!isConnected ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    Connect your wallet to view your locks
-                  </div>
-                ) : veNFTBalance === 0n ? (
-                  <div className="text-center py-12">
-                    <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold mb-2">No Locks Found</h3>
-                    <p className="text-muted-foreground mb-4">
-                      You don't have any veNFT locks yet. Create your first lock to start participating in governance.
-                    </p>
-                    <Button onClick={() => document.querySelector<HTMLButtonElement>('[value="create"]')?.click()}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create First Lock
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p className="mb-2">You have {veNFTBalance ? veNFTBalance.toString() : '0'} veNFT(s)</p>
-                      <p className="text-sm">
-                        Detailed lock management interface coming soon. You can view your locks on{' '}
-                        <a
-                          href={`https://fumascan.com/address/${VOTING_ESCROW_ADDRESS}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          Fumascan
-                        </a>
+                {isConnected ? (
+                  veNFTBalance && Number(veNFTBalance) > 0 ? (
+                    <div className="text-center py-8">
+                      <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        You have {veNFTBalance.toString()} veNFT{Number(veNFTBalance) > 1 ? 's' : ''}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Lock management interface coming soon
                       </p>
                     </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground mb-4">
+                        You don't have any veNFTs yet
+                      </p>
+                      <Button variant="outline" onClick={() => {
+                        const createTab = document.querySelector('[value="create"]') as HTMLElement;
+                        createTab?.click();
+                      }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Your First Lock
+                      </Button>
+                    </div>
+                  )
+                ) : (
+                  <div className="text-center py-8">
+                    <Wallet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">
+                      Connect your wallet to view your locks
+                    </p>
                   </div>
                 )}
               </CardContent>
