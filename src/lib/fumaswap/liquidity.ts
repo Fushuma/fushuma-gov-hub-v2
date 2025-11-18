@@ -127,8 +127,8 @@ export async function addLiquidity(
       '0x' as `0x${string}`, // hookData
     ]);
 
-    // Finalize with settlement (use encoded poolKey)
-    const calls = planner.finalizeModifyLiquidityWithSettlePair(encodedPositionConfig.poolKey, recipient);
+    // Finalize with settlement (use DECODED poolKey for currency addresses)
+    const calls = planner.finalizeModifyLiquidityWithSettlePair(poolKey, recipient);
 
     // Calculate deadline timestamp
     const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + deadline * 60);
