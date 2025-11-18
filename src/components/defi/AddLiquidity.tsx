@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { Plus, Info, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,21 +18,60 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { DEFAULT_TOKEN_LIST } from '@/lib/fumaswap/tokens';
+import { LIQUIDITY_TOKEN_LIST } from '@/lib/fumaswap/tokens';
 import { FeeAmount, TICK_SPACINGS } from '@/lib/fumaswap/contracts';
 import { formatFee, getFeeTierName } from '@/lib/fumaswap/pools';
+import { useTokenBalance } from '@/lib/fumaswap/hooks/useTokenBalance';
+import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
+import { useBalance, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
 import type { Token } from '@pancakeswap/sdk';
+import { parseUnits, erc20Abi } from 'viem';
+import { CL_POSITION_MANAGER_ADDRESS } from '@/lib/fumaswap/contracts';
 
 export function AddLiquidity() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   
-  // Token selection
-  const [token0, setToken0] = useState<Token | null>(DEFAULT_TOKEN_LIST[0]);
-  const [token1, setToken1] = useState<Token | null>(DEFAULT_TOKEN_LIST[1]);
+  // Token selection (using LIQUIDITY_TOKEN_LIST which excludes native FUMA)
+  const [token0, setToken0] = useState<Token | null>(LIQUIDITY_TOKEN_LIST[0]);
+  const [token1, setToken1] = useState<Token | null>(LIQUIDITY_TOKEN_LIST[1]);
   
-  // Fee tier - using 3000 (0.3%) to match initialized pools
+  // Fetch balances
+  const { data: nativeBalance } = useBalance({ address });
+  const { balance: token0Balance } = useTokenBalance(token0?.address as `0x${string}` | undefined);
+  const { balance: token1Balance } = useTokenBalance(token1?.address as `0x${string}` | undefined);
+  
+  // Get the correct balance based on whether token is native or ERC20
+  const balance0 = token0?.address === '0x0000000000000000000000000000000000000000' ? nativeBalance?.value : token0Balance;
+  const balance1 = token1?.address === '0x0000000000000000000000000000000000000000' ? nativeBalance?.value : token1Balance;
+  
+  // Fee tier - auto-detected from pool
   const [feeTier, setFeeTier] = useState<number>(3000);
+  const [poolExists, setPoolExists] = useState<boolean>(false);
+  
+  // Auto-detect pool based on token pair
+  useEffect(() => {
+    if (!token0 || !token1) {
+      setPoolExists(false);
+      return;
+    }
+    
+    // Check if this token pair has an initialized pool
+    const isWFUMA_USDT = 
+      (token0.symbol === 'WFUMA' && token1.symbol === 'USDT') ||
+      (token0.symbol === 'USDT' && token1.symbol === 'WFUMA');
+    
+    const isWFUMA_USDC = 
+      (token0.symbol === 'WFUMA' && token1.symbol === 'USDC') ||
+      (token0.symbol === 'USDC' && token1.symbol === 'WFUMA');
+    
+    if (isWFUMA_USDT || isWFUMA_USDC) {
+      setPoolExists(true);
+      setFeeTier(3000); // 0.30% for initialized pools
+    } else {
+      setPoolExists(false);
+    }
+  }, [token0, token1]);
   
   // Amounts
   const [amount0, setAmount0] = useState('');
@@ -46,57 +85,200 @@ export function AddLiquidity() {
   // Range type
   const [rangeType, setRangeType] = useState<'full' | 'custom'>('full');
   
+  // Approval state
+  const [isApprovingToken0, setIsApprovingToken0] = useState(false);
+  const [isApprovingToken1, setIsApprovingToken1] = useState(false);
+  const [approvalHash0, setApprovalHash0] = useState<`0x${string}` | undefined>();
+  const [approvalHash1, setApprovalHash1] = useState<`0x${string}` | undefined>();
+  
+  // Wait for approval confirmations
+  const { isLoading: isConfirming0, isSuccess: isSuccess0 } = useWaitForTransactionReceipt({
+    hash: approvalHash0,
+  });
+  
+  const { isLoading: isConfirming1, isSuccess: isSuccess1 } = useWaitForTransactionReceipt({
+    hash: approvalHash1,
+  });
+  
+  // Check token allowances
+  const { data: allowance0, refetch: refetchAllowance0 } = useReadContract({
+    address: token0?.address as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'allowance',
+    args: address && token0 ? [address, CL_POSITION_MANAGER_ADDRESS as `0x${string}`] : undefined,
+    query: { enabled: !!address && !!token0 },
+  });
+  
+  const { data: allowance1, refetch: refetchAllowance1 } = useReadContract({
+    address: token1?.address as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'allowance',
+    args: address && token1 ? [address, CL_POSITION_MANAGER_ADDRESS as `0x${string}`] : undefined,
+    query: { enabled: !!address && !!token1 },
+  });
+  
+  // Handle approval success
+  useEffect(() => {
+    if (isSuccess0) {
+      toast.success(`${token0?.symbol} approved successfully!`);
+      setTimeout(() => {
+        refetchAllowance0();
+        setIsApprovingToken0(false);
+        setApprovalHash0(undefined);
+      }, 2000);
+    }
+  }, [isSuccess0, token0, refetchAllowance0]);
+  
+  useEffect(() => {
+    if (isSuccess1) {
+      toast.success(`${token1?.symbol} approved successfully!`);
+      setTimeout(() => {
+        refetchAllowance1();
+        setIsApprovingToken1(false);
+        setApprovalHash1(undefined);
+      }, 2000);
+    }
+  }, [isSuccess1, token1, refetchAllowance1]);
+
+  // Handle token approvals
+  const handleApproveToken0 = async () => {
+    if (!token0 || !amount0) return;
+    
+    try {
+      setIsApprovingToken0(true);
+      const amount = parseUnits(amount0, token0.decimals);
+      
+      const hash = await writeContractAsync({
+        address: token0.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [CL_POSITION_MANAGER_ADDRESS as `0x${string}`, amount],
+      });
+      
+      setApprovalHash0(hash);
+      toast.info(`Waiting for ${token0.symbol} approval confirmation...`);
+    } catch (error: any) {
+      console.error('Approval error:', error);
+      toast.error(error.message || 'Failed to approve token');
+      setIsApprovingToken0(false);
+    }
+  };
+  
+  const handleApproveToken1 = async () => {
+    if (!token1 || !amount1) return;
+    
+    try {
+      setIsApprovingToken1(true);
+      const amount = parseUnits(amount1, token1.decimals);
+      
+      const hash = await writeContractAsync({
+        address: token1.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [CL_POSITION_MANAGER_ADDRESS as `0x${string}`, amount],
+      });
+      
+      setApprovalHash1(hash);
+      toast.info(`Waiting for ${token1.symbol} approval confirmation...`);
+    } catch (error: any) {
+      console.error('Approval error:', error);
+      toast.error(error.message || 'Failed to approve token');
+      setIsApprovingToken1(false);
+    }
+  };
+  
+  // Check if tokens need approval
+  const needsApproval0 = () => {
+    if (!amount0 || !token0 || !allowance0) return true;
+    const amount = parseUnits(amount0, token0.decimals);
+    return BigInt(allowance0) < amount;
+  };
+  
+  const needsApproval1 = () => {
+    if (!amount1 || !token1 || !allowance1) return true;
+    const amount = parseUnits(amount1, token1.decimals);
+    return BigInt(allowance1) < amount;
+  };
+
   const handleAddLiquidity = async () => {
+    console.log('=== ADD LIQUIDITY DEBUG START ===');
+    console.log('Timestamp:', new Date().toISOString());
+    
     if (!isConnected || !address) {
+      console.error('❌ Wallet not connected');
       toast.error('Please connect your wallet');
       return;
     }
     
+    console.log('✅ Wallet connected:', address);
+    console.log('Token0:', token0?.symbol, token0?.address);
+    console.log('Token1:', token1?.symbol, token1?.address);
+    console.log('Amount0:', amount0);
+    console.log('Amount1:', amount1);
+    console.log('Fee tier:', feeTier);
+    console.log('Range type:', rangeType);
+    
     if (!token0 || !token1) {
+      console.error('❌ Tokens not selected');
       toast.error('Please select both tokens');
       return;
     }
     
     if (!amount0 || !amount1) {
+      console.error('❌ Amounts not entered');
       toast.error('Please enter amounts for both tokens');
       return;
     }
     
     try {
+      console.log('📦 Importing libraries...');
       // Import required functions
       const { addLiquidity, getFullRangeTickRange, validateLiquidityParams } = await import('@/lib/fumaswap/liquidity');
       const { parseUnits } = await import('viem');
       const { TICK_SPACINGS } = await import('@/lib/fumaswap/contracts');
+      console.log('✅ Libraries imported successfully');
       
       // Parse amounts
+      console.log('💰 Parsing amounts...');
       const amount0Desired = parseUnits(amount0, token0.decimals);
       const amount1Desired = parseUnits(amount1, token1.decimals);
+      console.log('Amount0 parsed:', amount0Desired.toString(), 'wei');
+      console.log('Amount1 parsed:', amount1Desired.toString(), 'wei');
       
       // Validate parameters
+      console.log('✔️  Validating parameters...');
       const validation = validateLiquidityParams(token0, token1, amount0, amount1);
       if (!validation.valid) {
+        console.error('❌ Validation failed:', validation.error);
         toast.error(validation.error);
         return;
       }
+      console.log('✅ Validation passed');
       
       // Calculate minimum amounts with 0.5% slippage
       const amount0Min = (amount0Desired * 995n) / 1000n;
       const amount1Min = (amount1Desired * 995n) / 1000n;
+      console.log('📊 Slippage amounts calculated:');
+      console.log('  Amount0 min:', amount0Min.toString(), 'wei');
+      console.log('  Amount1 min:', amount1Min.toString(), 'wei');
       
       // Calculate ticks based on range type
       let tickLower: number;
       let tickUpper: number;
       
+      console.log('📐 Calculating ticks...');
       if (rangeType === 'full') {
         const fullRange = getFullRangeTickRange(feeTier);
         tickLower = fullRange.tickLower;
         tickUpper = fullRange.tickUpper;
+        console.log('✅ Full range ticks:', { tickLower, tickUpper });
       } else {
         // For custom range, use simple tick calculation
         // TODO: Implement proper price-to-tick conversion
         const tickSpacing = TICK_SPACINGS[feeTier];
         tickLower = -887200; // Near minimum tick
         tickUpper = 887200;  // Near maximum tick
+        console.log('✅ Custom range ticks:', { tickLower, tickUpper, tickSpacing });
       }
       
       // Prepare liquidity params
@@ -114,17 +296,76 @@ export function AddLiquidity() {
         deadline: Math.floor(Date.now() / 1000) + 1200, // 20 minutes
       };
       
+      console.log('📋 Liquidity params prepared:');
+      console.log(JSON.stringify({
+        token0: token0.symbol,
+        token1: token1.symbol,
+        fee: feeTier,
+        amount0Desired: amount0Desired.toString(),
+        amount1Desired: amount1Desired.toString(),
+        amount0Min: amount0Min.toString(),
+        amount1Min: amount1Min.toString(),
+        tickLower,
+        tickUpper,
+        recipient: address,
+        deadline: liquidityParams.deadline,
+      }, null, 2));
+      
       // Execute add liquidity
+      console.log('🚀 Calling addLiquidity function...');
       const result = await addLiquidity(liquidityParams, writeContractAsync);
+      console.log('✅ AddLiquidity returned:', result);
       
       if (result) {
+        console.log('✅ Transaction hash:', result.hash);
         toast.success('Liquidity added successfully!');
         setAmount0('');
         setAmount1('');
       }
     } catch (error: any) {
-      console.error('Add liquidity error:', error);
-      toast.error(error.message || 'Failed to add liquidity');
+      console.error('=== ❌ ADD LIQUIDITY ERROR ===');
+      console.error('Error type:', error?.constructor?.name || 'Unknown');
+      console.error('Error message:', error?.message || 'No message');
+      console.error('Error stack:', error?.stack || 'No stack trace');
+      
+      // Log additional error properties
+      if (error?.cause) {
+        console.error('Error cause:', error.cause);
+      }
+      if (error?.data) {
+        console.error('Error data:', error.data);
+      }
+      if (error?.reason) {
+        console.error('Error reason:', error.reason);
+      }
+      if (error?.code) {
+        console.error('Error code:', error.code);
+      }
+      if (error?.shortMessage) {
+        console.error('Short message:', error.shortMessage);
+      }
+      
+      // Log the full error object
+      console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      
+      // User-friendly error message
+      let userMessage = 'Failed to add liquidity';
+      if (error?.message) {
+        if (error.message.includes('user rejected')) {
+          userMessage = 'Transaction cancelled by user';
+        } else if (error.message.includes('insufficient funds')) {
+          userMessage = 'Insufficient funds for transaction';
+        } else if (error.message.includes('gas')) {
+          userMessage = 'Gas estimation failed - check token balances and approvals';
+        } else {
+          userMessage = error.message;
+        }
+      }
+      
+      toast.error(userMessage + ' - Check console for details');
+      console.error('=== ADD LIQUIDITY ERROR END ===');
+    } finally {
+      console.log('=== ADD LIQUIDITY DEBUG END ===');
     }
   };
   
@@ -145,7 +386,7 @@ export function AddLiquidity() {
             <Select
               value={token0?.symbol}
               onValueChange={(symbol) => {
-                const token = DEFAULT_TOKEN_LIST.find((t) => t.symbol === symbol);
+                const token = LIQUIDITY_TOKEN_LIST.find((t) => t.symbol === symbol);
                 if (token) setToken0(token);
               }}
             >
@@ -153,7 +394,7 @@ export function AddLiquidity() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {DEFAULT_TOKEN_LIST.map((token) => (
+                {LIQUIDITY_TOKEN_LIST.map((token) => (
                   <SelectItem key={token.address} value={token.symbol!}>
                     {token.symbol}
                   </SelectItem>
@@ -167,7 +408,7 @@ export function AddLiquidity() {
             <Select
               value={token1?.symbol}
               onValueChange={(symbol) => {
-                const token = DEFAULT_TOKEN_LIST.find((t) => t.symbol === symbol);
+                const token = LIQUIDITY_TOKEN_LIST.find((t) => t.symbol === symbol);
                 if (token) setToken1(token);
               }}
             >
@@ -175,7 +416,7 @@ export function AddLiquidity() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {DEFAULT_TOKEN_LIST.map((token) => (
+                {LIQUIDITY_TOKEN_LIST.map((token) => (
                   <SelectItem key={token.address} value={token.symbol!}>
                     {token.symbol}
                   </SelectItem>
@@ -185,26 +426,30 @@ export function AddLiquidity() {
           </div>
         </div>
         
-        {/* Fee Tier Selection */}
+        {/* Fee Tier - Auto-detected from pool */}
         <div className="space-y-2">
-          <Label>Fee Tier</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {Object.values(FeeAmount)
-              .filter((v) => typeof v === 'number')
-              .map((fee) => (
-                <Button
-                  key={fee}
-                  variant={feeTier === fee ? 'default' : 'outline'}
-                  onClick={() => setFeeTier(fee as FeeAmount)}
-                  className="flex flex-col h-auto py-3"
-                >
-                  <span className="font-bold">{formatFee(fee as FeeAmount)}</span>
-                  <span className="text-xs mt-1 opacity-80">
-                    {getFeeTierName(fee as FeeAmount).split(' ').slice(2).join(' ')}
-                  </span>
-                </Button>
-              ))}
-          </div>
+          <Label>Pool Fee Tier</Label>
+          {poolExists ? (
+            <div className="p-4 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-lg">0.30%</span>
+                <Badge variant="secondary">Pool Found</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                ✓ Pool exists for {token0?.symbol}/{token1?.symbol} pair with 0.30% fee tier
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-lg text-destructive">No Pool</span>
+                <Badge variant="destructive">Not Available</Badge>
+              </div>
+              <p className="text-xs text-destructive mt-2">
+                ✗ No pool exists for this token pair. Please select WFUMA/USDT or WFUMA/USDC.
+              </p>
+            </div>
+          )}
         </div>
         
         <Separator />
@@ -298,7 +543,7 @@ export function AddLiquidity() {
                 />
                 {isConnected && token0 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Balance: 0.00 {token0.symbol}
+                    Balance: {formatTokenAmount(balance0, token0.decimals, 2)} {token0.symbol}
                   </p>
                 )}
               </div>
@@ -317,7 +562,7 @@ export function AddLiquidity() {
                 />
                 {isConnected && token1 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Balance: 0.00 {token1.symbol}
+                    Balance: {formatTokenAmount(balance1, token1.decimals, 2)} {token1.symbol}
                   </p>
                 )}
               </div>
@@ -336,7 +581,7 @@ export function AddLiquidity() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Fee Tier</span>
-                <span className="font-medium">{formatFee(feeTier)}</span>
+                <span className="font-medium">0.30%</span>
               </div>
               
               <div className="flex justify-between">
@@ -366,16 +611,45 @@ export function AddLiquidity() {
           </div>
         )}
         
-        {/* Add Liquidity Button */}
-        <Button
-          onClick={handleAddLiquidity}
-          disabled={!isConnected || !amount0 || !amount1}
-          className="w-full"
-          size="lg"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {!isConnected ? 'Connect Wallet' : 'Add Liquidity'}
-        </Button>
+        {/* Approval and Add Liquidity Buttons */}
+        <div className="space-y-3">
+          {/* Token 0 Approval */}
+          {isConnected && amount0 && token0 && needsApproval0() && (
+            <Button
+              onClick={handleApproveToken0}
+              disabled={isApprovingToken0 || isConfirming0}
+              className="w-full"
+              size="lg"
+              variant="outline"
+            >
+              {isApprovingToken0 || isConfirming0 ? 'Approving...' : `Approve ${token0.symbol}`}
+            </Button>
+          )}
+          
+          {/* Token 1 Approval */}
+          {isConnected && amount1 && token1 && needsApproval1() && (
+            <Button
+              onClick={handleApproveToken1}
+              disabled={isApprovingToken1 || isConfirming1}
+              className="w-full"
+              size="lg"
+              variant="outline"
+            >
+              {isApprovingToken1 || isConfirming1 ? 'Approving...' : `Approve ${token1.symbol}`}
+            </Button>
+          )}
+          
+          {/* Add Liquidity Button */}
+            <Button 
+              onClick={handleAddLiquidity}
+              disabled={!isConnected || !token0 || !token1 || !amount0 || !amount1 || isApproving || !poolExists}
+              className="w-full"
+              size="lg"
+            >
+            <Plus className="h-4 w-4 mr-2" />
+            {!isConnected ? 'Connect Wallet' : 'Add Liquidity'}
+          </Button>
+        </div>
         
         {/* Launchpad Integration */}
         <div className="rounded-lg bg-primary/10 p-4 border border-primary/20">
