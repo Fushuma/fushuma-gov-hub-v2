@@ -189,15 +189,35 @@ export function AddLiquidity() {
   
   // Check if tokens need approval
   const needsApproval0 = () => {
-    if (!amount0 || !token0 || !allowance0) return true;
+    console.log('needsApproval0 check:', { amount0, token0: token0?.symbol, allowance0: allowance0?.toString() });
+    if (!amount0 || !token0) {
+      console.log('needsApproval0: false (no amount or token)');
+      return false;
+    }
+    if (!allowance0) {
+      console.log('needsApproval0: true (allowance undefined)');
+      return true;
+    }
     const amount = parseUnits(amount0, token0.decimals);
-    return BigInt(allowance0) < amount;
+    const needs = BigInt(allowance0) < amount;
+    console.log('needsApproval0:', needs, 'allowance:', allowance0.toString(), 'needed:', amount.toString());
+    return needs;
   };
   
   const needsApproval1 = () => {
-    if (!amount1 || !token1 || !allowance1) return true;
+    console.log('needsApproval1 check:', { amount1, token1: token1?.symbol, allowance1: allowance1?.toString() });
+    if (!amount1 || !token1) {
+      console.log('needsApproval1: false (no amount or token)');
+      return false;
+    }
+    if (!allowance1) {
+      console.log('needsApproval1: true (allowance undefined)');
+      return true;
+    }
     const amount = parseUnits(amount1, token1.decimals);
-    return BigInt(allowance1) < amount;
+    const needs = BigInt(allowance1) < amount;
+    console.log('needsApproval1:', needs, 'allowance:', allowance1.toString(), 'needed:', amount.toString());
+    return needs;
   };
 
   const handleAddLiquidity = async () => {
@@ -616,7 +636,11 @@ export function AddLiquidity() {
         {/* Approval and Add Liquidity Buttons */}
         <div className="space-y-3">
           {/* Token 0 Approval */}
-          {isConnected && amount0 && token0 && needsApproval0() && (
+          {(() => {
+            const shouldShow = isConnected && amount0 && token0 && needsApproval0();
+            console.log('Token0 approval button shouldShow:', shouldShow, { isConnected, amount0, token0: token0?.symbol, needsApproval: needsApproval0() });
+            return shouldShow;
+          })() && (
             <Button
               onClick={handleApproveToken0}
               disabled={isApprovingToken0 || isConfirming0}
