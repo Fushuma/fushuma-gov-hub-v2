@@ -133,7 +133,7 @@ export async function addLiquidity(
 
     // Import viem client
     const { createPublicClient, http } = await import('viem');
-    const { fushuma } = await import('@/lib/chains');
+    const { fushuma } = await import('./chains');
     
     const publicClient = createPublicClient({
       chain: fushuma,

@@ -648,7 +648,7 @@ export function AddLiquidity() {
               size="lg"
               variant="outline"
             >
-              {isApprovingToken0 || isConfirming0 ? 'Approving...' : `Approve ${token0.symbol}`}
+              {isApprovingToken0 || isConfirming0 ? 'Approving...' : `Approve ${token0?.symbol || 'Token'}`}
             </Button>
           )}
           
@@ -661,7 +661,7 @@ export function AddLiquidity() {
               size="lg"
               variant="outline"
             >
-              {isApprovingToken1 || isConfirming1 ? 'Approving...' : `Approve ${token1.symbol}`}
+              {isApprovingToken1 || isConfirming1 ? 'Approving...' : `Approve ${token1?.symbol || 'Token'}`}
             </Button>
           )}
           
