@@ -293,7 +293,7 @@ export function AddLiquidity() {
         tickLower,
         tickUpper,
         recipient: address,
-        deadline: Math.floor(Date.now() / 1000) + 1200, // 20 minutes
+        deadline: 20, // 20 minutes from now
       };
       
       console.log('📋 Liquidity params prepared:');
@@ -642,12 +642,27 @@ export function AddLiquidity() {
           {/* Add Liquidity Button */}
             <Button 
               onClick={handleAddLiquidity}
-              disabled={!isConnected || !token0 || !token1 || !amount0 || !amount1 || isApproving || !poolExists}
+              disabled={
+                !isConnected || 
+                !token0 || 
+                !token1 || 
+                !amount0 || 
+                !amount1 || 
+                !poolExists ||
+                needsApproval0() ||
+                needsApproval1() ||
+                isApprovingToken0 ||
+                isApprovingToken1 ||
+                isConfirming0 ||
+                isConfirming1
+              }
               className="w-full"
               size="lg"
             >
             <Plus className="h-4 w-4 mr-2" />
-            {!isConnected ? 'Connect Wallet' : 'Add Liquidity'}
+            {!isConnected ? 'Connect Wallet' : 
+             (needsApproval0() || needsApproval1()) ? 'Approve tokens first' :
+             'Add Liquidity'}
           </Button>
         </div>
         

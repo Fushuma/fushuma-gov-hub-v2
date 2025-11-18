@@ -72,10 +72,10 @@ export const BASES_TO_CHECK_TRADES_AGAINST = [
 
 /**
  * Default token list for the swap interface
- * Only includes tokens with deployed contracts or native token
+ * Only includes tokens with deployed contracts
+ * Note: FUMA (native) is excluded - use WFUMA for liquidity pairs
  */
 export const DEFAULT_TOKEN_LIST = [
-  FUMA_TOKEN,
   WFUMA_TOKEN,
   USDC_TOKEN,
   USDT_TOKEN,
@@ -88,6 +88,7 @@ export const DEFAULT_TOKEN_LIST = [
  * (excludes placeholder addresses)
  */
 export const DEPLOYED_TOKENS = [
+  WFUMA_TOKEN,
   USDC_TOKEN,
   USDT_TOKEN,
 ];

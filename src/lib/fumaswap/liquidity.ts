@@ -2,15 +2,19 @@
  * FumaSwap V4 Liquidity Operations
  * 
  * Functions for adding and removing liquidity using CLPositionManager
+ * Following PancakeSwap V4 (Infinity) implementation pattern
  */
 
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { parseUnits, encodeAbiParameters, parseAbiParameters } from 'viem';
+import { parseUnits, encodeFunctionData, zeroAddress } from 'viem';
 import { FeeAmount, TICK_SPACINGS, CL_POSITION_MANAGER_ADDRESS, CL_POOL_MANAGER_ADDRESS } from './contracts';
-import { getParametersForFee } from './poolKeyHelper';
 import { isPlaceholderAddress } from './tokens';
 import { getNearestUsableTick, priceToTick } from './pools';
+import { ActionsPlanner } from './utils/ActionsPlanner';
+import { ACTIONS } from './utils/constants';
+import { encodeCLPoolParameters } from './utils/encodePoolParameters';
+import type { PoolKey } from './types';
 
 export interface AddLiquidityParams {
   token0: Token;
@@ -52,6 +56,7 @@ export interface CollectFeesParams {
 
 /**
  * Add liquidity to a pool (mint new position)
+ * Uses PancakeSwap V4 ActionsPlanner pattern
  */
 export async function addLiquidity(
   params: AddLiquidityParams,
@@ -77,70 +82,62 @@ export async function addLiquidity(
       deadline,
     } = params;
 
-    // Prepare pool key with correctly encoded parameters
-    const poolKey = {
+    // Get tick spacing for the fee tier
+    const tickSpacing = TICK_SPACINGS[fee];
+    if (!tickSpacing) {
+      throw new Error(`Invalid fee tier: ${fee}`);
+    }
+
+    // Prepare pool key with properly encoded parameters
+    const poolKey: PoolKey = {
       currency0: token0.address as Address,
       currency1: token1.address as Address,
-      hooks: '0x0000000000000000000000000000000000000000' as Address,
+      hooks: zeroAddress as Address,
       poolManager: CL_POOL_MANAGER_ADDRESS as Address,
       fee,
-      parameters: getParametersForFee(fee), // Correctly encode tick spacing
+      parameters: encodeCLPoolParameters({ tickSpacing }), // Properly encode parameters
     };
 
-    // Prepare mint parameters
-    const mintParams = {
+    // Prepare position config
+    const positionConfig = {
       poolKey,
       tickLower,
       tickUpper,
-      liquidity: 0n, // Will be calculated by the contract
-      amount0Max: amount0Desired,
-      amount1Max: amount1Desired,
-      amount0Min,
-      amount1Min,
-      recipient,
-      hookData: '0x' as `0x${string}`,
     };
 
-    // Calculate deadline timestamp
-    const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
+    // Create ActionsPlanner
+    const planner = new ActionsPlanner();
 
-    // Call CLPositionManager modifyLiquidities function
+    // Add CL_MINT_POSITION action
+    // Parameters: (positionConfig, liquidity, amount0Max, amount1Max, recipient, hookData)
+    planner.add(ACTIONS.CL_MINT_POSITION, [
+      positionConfig.poolKey.currency0,
+      positionConfig.poolKey.currency1,
+      positionConfig.tickLower,
+      positionConfig.tickUpper,
+      positionConfig.poolKey.parameters,
+      0n, // liquidity (will be calculated by contract)
+      amount0Desired, // amount0Max
+      amount1Desired, // amount1Max
+      recipient,
+      '0x' as `0x${string}`, // hookData
+    ]);
+
+    // Finalize with settlement
+    const calls = planner.finalizeModifyLiquidityWithSettlePair(poolKey, recipient);
+
+    // Calculate deadline timestamp
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + deadline * 60);
+
+    // Load ABI
     const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
-    
-    // Encode actions and params for modifyLiquidities
-    // The payload format is: actions (bytes) + encoded params
-    const params_encoded = encodeAbiParameters(
-      parseAbiParameters('(address,address,address,address,uint24,bytes32),int24,int24,uint256,uint128,uint128,uint128,uint128,address,bytes'),
-      [
-        [
-          poolKey.currency0,
-          poolKey.currency1,
-          poolKey.hooks,
-          poolKey.poolManager,
-          poolKey.fee,
-          poolKey.parameters,
-        ],
-        tickLower,
-        tickUpper,
-        0n, // liquidity (calculated by contract)
-        amount0Desired,
-        amount1Desired,
-        amount0Min,
-        amount1Min,
-        recipient,
-        '0x' as `0x${string}`,
-      ]
-    );
-    
-    // Combine actions and params into a single payload
-    // Action: MINT (0x00)
-    const payload = ('0x00' + params_encoded.slice(2)) as `0x${string}`;
-    
+
+    // Call modifyLiquidities
     const result = await writeContract({
       address: CL_POSITION_MANAGER_ADDRESS as Address,
       abi: CLPositionManagerABI,
       functionName: 'modifyLiquidities',
-      args: [payload, deadlineTimestamp],
+      args: [calls, deadlineTimestamp],
     });
 
     return result;
