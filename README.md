@@ -113,26 +113,24 @@ All governance contracts are deployed and operational on Fushuma zkEVM+ Mainnet:
 - **GaugeController**: `0x41E7ba36C43CCd4b83a326bB8AEf929e109C9466`
 - **GrantGauge**: `0x0D6833778cf1fa803D21075b800483F68f57A153`
 
-### DeFi Contracts (⚠️ Core Redeployed - Shanghai EVM Compatible)
+### DeFi Contracts (✅ Fully Deployed - Shanghai EVM Compatible)
 
 **Core Contracts (November 20, 2025 - Shanghai EVM):**
 - **Vault**: `0x9c6bAfE545fF2d31B0abef12F4724DCBfB08c839`
 - **CLPoolManager**: `0x2D691Ff314F7BB2Ce9Aeb94d556440Bb0DdbFe1e`
 - **BinPoolManager**: `0xD5F370971602DB2D449a6518f55fCaFBd1a51143`
 
-**⚠️ Important**: Core contracts have been redeployed with Shanghai EVM adaptations. Periphery contracts below are from the old deployment and need to be redeployed.
-
 **Concentrated Liquidity Periphery:**
-- **CLQuoter**: `0x9C82E4098805a00eAE3CE96D1eBFD117CeB1fAF8`
-- **CLPositionDescriptor**: `0x181267d849a0a89bC45F4e96F70914AcFb631515`
-- **CLPositionManager**: `0x411755EeC7BaA85F8d6819189FE15d966F41Ad85`
+- **CLQuoter**: `0x011E0e62711fd38e0AF68A7E9f7c37bb32b49660`
+- **CLPositionDescriptor**: `0x8744C9Ec3f61c72Acb41801B7Db95fC507d20cd5`
+- **CLPositionManager**: `0x750525284ec59F21CF1c03C62A062f6B6473B7b1`
 
 **Bin Pool Periphery:**
-- **BinQuoter**: `0x24cc1bc41220e638204216FdB4252b1D3716561D`
-- **BinPositionManager**: `0x36eb7e5Ae00b2eEA50435084bb98Bb4Ebf5E2982`
+- **BinQuoter**: `0x33ae227f70bcdce9cafbc05d37f93f187aa4f913`
+- **BinPositionManager**: `0x1842651310c3BD344E58CDb84c1B96a386998e04`
 
 **Router:**
-- **InfinityRouter**: `0x9E98f794bd1c4161898013fa0DEE406B7b06aB6B`
+- **FumaInfinityRouter**: `0x662F4e8CdB064B58FE686AFCd2ceDbB921a0f11f`
 
 **Supporting Contracts:**
 - **Permit2**: `0x1d5E963f9581F5416Eae6C9978246B7dDf559Ff0`
@@ -149,7 +147,9 @@ All governance contracts are deployed and operational on Fushuma zkEVM+ Mainnet:
 - **USDC**: `0xf8EA5627691E041dae171350E8Df13c592084848`
 - **USDT**: `0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e`
 
-**Note**: Core contracts have been redeployed with Shanghai EVM adaptations using the Storage-as-Transient pattern (November 20, 2025). Periphery contracts need to be redeployed to work with the new core contracts. Frontend integration requires updating contract addresses in `src/lib/fumaswap/contracts.ts`.
+**✅ Complete Deployment**: All core and periphery contracts have been deployed with Shanghai EVM adaptations using the Storage-as-Transient pattern (November 20, 2025). All contracts are operational and work together as a complete DeFi suite.
+
+**⚠️ IMPORTANT**: These are the ONLY valid contract addresses. Old addresses from previous deployments are deprecated and should NOT be used.
 
 See [src/lib/governance/contracts.ts](src/lib/governance/contracts.ts) and [src/lib/fumaswap/contracts.ts](src/lib/fumaswap/contracts.ts) for complete contract addresses and configuration.
 
@@ -246,7 +246,7 @@ The platform integrates a complete DeFi suite based on PancakeSwap V4 (Infinity)
 - **Shared Authentication**: Single wallet connection for all features
 - **Consistent UI/UX**: Unified design language across all features
 - **Optimized Performance**: Server-side rendering and code splitting
-- **Paris EVM Compatible**: Modified contracts for zkEVM+ compatibility
+- **Shanghai EVM Compatible**: Modified contracts using Storage-as-Transient pattern for zkEVM+ compatibility
 
 See [DEFI-INTEGRATION.md](./DEFI-INTEGRATION.md) for detailed integration documentation.
 
