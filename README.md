@@ -1,6 +1,6 @@
 # Fushuma Governance Hub V2
 
-**Last Updated:** November 16, 2025
+**Last Updated:** November 20, 2025
 
 > The unified platform for governance, DeFi, and community interaction in the Fushuma ecosystem
 
@@ -113,12 +113,14 @@ All governance contracts are deployed and operational on Fushuma zkEVM+ Mainnet:
 - **GaugeController**: `0x41E7ba36C43CCd4b83a326bB8AEf929e109C9466`
 - **GrantGauge**: `0x0D6833778cf1fa803D21075b800483F68f57A153`
 
-### DeFi Contracts (✅ Fully Deployed - Paris EVM Compatible)
+### DeFi Contracts (⚠️ Core Redeployed - Shanghai EVM Compatible)
 
-**Core Contracts:**
-- **Vault**: `0x4FB212Ed5038b0EcF2c8322B3c71FC64d66073A1`
-- **CLPoolManager**: `0x9123DeC6d2bE7091329088BA1F8Dc118eEc44f7a`
-- **BinPoolManager**: `0x3014809fBFF942C485A9F527242eC7C5A9ddC765`
+**Core Contracts (November 20, 2025 - Shanghai EVM):**
+- **Vault**: `0x9c6bAfE545fF2d31B0abef12F4724DCBfB08c839`
+- **CLPoolManager**: `0x2D691Ff314F7BB2Ce9Aeb94d556440Bb0DdbFe1e`
+- **BinPoolManager**: `0xD5F370971602DB2D449a6518f55fCaFBd1a51143`
+
+**⚠️ Important**: Core contracts have been redeployed with Shanghai EVM adaptations. Periphery contracts below are from the old deployment and need to be redeployed.
 
 **Concentrated Liquidity Periphery:**
 - **CLQuoter**: `0x9C82E4098805a00eAE3CE96D1eBFD117CeB1fAF8`
@@ -147,7 +149,7 @@ All governance contracts are deployed and operational on Fushuma zkEVM+ Mainnet:
 - **USDC**: `0xf8EA5627691E041dae171350E8Df13c592084848`
 - **USDT**: `0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e`
 
-**Note**: All DeFi contracts have been deployed using Paris EVM compatible versions (without transient storage) to ensure compatibility with Fushuma zkEVM+.
+**Note**: Core contracts have been redeployed with Shanghai EVM adaptations using the Storage-as-Transient pattern (November 20, 2025). Periphery contracts need to be redeployed to work with the new core contracts. Frontend integration requires updating contract addresses in `src/lib/fumaswap/contracts.ts`.
 
 See [src/lib/governance/contracts.ts](src/lib/governance/contracts.ts) and [src/lib/fumaswap/contracts.ts](src/lib/fumaswap/contracts.ts) for complete contract addresses and configuration.
 
