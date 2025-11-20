@@ -117,10 +117,29 @@ export async function addLiquidity(
       throw new Error(`Invalid fee tier: ${fee}`);
     }
 
+    // Sort tokens by address (lower address = currency0)
+    const [currency0, currency1] = token0.address.toLowerCase() < token1.address.toLowerCase()
+      ? [token0.address as Address, token1.address as Address]
+      : [token1.address as Address, token0.address as Address];
+    
+    // Adjust amounts based on token order
+    const [amount0, amount1] = token0.address.toLowerCase() < token1.address.toLowerCase()
+      ? [amount0Desired, amount1Desired]
+      : [amount1Desired, amount0Desired];
+    const [amount0MinAdjusted, amount1MinAdjusted] = token0.address.toLowerCase() < token1.address.toLowerCase()
+      ? [amount0Min, amount1Min]
+      : [amount1Min, amount0Min];
+
+    console.log('🔄 Token sorting:');
+    console.log('  Currency0:', currency0);
+    console.log('  Currency1:', currency1);
+    console.log('  Amount0:', amount0.toString());
+    console.log('  Amount1:', amount1.toString());
+
     // Prepare pool key with OBJECT parameters (will be encoded later)
     const poolKey: PoolKey = {
-      currency0: token0.address as Address,
-      currency1: token1.address as Address,
+      currency0,
+      currency1,
       hooks: zeroAddress as Address,
       poolManager: CL_POOL_MANAGER_ADDRESS as Address,
       fee,
@@ -163,13 +182,13 @@ export async function addLiquidity(
     console.log('  sqrtRatioAX96 (lower):', sqrtRatioAX96.toString());
     console.log('  sqrtRatioBX96 (upper):', sqrtRatioBX96.toString());
 
-    // Calculate liquidity using the proper formula
+    // Calculate liquidity using the proper formula with SORTED amounts
     const liquidity = maxLiquidityForAmounts(
       sqrtPriceX96,
       sqrtRatioAX96,
       sqrtRatioBX96,
-      amount0Desired,
-      amount1Desired
+      amount0,
+      amount1
     );
 
     console.log('✅ Calculated liquidity:', liquidity.toString());
@@ -197,13 +216,13 @@ export async function addLiquidity(
     // Create ActionsPlanner
     const planner = new ActionsPlanner();
 
-    // Add CL_MINT_POSITION action with CALCULATED liquidity
+    // Add CL_MINT_POSITION action with CALCULATED liquidity and SORTED amounts
     console.log('📝 Adding CL_MINT_POSITION action with liquidity:', liquidity.toString());
     planner.add(ACTIONS.CL_MINT_POSITION, [
       encodedPositionConfig, // EncodedCLPositionConfig struct
       liquidity, // CALCULATED liquidity (not 0!)
-      amount0Desired, // amount0Max
-      amount1Desired, // amount1Max
+      amount0, // amount0Max (sorted)
+      amount1, // amount1Max (sorted)
       recipient, // owner
       '0x' as `0x${string}`, // hookData
     ]);
