@@ -59,10 +59,20 @@ export interface CollectFeesParams {
  * Calculate pool ID from pool key
  */
 function getPoolId(poolKey: PoolKey): `0x${string}` {
+  // Match the contract's assembly: keccak256(poolKey, 0xc0)
+  // This is equivalent to ABI encoding the struct (6 × 32 bytes = 192 = 0xc0)
   const encodedParams = encodeCLPoolParameters(poolKey.parameters);
+  const { encodeAbiParameters } = require('viem');
   return keccak256(
-    encodePacked(
-      ['address', 'address', 'address', 'address', 'uint24', 'bytes32'],
+    encodeAbiParameters(
+      [
+        { type: 'address' },
+        { type: 'address' },
+        { type: 'address' },
+        { type: 'address' },
+        { type: 'uint24' },
+        { type: 'bytes32' },
+      ],
       [
         poolKey.currency0,
         poolKey.currency1,
@@ -103,13 +113,13 @@ export async function addLiquidity(
       deadline,
     } = params;
 
-    console.log('🔢 Calculating liquidity...');
-    console.log('  Token0 decimals:', token0.decimals);
-    console.log('  Token1 decimals:', token1.decimals);
-    console.log('  Amount0Desired:', amount0Desired.toString());
-    console.log('  Amount1Desired:', amount1Desired.toString());
-    console.log('  TickLower:', tickLower);
-    console.log('  TickUpper:', tickUpper);
+    console.error('🔢 [STEP 1] Starting addLiquidity...');
+    console.error('  Token0:', token0.symbol, token0.address, 'decimals:', token0.decimals);
+    console.error('  Token1:', token1.symbol, token1.address, 'decimals:', token1.decimals);
+    console.error('  Amount0Desired:', amount0Desired.toString());
+    console.error('  Amount1Desired:', amount1Desired.toString());
+    console.error('  TickLower:', tickLower);
+    console.error('  TickUpper:', tickUpper);
 
     // Get tick spacing for the fee tier
     const tickSpacing = TICK_SPACINGS[fee];
@@ -117,29 +127,28 @@ export async function addLiquidity(
       throw new Error(`Invalid fee tier: ${fee}`);
     }
 
-    // Sort tokens by address (lower address = currency0)
-    const [currency0, currency1] = token0.address.toLowerCase() < token1.address.toLowerCase()
-      ? [token0.address as Address, token1.address as Address]
-      : [token1.address as Address, token0.address as Address];
+    // Sort tokens by address (required by V4 architecture)
+    const tokensAlreadySorted = token0.address.toLowerCase() < token1.address.toLowerCase();
+    const currency0 = tokensAlreadySorted ? token0.address : token1.address;
+    const currency1 = tokensAlreadySorted ? token1.address : token0.address;
     
-    // Adjust amounts based on token order
-    const [amount0, amount1] = token0.address.toLowerCase() < token1.address.toLowerCase()
-      ? [amount0Desired, amount1Desired]
-      : [amount1Desired, amount0Desired];
-    const [amount0MinAdjusted, amount1MinAdjusted] = token0.address.toLowerCase() < token1.address.toLowerCase()
-      ? [amount0Min, amount1Min]
-      : [amount1Min, amount0Min];
-
-    console.log('🔄 Token sorting:');
-    console.log('  Currency0:', currency0);
-    console.log('  Currency1:', currency1);
-    console.log('  Amount0:', amount0.toString());
-    console.log('  Amount1:', amount1.toString());
+    // CRITICAL: Also swap amounts to match sorted token order
+    const amount0 = tokensAlreadySorted ? amount0Desired : amount1Desired;
+    const amount1 = tokensAlreadySorted ? amount1Desired : amount0Desired;
+    const min0 = tokensAlreadySorted ? amount0Min : amount1Min;
+    const min1 = tokensAlreadySorted ? amount1Min : amount0Min;
+    
+    console.error('🔄 Token sorting:');
+    console.error('  Already sorted?', tokensAlreadySorted);
+    console.error('  Currency0 (sorted):', currency0);
+    console.error('  Currency1 (sorted):', currency1);
+    console.error('  Amount0 (sorted):', amount0.toString());
+    console.error('  Amount1 (sorted):', amount1.toString());
 
     // Prepare pool key with OBJECT parameters (will be encoded later)
     const poolKey: PoolKey = {
-      currency0,
-      currency1,
+      currency0: currency0 as Address,
+      currency1: currency1 as Address,
       hooks: zeroAddress as Address,
       poolManager: CL_POOL_MANAGER_ADDRESS as Address,
       fee,
@@ -148,7 +157,7 @@ export async function addLiquidity(
 
     // Get pool ID and fetch current sqrt price
     const poolId = getPoolId(poolKey);
-    console.log('📊 Pool ID:', poolId);
+    console.error('📊 [STEP 2] Pool ID:', poolId);
 
     // Import viem client
     const { createPublicClient, http } = await import('viem');
@@ -162,7 +171,7 @@ export async function addLiquidity(
     // Load PoolManager ABI and fetch slot0
     const CLPoolManagerABI = (await import('./abis/CLPoolManager.json')).default;
     
-    console.log('📞 Fetching pool slot0...');
+    console.error('📞 [STEP 3] Fetching pool state from CLPoolManager...');
     const slot0 = await publicClient.readContract({
       address: CL_POOL_MANAGER_ADDRESS as Address,
       abi: CLPoolManagerABI,
@@ -172,26 +181,26 @@ export async function addLiquidity(
 
     const sqrtPriceX96 = slot0[0];
     const currentTick = slot0[1];
-    console.log('✅ Pool state fetched:');
-    console.log('  sqrtPriceX96:', sqrtPriceX96.toString());
-    console.log('  currentTick:', currentTick);
+    console.error('✅ [STEP 4] Pool state fetched:');
+    console.error('  sqrtPriceX96:', sqrtPriceX96.toString());
+    console.error('  currentTick:', currentTick);
 
     // Calculate sqrt ratios at tick boundaries
     const sqrtRatioAX96 = getSqrtRatioAtTick(tickLower);
     const sqrtRatioBX96 = getSqrtRatioAtTick(tickUpper);
-    console.log('  sqrtRatioAX96 (lower):', sqrtRatioAX96.toString());
-    console.log('  sqrtRatioBX96 (upper):', sqrtRatioBX96.toString());
+    console.error('  sqrtRatioAX96 (lower):', sqrtRatioAX96.toString());
+    console.error('  sqrtRatioBX96 (upper):', sqrtRatioBX96.toString());
 
     // Calculate liquidity using the proper formula with SORTED amounts
     const liquidity = maxLiquidityForAmounts(
       sqrtPriceX96,
       sqrtRatioAX96,
       sqrtRatioBX96,
-      amount0,
-      amount1
+      amount0,  // Use sorted amount0
+      amount1   // Use sorted amount1
     );
 
-    console.log('✅ Calculated liquidity:', liquidity.toString());
+    console.error('✅ [STEP 5] Calculated liquidity:', liquidity.toString());
 
     if (liquidity === 0n) {
       throw new Error('Calculated liquidity is zero. Please check your amounts and price range.');
@@ -216,13 +225,15 @@ export async function addLiquidity(
     // Create ActionsPlanner
     const planner = new ActionsPlanner();
 
-    // Add CL_MINT_POSITION action with CALCULATED liquidity and SORTED amounts
-    console.log('📝 Adding CL_MINT_POSITION action with liquidity:', liquidity.toString());
+    // Add CL_MINT_POSITION action with CALCULATED liquidity
+    console.error('📝 [STEP 6] Creating transaction with liquidity:', liquidity.toString());
+    console.error('  Recipient:', recipient);
+    console.error('  Deadline:', deadline, 'minutes');
     planner.add(ACTIONS.CL_MINT_POSITION, [
       encodedPositionConfig, // EncodedCLPositionConfig struct
       liquidity, // CALCULATED liquidity (not 0!)
-      amount0, // amount0Max (sorted)
-      amount1, // amount1Max (sorted)
+      amount0, // amount0Max (SORTED)
+      amount1, // amount1Max (SORTED)
       recipient, // owner
       '0x' as `0x${string}`, // hookData
     ]);
@@ -237,6 +248,11 @@ export async function addLiquidity(
     const CLPositionManagerABI = (await import('./abis/CLPositionManager.json')).default;
 
     // Call modifyLiquidities
+    console.error('🚀 [STEP 7] Calling writeContract...');
+    console.error('  Contract:', CL_POSITION_MANAGER_ADDRESS);
+    console.error('  Function: modifyLiquidities');
+    console.error('  Encoded calls length:', calls.length);
+    console.error('  Deadline timestamp:', deadlineTimestamp.toString());
     const result = await writeContract({
       address: CL_POSITION_MANAGER_ADDRESS as Address,
       abi: CLPositionManagerABI,

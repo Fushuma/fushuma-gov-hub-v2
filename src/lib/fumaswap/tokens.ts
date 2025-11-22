@@ -64,8 +64,8 @@ export const WBTC_TOKEN = new Token(
  */
 export const BASES_TO_CHECK_TRADES_AGAINST = [
   WFUMA_TOKEN,
-  USDC_TOKEN,
   USDT_TOKEN,
+  USDC_TOKEN,
   WETH_TOKEN,
   WBTC_TOKEN,
 ];
@@ -77,8 +77,8 @@ export const BASES_TO_CHECK_TRADES_AGAINST = [
  */
 export const DEFAULT_TOKEN_LIST = [
   WFUMA_TOKEN,
-  USDC_TOKEN,
   USDT_TOKEN,
+  USDC_TOKEN,
   WETH_TOKEN,
   WBTC_TOKEN,
 ];
@@ -89,8 +89,8 @@ export const DEFAULT_TOKEN_LIST = [
  */
 export const DEPLOYED_TOKENS = [
   WFUMA_TOKEN,
-  USDC_TOKEN,
   USDT_TOKEN,
+  USDC_TOKEN,
 ];
 
 /**
@@ -100,8 +100,8 @@ export const DEPLOYED_TOKENS = [
  */
 export const LIQUIDITY_TOKEN_LIST = [
   WFUMA_TOKEN,
-  USDC_TOKEN,
   USDT_TOKEN,
+  USDC_TOKEN,
 ];
 
 /**
