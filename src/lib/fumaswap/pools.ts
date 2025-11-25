@@ -256,19 +256,180 @@ export async function getAllPools(): Promise<Pool[]> {
   }
 }
 
+// CLPositionManager ABI (minimal for reading position data)
+const CLPositionManagerABI = [
+  {
+    type: 'function',
+    name: 'balanceOf',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'nextTokenId',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'ownerOf',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{ name: 'owner', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'positions',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [
+      {
+        name: 'poolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', type: 'address' },
+          { name: 'currency1', type: 'address' },
+          { name: 'hooks', type: 'address' },
+          { name: 'poolManager', type: 'address' },
+          { name: 'fee', type: 'uint24' },
+          { name: 'parameters', type: 'bytes32' },
+        ],
+      },
+      { name: 'tickLower', type: 'int24' },
+      { name: 'tickUpper', type: 'int24' },
+      { name: 'liquidity', type: 'uint128' },
+      { name: 'feeGrowthInside0LastX128', type: 'uint256' },
+      { name: 'feeGrowthInside1LastX128', type: 'uint256' },
+      { name: '_subscriber', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getPositionLiquidity',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [{ name: 'liquidity', type: 'uint128' }],
+    stateMutability: 'view',
+  },
+] as const;
+
+import { CL_POSITION_MANAGER_ADDRESS } from './contracts';
+
 /**
  * Get user's liquidity positions
- * 
- * TODO: Implement after CLPositionManager is integrated
+ *
+ * Queries CLPositionManager contract for positions owned by the user
  */
 export async function getUserPositions(address: Address): Promise<Position[]> {
   try {
-    // TODO: Call CLPositionManager.balanceOf() and positions()
-    return [];
+    // Check if position manager is deployed
+    if (isPlaceholderAddress(CL_POSITION_MANAGER_ADDRESS)) {
+      console.log('Position manager not deployed yet');
+      return [];
+    }
+
+    const publicClient = createPublicClient({
+      chain: fushuma,
+      transport: http(),
+    });
+
+    // First check if user has any positions
+    const balance = await publicClient.readContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'balanceOf',
+      args: [address],
+    });
+
+    console.log(`User ${address} has ${balance} positions`);
+
+    if (balance === 0n) {
+      return [];
+    }
+
+    // Get total minted positions to iterate through
+    const nextTokenId = await publicClient.readContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'nextTokenId',
+      args: [],
+    });
+
+    console.log(`Total positions minted: ${nextTokenId}`);
+
+    const positions: Position[] = [];
+
+    // Iterate through all token IDs and check ownership
+    // Note: This is not the most efficient method but works without enumerable extension
+    for (let tokenId = 1n; tokenId < nextTokenId; tokenId++) {
+      try {
+        const owner = await publicClient.readContract({
+          address: CL_POSITION_MANAGER_ADDRESS as Address,
+          abi: CLPositionManagerABI,
+          functionName: 'ownerOf',
+          args: [tokenId],
+        });
+
+        if (owner.toLowerCase() !== address.toLowerCase()) {
+          continue;
+        }
+
+        // Fetch position details
+        const positionData = await publicClient.readContract({
+          address: CL_POSITION_MANAGER_ADDRESS as Address,
+          abi: CLPositionManagerABI,
+          functionName: 'positions',
+          args: [tokenId],
+        });
+
+        const [poolKey, tickLower, tickUpper, liquidity, feeGrowthInside0LastX128, feeGrowthInside1LastX128] = positionData;
+
+        // Get token symbols
+        const token0Symbol = getTokenSymbol(poolKey.currency0 as Address);
+        const token1Symbol = getTokenSymbol(poolKey.currency1 as Address);
+
+        positions.push({
+          tokenId: tokenId.toString(),
+          owner: address,
+          token0: poolKey.currency0 as Address,
+          token1: poolKey.currency1 as Address,
+          token0Symbol,
+          token1Symbol,
+          fee: poolKey.fee as FeeAmount,
+          tickLower: Number(tickLower),
+          tickUpper: Number(tickUpper),
+          liquidity: liquidity.toString(),
+          tokensOwed0: '0', // Would need separate calculation
+          tokensOwed1: '0', // Would need separate calculation
+          feeGrowthInside0LastX128: feeGrowthInside0LastX128.toString(),
+          feeGrowthInside1LastX128: feeGrowthInside1LastX128.toString(),
+        });
+
+      } catch (err) {
+        // Token might not exist or be burned, skip it
+        continue;
+      }
+    }
+
+    console.log(`Found ${positions.length} positions for user`);
+    return positions;
+
   } catch (error) {
     console.error('Error fetching user positions:', error);
     return [];
   }
+}
+
+/**
+ * Helper to get token symbol from address
+ */
+function getTokenSymbol(address: Address): string {
+  const addr = address.toLowerCase();
+  if (addr === '0xbca7b11c788dbb85be92627ef1e60a2a9b7e2c6e') return 'WFUMA';
+  if (addr === '0x1e11d176117dbedbD234b1c6a10c6eb8dceD275e'.toLowerCase()) return 'USDT';
+  if (addr === '0xf8ea5627691e041dae171350e8df13c592084848') return 'USDC';
+  return 'UNKNOWN';
 }
 
 /**
