@@ -23,6 +23,9 @@ export const FUSHUMA_CONTRACTS = {
   // Periphery Contracts - Bin Pools
   binQuoter: '0x33ae227f70bcdce9cafbc05d37f93f187aa4f913', // ✅ Deployed Nov 20, 2025
   binPositionManager: '0x1842651310c3BD344E58CDb84c1B96a386998e04', // ✅ Deployed Nov 20, 2025
+
+  // Mixed Quoter (aggregates CL & Bin quotes)
+  mixedQuoter: '0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d', // ✅ Redeployed Nov 25, 2025 - Shanghai EVM fix
   
   // Router
   fumaInfinityRouter: '0x662F4e8CdB064B58FE686AFCd2ceDbB921a0f11f', // ✅ Deployed Nov 20, 2025
@@ -51,6 +54,7 @@ export const FUSHUMA_TESTNET_CONTRACTS = {
   clPositionManager: '0x0000000000000000000000000000000000000000',
   binQuoter: '0x0000000000000000000000000000000000000000',
   binPositionManager: '0x0000000000000000000000000000000000000000',
+  mixedQuoter: '0x0000000000000000000000000000000000000000',
   infinityRouter: '0x0000000000000000000000000000000000000000',
   fumaInfinityRouter: '0x0000000000000000000000000000000000000000',
   permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
@@ -111,8 +115,10 @@ export const CL_POSITION_DESCRIPTOR_ADDRESS = FUSHUMA_CONTRACTS.clPositionDescri
 export const CL_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.clPositionManager;
 export const BIN_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.binQuoter;
 export const BIN_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.binPositionManager;
+export const MIXED_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter;
 export const INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.infinityRouter;
 export const FUMA_INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.fumaInfinityRouter;
+export const UNIVERSAL_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.fumaInfinityRouter; // Alias for backwards compatibility
 export const PERMIT2_ADDRESS = FUSHUMA_CONTRACTS.permit2;
 export const WFUMA_ADDRESS = FUSHUMA_CONTRACTS.wfuma;
 export const FUMA_DISCOUNT_HOOK_ADDRESS = FUSHUMA_CONTRACTS.fumaDiscountHook;
@@ -136,4 +142,5 @@ export const LAUNCHPAD_HOOK_ADDRESS = FUSHUMA_CONTRACTS.launchpadHook;
  * - CLPositionManager: https://fumascan.com/address/0x750525284ec59F21CF1c03C62A062f6B6473B7b1
  * - BinPositionManager: https://fumascan.com/address/0x1842651310c3BD344E58CDb84c1B96a386998e04
  * - FumaInfinityRouter: https://fumascan.com/address/0x662F4e8CdB064B58FE686AFCd2ceDbB921a0f11f
+ * - MixedQuoter: https://fumascan.com/address/0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d (Redeployed Nov 25, 2025)
  */

@@ -42,7 +42,7 @@
 | **BinPositionManager** | `0x57D13FA23A308ADd3Bb78A0ff7e7663Ef9867b96` | Nov 19, 2025 | 25,603 bytes | ✅ Verified |
 | **BinQuoter** | `0x7a9758edFf23C3523c344c7FCAb48e700868331C` | Nov 19, 2025 | 10,271 bytes | ✅ Verified |
 | **UniversalRouter** | `0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a` | Nov 18, 2025 | 40,743 bytes | ✅ Verified |
-| **MixedQuoter** | `0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305` | Nov 18, 2025 | 25,775 bytes | ✅ Verified |
+| **MixedQuoter** | `0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d` | Nov 25, 2025 | ~25,775 bytes | ✅ Redeployed (Shanghai fix) |
 
 ---
 
@@ -2433,8 +2433,9 @@ contract UniversalRouter is RouterImmutables, IUniversalRouter, Dispatcher, Paus
 
 ## 10. MixedQuoter
 
-**Address:** `0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305`  
-**Deployed:** November 18, 2025  
+**Address:** `0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d`
+**Deployed:** November 25, 2025 (Redeployed with Shanghai EVM storage cleanup fix)
+**Previous Address:** `0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305` (Deprecated)
 **File:** `src/infinity-periphery/MixedQuoter.sol`
 
 ```solidity

@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Wallet, Plus, TrendingUp, Droplets, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { usePositions } from '@/lib/fumaswap/hooks/usePositions';
-import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
 import { formatFee } from '@/lib/fumaswap/pools';
+import { calculatePositionAmounts, tickToReadablePrice } from '@/lib/fumaswap/utils/positionUtils';
 
 export default function PositionsPage() {
   const { address, isConnected } = useAccount();
@@ -94,38 +94,59 @@ export default function PositionsPage() {
 
               <CardContent className="space-y-4">
                 {/* Liquidity Info */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Liquidity</p>
-                    <p className="text-lg font-semibold">
-                      {formatTokenAmount(BigInt(position.liquidity || '0'), 18, 2)}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{position.token0Symbol}</p>
-                    <p className="text-lg font-semibold">
-                      {formatTokenAmount(BigInt('0'), 18, 4)}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{position.token1Symbol}</p>
-                    <p className="text-lg font-semibold">
-                      {formatTokenAmount(BigInt('0'), 18, 4)}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Uncollected Fees</p>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                      <p className="text-lg font-semibold text-green-500">
-                        $0.00
-                      </p>
+                {(() => {
+                  // Calculate amounts using SDK
+                  const { amount0, amount1 } = calculatePositionAmounts(
+                    position,
+                    position.poolCurrentTick || 0,
+                    position.poolSqrtPriceX96 || '0'
+                  );
+                  const token0Decimals = position.token0Symbol === 'WFUMA' ? 18 : 6;
+                  const token1Decimals = position.token1Symbol === 'WFUMA' ? 18 : 6;
+
+                  const formatAmount = (amount: string, decimals: number) => {
+                    const value = BigInt(amount);
+                    const divisor = BigInt(10 ** decimals);
+                    const intPart = Number(value / divisor);
+                    const fracPart = Number(value % divisor) / (10 ** decimals);
+                    return (intPart + fracPart).toFixed(4);
+                  };
+
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Liquidity</p>
+                        <p className="text-lg font-semibold">
+                          {position.liquidity}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">{position.token0Symbol}</p>
+                        <p className="text-lg font-semibold">
+                          {formatAmount(amount0, token0Decimals)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">{position.token1Symbol}</p>
+                        <p className="text-lg font-semibold">
+                          {formatAmount(amount1, token1Decimals)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Uncollected Fees</p>
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-green-500" />
+                          <p className="text-lg font-semibold text-green-500">
+                            $0.00
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Price Range */}
                 <div className="rounded-lg border p-4 bg-muted/50">
@@ -134,7 +155,7 @@ export default function PositionsPage() {
                     <div>
                       <p className="text-muted-foreground">Min Price</p>
                       <p className="font-mono">
-                        {(1.0001 ** position.tickLower).toFixed(6)}
+                        {tickToReadablePrice(position.tickLower, position.token0, position.token1)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {position.token1Symbol} per {position.token0Symbol}
@@ -143,7 +164,7 @@ export default function PositionsPage() {
                     <div>
                       <p className="text-muted-foreground">Max Price</p>
                       <p className="font-mono">
-                        {(1.0001 ** position.tickUpper).toFixed(6)}
+                        {tickToReadablePrice(position.tickUpper, position.token0, position.token1)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {position.token1Symbol} per {position.token0Symbol}

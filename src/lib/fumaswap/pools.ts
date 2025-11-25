@@ -87,6 +87,9 @@ export interface Position {
   tokensOwed1: string;
   feeGrowthInside0LastX128: string;
   feeGrowthInside1LastX128: string;
+  // Pool state data for calculations
+  poolSqrtPriceX96?: string;
+  poolCurrentTick?: number;
 }
 
 export interface PositionValue {
@@ -219,55 +222,236 @@ export async function getPool(
  */
 export async function getAllPools(): Promise<Pool[]> {
   try {
-    // For now, return static pools since RPC connection may be slow/unreliable
-    // TODO: Re-enable dynamic fetching when RPC is stable
-    console.log('Returning static pools (RPC fetching disabled temporarily)');
-    return STATIC_POOLS;
-    
-    /* Dynamic fetching - re-enable when RPC is stable
+    // Try to fetch real pool data from the blockchain
+    console.log('Fetching pool data from blockchain...');
+
     const knownPools = [
       {
         token0: '0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e' as Address, // USDT
         token1: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' as Address, // WFUMA
-        fee: 3000 as FeeAmount,
-      },
-      {
-        token0: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' as Address, // WFUMA
-        token1: '0xf8EA5627691E041dae171350E8Df13c592084848' as Address, // USDC
-        fee: 3000 as FeeAmount,
+        fee: 3000 as FeeAmount, // 0.3% fee tier
       },
     ];
 
     const pools: Pool[] = [];
 
     for (const { token0, token1, fee } of knownPools) {
-      const pool = await getPool(token0, token1, fee);
-      if (pool) {
-        pools.push(pool);
+      try {
+        const pool = await getPool(token0, token1, fee);
+        if (pool) {
+          pools.push(pool);
+        }
+      } catch (poolError) {
+        console.error(`Error fetching pool ${token0}/${token1}:`, poolError);
       }
     }
 
+    // If no pools were fetched, fallback to static pools
+    if (pools.length === 0) {
+      console.log('No pools fetched from RPC, falling back to static pools');
+      return STATIC_POOLS;
+    }
+
     return pools;
-    */
   } catch (error) {
     console.error('Error fetching pools:', error);
     return STATIC_POOLS; // Fallback to static pools
   }
 }
 
+// CLPositionManager ABI (minimal for reading position data)
+const CLPositionManagerABI = [
+  {
+    type: 'function',
+    name: 'balanceOf',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'nextTokenId',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'ownerOf',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{ name: 'owner', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'positions',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [
+      {
+        name: 'poolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', type: 'address' },
+          { name: 'currency1', type: 'address' },
+          { name: 'hooks', type: 'address' },
+          { name: 'poolManager', type: 'address' },
+          { name: 'fee', type: 'uint24' },
+          { name: 'parameters', type: 'bytes32' },
+        ],
+      },
+      { name: 'tickLower', type: 'int24' },
+      { name: 'tickUpper', type: 'int24' },
+      { name: 'liquidity', type: 'uint128' },
+      { name: 'feeGrowthInside0LastX128', type: 'uint256' },
+      { name: 'feeGrowthInside1LastX128', type: 'uint256' },
+      { name: '_subscriber', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getPositionLiquidity',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [{ name: 'liquidity', type: 'uint128' }],
+    stateMutability: 'view',
+  },
+] as const;
+
+import { CL_POSITION_MANAGER_ADDRESS } from './contracts';
+
 /**
  * Get user's liquidity positions
- * 
- * TODO: Implement after CLPositionManager is integrated
+ *
+ * Queries CLPositionManager contract for positions owned by the user
  */
 export async function getUserPositions(address: Address): Promise<Position[]> {
   try {
-    // TODO: Call CLPositionManager.balanceOf() and positions()
-    return [];
+    // Check if position manager is deployed
+    if (isPlaceholderAddress(CL_POSITION_MANAGER_ADDRESS)) {
+      console.log('Position manager not deployed yet');
+      return [];
+    }
+
+    const publicClient = createPublicClient({
+      chain: fushuma,
+      transport: http(),
+    });
+
+    // First check if user has any positions
+    const balance = await publicClient.readContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'balanceOf',
+      args: [address],
+    });
+
+    console.log(`User ${address} has ${balance} positions`);
+
+    if (balance === 0n) {
+      return [];
+    }
+
+    // Get total minted positions to iterate through
+    const nextTokenId = await publicClient.readContract({
+      address: CL_POSITION_MANAGER_ADDRESS as Address,
+      abi: CLPositionManagerABI,
+      functionName: 'nextTokenId',
+      args: [],
+    });
+
+    console.log(`Total positions minted: ${nextTokenId}`);
+
+    const positions: Position[] = [];
+
+    // Iterate through all token IDs and check ownership
+    // Note: This is not the most efficient method but works without enumerable extension
+    for (let tokenId = 1n; tokenId < nextTokenId; tokenId++) {
+      try {
+        const owner = await publicClient.readContract({
+          address: CL_POSITION_MANAGER_ADDRESS as Address,
+          abi: CLPositionManagerABI,
+          functionName: 'ownerOf',
+          args: [tokenId],
+        });
+
+        if (owner.toLowerCase() !== address.toLowerCase()) {
+          continue;
+        }
+
+        // Fetch position details
+        const positionData = await publicClient.readContract({
+          address: CL_POSITION_MANAGER_ADDRESS as Address,
+          abi: CLPositionManagerABI,
+          functionName: 'positions',
+          args: [tokenId],
+        });
+
+        const [poolKey, tickLower, tickUpper, liquidity, feeGrowthInside0LastX128, feeGrowthInside1LastX128] = positionData;
+
+        // Get token symbols
+        const token0Symbol = getTokenSymbol(poolKey.currency0 as Address);
+        const token1Symbol = getTokenSymbol(poolKey.currency1 as Address);
+
+        // Fetch pool state for this position's pool
+        let poolSqrtPriceX96 = '0';
+        let poolCurrentTick = 0;
+        try {
+          const poolData = await getPool(
+            poolKey.currency0 as Address,
+            poolKey.currency1 as Address,
+            poolKey.fee as FeeAmount
+          );
+          if (poolData) {
+            poolSqrtPriceX96 = poolData.sqrtPriceX96;
+            poolCurrentTick = poolData.tick;
+          }
+        } catch (poolErr) {
+          console.error('Error fetching pool data for position:', poolErr);
+        }
+
+        positions.push({
+          tokenId: tokenId.toString(),
+          owner: address,
+          token0: poolKey.currency0 as Address,
+          token1: poolKey.currency1 as Address,
+          token0Symbol,
+          token1Symbol,
+          fee: poolKey.fee as FeeAmount,
+          tickLower: Number(tickLower),
+          tickUpper: Number(tickUpper),
+          liquidity: liquidity.toString(),
+          tokensOwed0: '0', // Would need separate calculation
+          tokensOwed1: '0', // Would need separate calculation
+          feeGrowthInside0LastX128: feeGrowthInside0LastX128.toString(),
+          feeGrowthInside1LastX128: feeGrowthInside1LastX128.toString(),
+          poolSqrtPriceX96,
+          poolCurrentTick,
+        });
+
+      } catch (err) {
+        // Token might not exist or be burned, skip it
+        continue;
+      }
+    }
+
+    console.log(`Found ${positions.length} positions for user`);
+    return positions;
+
   } catch (error) {
     console.error('Error fetching user positions:', error);
     return [];
   }
+}
+
+/**
+ * Helper to get token symbol from address
+ */
+function getTokenSymbol(address: Address): string {
+  const addr = address.toLowerCase();
+  if (addr === '0xbca7b11c788dbb85be92627ef1e60a2a9b7e2c6e') return 'WFUMA';
+  if (addr === '0x1e11d176117dbedbD234b1c6a10c6eb8dceD275e'.toLowerCase()) return 'USDT';
+  if (addr === '0xf8ea5627691e041dae171350e8df13c592084848') return 'USDC';
+  return 'UNKNOWN';
 }
 
 /**
