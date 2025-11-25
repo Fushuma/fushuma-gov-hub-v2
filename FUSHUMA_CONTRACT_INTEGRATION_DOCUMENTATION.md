@@ -66,7 +66,7 @@ This document outlines how each smart contract in the Fushuma DeFi platform is i
 ## 2. CLQuoter & MixedQuoter
 
 **CLQuoter Address:** `0x8197a04498bee6212aF4Ef5A647f35FF8Ff6841b`  
-**MixedQuoter Address:** `0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305`  
+**MixedQuoter Address:** `0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d` *(Redeployed Nov 25, 2025 - Shanghai EVM storage cleanup fix)*
 **Purpose:** Provide on-chain price quotes for swaps.
 
 ### UI Integration

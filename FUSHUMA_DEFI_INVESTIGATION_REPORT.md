@@ -162,7 +162,7 @@ sqrtPriceX96 calculations may assume both tokens have 18 decimals.
 | **CLPoolManager** | `0xef02f995FEC090E21709A7eBAc2197d249B1a605` | 32,783 bytes | ✅ Verified |
 | **BinPoolManager** | `0xCF6C0074c43C00234cC83D0f009B1db933EbF280` | 38,727 bytes | ✅ Verified |
 | **UniversalRouter** | `0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a` | 40,743 bytes | ✅ Verified |
-| **MixedQuoter** | `0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305` | 25,775 bytes | ✅ Verified |
+| **MixedQuoter** | `0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d` | ~25,775 bytes | ✅ Redeployed Nov 25, 2025 |
 
 ---
 
@@ -187,7 +187,7 @@ export const FUSHUMA_CONTRACTS = {
   binPositionManager: '0x57D13FA23A308ADd3Bb78A0ff7e7663Ef9867b96',
   
   // Router
-  mixedQuoter: '0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305',
+  mixedQuoter: '0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d', // Redeployed Nov 25, 2025
   universalRouter: '0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a',
 };
 ```
@@ -547,7 +547,7 @@ Both issues must be resolved before the platform can safely handle user funds. T
 
 **Routers:**
 - UniversalRouter: `0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a`
-- MixedQuoter: `0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305`
+- MixedQuoter: `0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d` (Redeployed Nov 25, 2025)
 
 **Tokens:**
 - WFUMA: `0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E` (18 decimals)

@@ -46,13 +46,13 @@ export const FUSHUMA_CONTRACTS = {
   clPositionManager: '0xd61D426f27E83dcD7CD37D31Ea53BCaE4aDa501E', // ✅ Deployed (Shanghai)
   
   // Periphery Contracts - Bin Pools
-  binQuoter: '0x82b5d24754AAB72AbF2D4025Cb58F8321c3d0305', // ✅ Deployed (Shanghai)
+  binQuoter: '0x33ae227f70bcdce9cafbc05d37f93f187aa4f913', // ✅ Deployed Nov 20, 2025
   binPositionManager: '0x0e4410CEE0BEf7C441B7b025d2de38aE05727d20', // ✅ Deployed (Shanghai)
   
   // Router
   infinityRouter: '0x0000000000000000000000000000000000000000', // Not deployed (use Universal Router)
   universalRouter: '0x9a554202Ff6E62e5533D394330D0A4B57efF7C7a', // ✅ Deployed (Shanghai) - NEW!
-  mixedQuoter: '0x8349289AC7c186b79783Bf77D35A42B78b1Dd1dE', // ✅ Deployed (Shanghai)
+  mixedQuoter: '0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d', // ✅ Redeployed Nov 25, 2025 (Shanghai fix)
   
   // Protocol Governance
   clProtocolFeeController: '0x0000000000000000000000000000000000000000', // To be deployed

@@ -1,6 +1,6 @@
 # Deployed Smart Contracts - Fushuma Network
 
-**Last Updated:** November 20, 2025  
+**Last Updated:** November 25, 2025
 **Network:** Fushuma zkEVM+ Mainnet  
 **Chain ID:** 121224  
 **RPC URL:** https://rpc.fushuma.com  
@@ -46,6 +46,14 @@ All periphery contracts deployed with **Shanghai EVM adaptations**.
 |----------|---------|----------|
 | **BinQuoter** | `0x33ae227f70bcdce9cafbc05d37f93f187aa4f913` | [View](https://fumascan.com/address/0x33ae227f70bcdce9cafbc05d37f93f187aa4f913) |
 | **BinPositionManager** | `0x1842651310c3BD344E58CDb84c1B96a386998e04` | [View](https://fumascan.com/address/0x1842651310c3BD344E58CDb84c1B96a386998e04) |
+
+### Quoters
+
+| Contract | Address | Explorer |
+|----------|---------|----------|
+| **MixedQuoter** | `0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d` | [View](https://fumascan.com/address/0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d) |
+
+*Note: MixedQuoter redeployed November 25, 2025 with Shanghai EVM storage cleanup fix (commit 6f04efd)*
 
 ### Router
 
@@ -128,6 +136,7 @@ export const FUSHUMA_CONTRACTS = {
   // Periphery
   clQuoter: '0x011E0e62711fd38e0AF68A7E9f7c37bb32b49660',
   binQuoter: '0x33ae227f70bcdce9cafbc05d37f93f187aa4f913',
+  mixedQuoter: '0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d', // Redeployed Nov 25, 2025
   clPositionDescriptor: '0x8744C9Ec3f61c72Acb41801B7Db95fC507d20cd5',
   clPositionManager: '0x750525284ec59F21CF1c03C62A062f6B6473B7b1',
   binPositionManager: '0x1842651310c3BD344E58CDb84c1B96a386998e04',
@@ -152,6 +161,7 @@ BIN_POOL_MANAGER_ADDRESS=0xD5F370971602DB2D449a6518f55fCaFBd1a51143
 # Periphery Contracts
 CL_QUOTER_ADDRESS=0x011E0e62711fd38e0AF68A7E9f7c37bb32b49660
 BIN_QUOTER_ADDRESS=0x33ae227f70bcdce9cafbc05d37f93f187aa4f913
+MIXED_QUOTER_ADDRESS=0x0Ea2c4B7990EB44f2E9a106b159C165e702dF98d
 CL_POSITION_DESCRIPTOR_ADDRESS=0x8744C9Ec3f61c72Acb41801B7Db95fC507d20cd5
 CL_POSITION_MANAGER_ADDRESS=0x750525284ec59F21CF1c03C62A062f6B6473B7b1
 BIN_POSITION_MANAGER_ADDRESS=0x1842651310c3BD344E58CDb84c1B96a386998e04
@@ -176,5 +186,5 @@ USDT_ADDRESS=0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e
 
 ---
 
-**Last Updated:** November 20, 2025  
+**Last Updated:** November 25, 2025
 **Maintained By:** Fushuma Development Team
