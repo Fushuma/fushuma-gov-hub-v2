@@ -12,6 +12,10 @@ import type { Position as PositionData } from '../pools';
 // Fushuma chain ID
 const FUSHUMA_CHAIN_ID = 121224;
 
+// Tick bounds for full range positions
+const MIN_TICK = -887272;
+const MAX_TICK = 887272;
+
 // Token definitions with proper hex address type
 const TOKENS: Record<string, { address: `0x${string}`; decimals: number; symbol: string; name: string }> = {
   WFUMA: {
@@ -56,11 +60,38 @@ export function calculatePositionAmounts(
   sqrtPriceX96: string
 ): { amount0: string; amount1: string } {
   try {
+    // Debug logging
+    console.log('calculatePositionAmounts called with:', {
+      token0: position.token0,
+      token1: position.token1,
+      fee: position.fee,
+      liquidity: position.liquidity,
+      tickLower: position.tickLower,
+      tickUpper: position.tickUpper,
+      currentTick,
+      sqrtPriceX96,
+    });
+
+    // Validate sqrtPriceX96 - if invalid, we can't calculate amounts
+    if (!sqrtPriceX96 || sqrtPriceX96 === '0') {
+      console.error('Invalid sqrtPriceX96, cannot calculate amounts');
+      // Try to use a default price (1:1 ratio)
+      // sqrtPriceX96 for price = 1 is 2^96 = 79228162514264337593543950336
+      sqrtPriceX96 = '79228162514264337593543950336';
+    }
+
     const token0 = getToken(position.token0);
     const token1 = getToken(position.token1);
 
     if (!token0 || !token1) {
-      console.error('Unknown tokens in position');
+      console.error('Unknown tokens in position:', position.token0, position.token1);
+      return { amount0: '0', amount1: '0' };
+    }
+
+    // Validate liquidity
+    const liquidity = BigInt(position.liquidity || '0');
+    if (liquidity === 0n) {
+      console.log('Position has zero liquidity');
       return { amount0: '0', amount1: '0' };
     }
 
@@ -77,7 +108,7 @@ export function calculatePositionAmounts(
     // Create Position object
     const sdkPosition = new Position({
       pool,
-      liquidity: BigInt(position.liquidity || '0'),
+      liquidity,
       tickLower: position.tickLower,
       tickUpper: position.tickUpper,
     });
@@ -85,6 +116,8 @@ export function calculatePositionAmounts(
     // Get amounts from SDK
     const amount0 = sdkPosition.amount0.quotient.toString();
     const amount1 = sdkPosition.amount1.quotient.toString();
+
+    console.log('Calculated amounts:', { amount0, amount1 });
 
     return { amount0, amount1 };
   } catch (error) {
@@ -95,6 +128,7 @@ export function calculatePositionAmounts(
 
 /**
  * Calculate price from tick using SDK (handles overflow properly)
+ * For extreme ticks (full range positions), returns "0" or "∞"
  */
 export function tickToReadablePrice(
   tick: number,
@@ -103,6 +137,18 @@ export function tickToReadablePrice(
   invert: boolean = false
 ): string {
   try {
+    // Handle extreme ticks for full-range positions
+    // Use a threshold to detect near-MIN/MAX ticks
+    const isNearMinTick = tick <= MIN_TICK + 1000;
+    const isNearMaxTick = tick >= MAX_TICK - 1000;
+
+    if (isNearMinTick) {
+      return invert ? '∞' : '0';
+    }
+    if (isNearMaxTick) {
+      return invert ? '0' : '∞';
+    }
+
     const token0 = getToken(token0Address);
     const token1 = getToken(token1Address);
 
@@ -112,12 +158,28 @@ export function tickToReadablePrice(
 
     // Use SDK's tickToPrice function
     const price = tickToPrice(token0, token1, tick);
+    const priceToUse = invert ? price.invert() : price;
 
-    if (invert) {
-      return price.invert().toSignificant(6);
+    // Get the price as a number for formatting
+    const priceNum = parseFloat(priceToUse.toSignificant(18));
+
+    // Format based on magnitude
+    if (priceNum === 0 || !isFinite(priceNum)) {
+      return '0';
     }
-
-    return price.toSignificant(6);
+    if (priceNum < 0.000001) {
+      return priceNum.toExponential(2);
+    }
+    if (priceNum < 1) {
+      return priceNum.toPrecision(4);
+    }
+    if (priceNum < 10000) {
+      return priceNum.toFixed(4).replace(/\.?0+$/, '');
+    }
+    if (priceNum < 1000000) {
+      return priceNum.toFixed(2).replace(/\.?0+$/, '');
+    }
+    return priceNum.toExponential(2);
   } catch (error) {
     console.error('Error converting tick to price:', error);
     return '0';
