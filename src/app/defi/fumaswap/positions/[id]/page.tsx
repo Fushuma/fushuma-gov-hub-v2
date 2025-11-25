@@ -9,17 +9,67 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, TrendingUp, Droplets, Plus, Minus, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { usePosition } from '@/lib/fumaswap/hooks/usePositions';
-import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
 import { formatFee } from '@/lib/fumaswap/pools';
 import { toast } from 'sonner';
+import { useMemo } from 'react';
+import { calculatePositionAmounts, tickToReadablePrice } from '@/lib/fumaswap/utils/positionUtils';
+
+// Format token amount for display
+function formatTokenAmount(amount: string, decimals: number, displayDecimals: number = 4): string {
+  try {
+    const value = BigInt(amount);
+    const divisor = BigInt(10 ** decimals);
+    const integerPart = value / divisor;
+    const fractionalPart = value % divisor;
+
+    const fractionalStr = fractionalPart.toString().padStart(decimals, '0').slice(0, displayDecimals);
+
+    if (integerPart === 0n && fractionalPart === 0n) {
+      return '0';
+    }
+
+    return `${integerPart}.${fractionalStr}`.replace(/\.?0+$/, '') || '0';
+  } catch {
+    return '0';
+  }
+}
 
 export default function PositionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { isConnected } = useAccount();
   const tokenId = params.id as string;
-  
+
   const { position, isLoading } = usePosition(tokenId);
+
+  // Calculate position amounts and prices using SDK
+  const positionData = useMemo(() => {
+    if (!position) return null;
+
+    const currentTick = position.poolCurrentTick ?? 0;
+    const sqrtPriceX96 = position.poolSqrtPriceX96 ?? '79228162514264337593543950336'; // 1:1 price default
+
+    // Calculate token amounts using SDK
+    const { amount0, amount1 } = calculatePositionAmounts(position, currentTick, sqrtPriceX96);
+
+    // Calculate prices using SDK (handles overflow properly)
+    const minPrice = tickToReadablePrice(position.tickLower, position.token0, position.token1);
+    const maxPrice = tickToReadablePrice(position.tickUpper, position.token0, position.token1);
+    const currentPrice = tickToReadablePrice(currentTick, position.token0, position.token1);
+
+    // Check if position is in range
+    const inRange = currentTick >= position.tickLower && currentTick < position.tickUpper;
+
+    return {
+      amount0,
+      amount1,
+      minPrice,
+      maxPrice,
+      currentPrice,
+      inRange,
+      currentTick,
+    };
+  }, [position]);
 
   const handleCollectFees = () => {
     toast.info('Fee collection will be available after contract deployment');
@@ -113,21 +163,21 @@ export default function PositionDetailPage() {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Liquidity</p>
                 <p className="text-2xl font-bold">
-                  {formatTokenAmount(BigInt(position.liquidity || '0'), 18, 2)}
+                  {formatTokenAmount(position.liquidity || '0', 18, 2)}
                 </p>
               </div>
               
               <div>
                 <p className="text-sm text-muted-foreground mb-1">{position.token0Symbol}</p>
                 <p className="text-2xl font-bold">
-                  {formatTokenAmount(BigInt('0'), 18, 4)}
+                  {formatTokenAmount(positionData?.amount0 || '0', 18, 4)}
                 </p>
               </div>
-              
+
               <div>
                 <p className="text-sm text-muted-foreground mb-1">{position.token1Symbol}</p>
                 <p className="text-2xl font-bold">
-                  {formatTokenAmount(BigInt('0'), 18, 4)}
+                  {formatTokenAmount(positionData?.amount1 || '0', 6, 4)}
                 </p>
               </div>
             </div>
@@ -147,15 +197,15 @@ export default function PositionDetailPage() {
                 <div className="rounded-lg border p-4">
                   <p className="text-sm text-muted-foreground mb-1">{position.token0Symbol} Fees</p>
                   <p className="text-xl font-semibold text-green-500">
-                    {formatTokenAmount(BigInt(position.tokensOwed0 || '0'), 18, 6)}
+                    {formatTokenAmount(position.tokensOwed0 || '0', 18, 6)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">≈ $0.00</p>
                 </div>
-                
+
                 <div className="rounded-lg border p-4">
                   <p className="text-sm text-muted-foreground mb-1">{position.token1Symbol} Fees</p>
                   <p className="text-xl font-semibold text-green-500">
-                    {formatTokenAmount(BigInt(position.tokensOwed1 || '0'), 18, 6)}
+                    {formatTokenAmount(position.tokensOwed1 || '0', 6, 6)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">≈ $0.00</p>
                 </div>
@@ -175,7 +225,7 @@ export default function PositionDetailPage() {
               <div className="rounded-lg border p-4">
                 <p className="text-sm text-muted-foreground mb-2">Min Price</p>
                 <p className="text-xl font-mono font-semibold">
-                  {(1.0001 ** position.tickLower).toFixed(6)}
+                  {positionData?.minPrice || '0'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   {position.token1Symbol} per {position.token0Symbol}
@@ -185,7 +235,7 @@ export default function PositionDetailPage() {
               <div className="rounded-lg border p-4 bg-primary/5 border-primary/20">
                 <p className="text-sm text-muted-foreground mb-2">Current Price</p>
                 <p className="text-xl font-mono font-semibold text-primary">
-                  1.000000
+                  {positionData?.currentPrice || '0'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   {position.token1Symbol} per {position.token0Symbol}
@@ -195,7 +245,7 @@ export default function PositionDetailPage() {
               <div className="rounded-lg border p-4">
                 <p className="text-sm text-muted-foreground mb-2">Max Price</p>
                 <p className="text-xl font-mono font-semibold">
-                  {(1.0001 ** position.tickUpper).toFixed(6)}
+                  {positionData?.maxPrice || '0'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   {position.token1Symbol} per {position.token0Symbol}
@@ -203,14 +253,17 @@ export default function PositionDetailPage() {
               </div>
             </div>
 
-            <div className="rounded-lg bg-muted p-4">
+            <div className={`rounded-lg p-4 ${positionData?.inRange ? 'bg-green-500/10' : 'bg-orange-500/10'}`}>
               <div className="flex items-start gap-2">
-                <TrendingUp className="h-4 w-4 text-primary mt-0.5" />
+                <TrendingUp className={`h-4 w-4 mt-0.5 ${positionData?.inRange ? 'text-green-500' : 'text-orange-500'}`} />
                 <div className="text-sm">
-                  <p className="font-medium mb-1">Position Status: In Range</p>
+                  <p className="font-medium mb-1">
+                    Position Status: {positionData?.inRange ? 'In Range' : 'Out of Range'}
+                  </p>
                   <p className="text-muted-foreground">
-                    Your position is currently earning fees. If the price moves outside your range, 
-                    your position will stop earning fees until the price returns to your range.
+                    {positionData?.inRange
+                      ? 'Your position is currently earning fees. If the price moves outside your range, your position will stop earning fees until the price returns to your range.'
+                      : 'Your position is currently NOT earning fees. The price must return to your range for your position to start earning fees again.'}
                   </p>
                 </div>
               </div>

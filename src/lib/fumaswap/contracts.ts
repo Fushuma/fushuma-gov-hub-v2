@@ -118,6 +118,7 @@ export const BIN_POSITION_MANAGER_ADDRESS = FUSHUMA_CONTRACTS.binPositionManager
 export const MIXED_QUOTER_ADDRESS = FUSHUMA_CONTRACTS.mixedQuoter;
 export const INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.infinityRouter;
 export const FUMA_INFINITY_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.fumaInfinityRouter;
+export const UNIVERSAL_ROUTER_ADDRESS = FUSHUMA_CONTRACTS.fumaInfinityRouter; // Alias for backwards compatibility
 export const PERMIT2_ADDRESS = FUSHUMA_CONTRACTS.permit2;
 export const WFUMA_ADDRESS = FUSHUMA_CONTRACTS.wfuma;
 export const FUMA_DISCOUNT_HOOK_ADDRESS = FUSHUMA_CONTRACTS.fumaDiscountHook;

@@ -87,6 +87,9 @@ export interface Position {
   tokensOwed1: string;
   feeGrowthInside0LastX128: string;
   feeGrowthInside1LastX128: string;
+  // Pool state data for calculations
+  poolSqrtPriceX96?: string;
+  poolCurrentTick?: number;
 }
 
 export interface PositionValue {
@@ -389,6 +392,23 @@ export async function getUserPositions(address: Address): Promise<Position[]> {
         const token0Symbol = getTokenSymbol(poolKey.currency0 as Address);
         const token1Symbol = getTokenSymbol(poolKey.currency1 as Address);
 
+        // Fetch pool state for this position's pool
+        let poolSqrtPriceX96 = '0';
+        let poolCurrentTick = 0;
+        try {
+          const poolData = await getPool(
+            poolKey.currency0 as Address,
+            poolKey.currency1 as Address,
+            poolKey.fee as FeeAmount
+          );
+          if (poolData) {
+            poolSqrtPriceX96 = poolData.sqrtPriceX96;
+            poolCurrentTick = poolData.tick;
+          }
+        } catch (poolErr) {
+          console.error('Error fetching pool data for position:', poolErr);
+        }
+
         positions.push({
           tokenId: tokenId.toString(),
           owner: address,
@@ -404,6 +424,8 @@ export async function getUserPositions(address: Address): Promise<Position[]> {
           tokensOwed1: '0', // Would need separate calculation
           feeGrowthInside0LastX128: feeGrowthInside0LastX128.toString(),
           feeGrowthInside1LastX128: feeGrowthInside1LastX128.toString(),
+          poolSqrtPriceX96,
+          poolCurrentTick,
         });
 
       } catch (err) {
