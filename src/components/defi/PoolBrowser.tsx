@@ -196,8 +196,8 @@ export function PoolBrowser() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          title="View pool on CLPoolManager"
-                          onClick={() => window.open(`https://fumascan.com/address/0x2D691Ff314F7BB2Ce9Aeb94d556440Bb0DdbFe1e`, '_blank')}
+                          title="View pool on Vault"
+                          onClick={() => window.open(`https://fumascan.com/address/0x9c6bAfE545fF2d31B0abef12F4724DCBfB08c839`, '_blank')}
                         >
                           <ExternalLink className="h-4 w-4" />
                         </Button>
