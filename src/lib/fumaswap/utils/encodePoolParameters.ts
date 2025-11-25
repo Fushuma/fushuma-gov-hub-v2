@@ -46,9 +46,27 @@ export const encodeHooksRegistration = (hooksRegistration?: HooksRegistration): 
   return `0x${registration.toString(16).padStart(4, '0')}`;
 };
 
+/**
+ * Encode CL pool parameters according to PancakeSwap V4 specification
+ * 
+ * Parameters layout (bytes32):
+ * - Bits [0-15]: hooks registration bitmap (16 bits)
+ * - Bits [16-39]: tickSpacing (24 bits)
+ * - Bits [40-255]: unused
+ * 
+ * FIXED: Hooks must come FIRST, then tickSpacing shifted left by 16 bits
+ */
 export const encodeCLPoolParameters = (params: CLPoolParameter): Hex => {
-  const hooks = encodeHooksRegistration(params?.hooksRegistration);
-  const tickSpacing = encodePacked(['int24'], [params.tickSpacing]);
-
-  return pad(concat([tickSpacing, hooks]));
+  // Get hooks bitmap (16 bits)
+  const hooksHex = encodeHooksRegistration(params?.hooksRegistration);
+  const hooksBitmap = parseInt(hooksHex, 16);
+  
+  // Shift tickSpacing left by 16 bits to position it at bits [16-39]
+  const tickSpacingShifted = BigInt(params.tickSpacing) << 16n;
+  
+  // Combine: hooks in lower 16 bits, tickSpacing in bits 16-39
+  const combined = tickSpacingShifted | BigInt(hooksBitmap);
+  
+  // Pad to 32 bytes (64 hex characters)
+  return `0x${combined.toString(16).padStart(64, '0')}` as Hex;
 };

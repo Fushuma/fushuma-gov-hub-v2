@@ -155,9 +155,9 @@ export async function addLiquidity(
       parameters: { tickSpacing }, // Keep as object, encode later
     };
 
-    // Get pool ID and fetch current sqrt price
+    // Get pool ID from pool key
     const poolId = getPoolId(poolKey);
-    console.error('📊 [STEP 2] Pool ID:', poolId);
+    console.log('📊 [STEP 2] Pool ID:', poolId);
 
     // Import viem client
     const { createPublicClient, http } = await import('viem');
