@@ -51,6 +51,21 @@ export function getToken(address: string): Token | null {
   return null;
 }
 
+// Tick spacing for each fee tier
+const TICK_SPACINGS: Record<number, number> = {
+  100: 1,    // 0.01%
+  500: 10,   // 0.05%
+  3000: 60,  // 0.3%
+  10000: 200, // 1%
+};
+
+/**
+ * Align tick to the nearest valid tick for the given tick spacing
+ */
+function alignTickToSpacing(tick: number, tickSpacing: number): number {
+  return Math.floor(tick / tickSpacing) * tickSpacing;
+}
+
 /**
  * Calculate token amounts from position liquidity using SDK
  */
@@ -95,14 +110,22 @@ export function calculatePositionAmounts(
       return { amount0: '0', amount1: '0' };
     }
 
-    // Create Pool object
+    // Get tick spacing for this fee tier
+    const tickSpacing = TICK_SPACINGS[position.fee] || 60;
+
+    // Align the current tick to the tick spacing (SDK requirement)
+    const alignedTick = alignTickToSpacing(currentTick, tickSpacing);
+
+    console.log('Tick alignment:', { originalTick: currentTick, alignedTick, tickSpacing });
+
+    // Create Pool object with aligned tick
     const pool = new Pool(
       token0,
       token1,
       position.fee,
       sqrtPriceX96,
       BigInt(0), // Pool liquidity - not needed for position amount calculation
-      currentTick
+      alignedTick
     );
 
     // Create Position object
