@@ -193,10 +193,11 @@ export function PoolBrowser() {
                             Add Liquidity
                           </Button>
                         </Link>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
-                          onClick={() => window.open(`https://fumascan.com/address/${pool.token0}`, '_blank')}
+                          title="View pool on CLPoolManager"
+                          onClick={() => window.open(`https://fumascan.com/address/0x2D691Ff314F7BB2Ce9Aeb94d556440Bb0DdbFe1e`, '_blank')}
                         >
                           <ExternalLink className="h-4 w-4" />
                         </Button>

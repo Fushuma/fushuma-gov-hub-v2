@@ -1403,9 +1403,12 @@ export function AddLiquidity() {
       (token0.symbol === 'WFUMA' && token1.symbol === 'USDC') ||
       (token0.symbol === 'USDC' && token1.symbol === 'WFUMA');
     
-    if (isWFUMA_USDT || isWFUMA_USDC) {
+    if (isWFUMA_USDT) {
       setPoolExists(true);
-      setFeeTier(500); // 0.05% for initialized pools (fixed November 18, 2025)
+      setFeeTier(3000); // 0.3% for WFUMA/USDT pool (updated November 20, 2025)
+    } else if (isWFUMA_USDC) {
+      setPoolExists(true);
+      setFeeTier(3000); // 0.3% for WFUMA/USDC pool
     } else {
       setPoolExists(false);
     }

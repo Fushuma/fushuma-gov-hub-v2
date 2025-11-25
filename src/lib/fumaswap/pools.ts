@@ -219,36 +219,37 @@ export async function getPool(
  */
 export async function getAllPools(): Promise<Pool[]> {
   try {
-    // For now, return static pools since RPC connection may be slow/unreliable
-    // TODO: Re-enable dynamic fetching when RPC is stable
-    console.log('Returning static pools (RPC fetching disabled temporarily)');
-    return STATIC_POOLS;
-    
-    /* Dynamic fetching - re-enable when RPC is stable
+    // Try to fetch real pool data from the blockchain
+    console.log('Fetching pool data from blockchain...');
+
     const knownPools = [
       {
         token0: '0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e' as Address, // USDT
         token1: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' as Address, // WFUMA
-        fee: 3000 as FeeAmount,
-      },
-      {
-        token0: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' as Address, // WFUMA
-        token1: '0xf8EA5627691E041dae171350E8Df13c592084848' as Address, // USDC
-        fee: 3000 as FeeAmount,
+        fee: 3000 as FeeAmount, // 0.3% fee tier
       },
     ];
 
     const pools: Pool[] = [];
 
     for (const { token0, token1, fee } of knownPools) {
-      const pool = await getPool(token0, token1, fee);
-      if (pool) {
-        pools.push(pool);
+      try {
+        const pool = await getPool(token0, token1, fee);
+        if (pool) {
+          pools.push(pool);
+        }
+      } catch (poolError) {
+        console.error(`Error fetching pool ${token0}/${token1}:`, poolError);
       }
     }
 
+    // If no pools were fetched, fallback to static pools
+    if (pools.length === 0) {
+      console.log('No pools fetched from RPC, falling back to static pools');
+      return STATIC_POOLS;
+    }
+
     return pools;
-    */
   } catch (error) {
     console.error('Error fetching pools:', error);
     return STATIC_POOLS; // Fallback to static pools
