@@ -1,0 +1,78 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "from", "type": "address" },
+      { "indexed": true, "name": "to", "type": "address" },
+      { "indexed": true, "name": "tokenId", "type": "uint256" }
+    ],
+    "name": "Transfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "tokenId", "type": "uint256" },
+      { "indexed": false, "name": "liquidity", "type": "uint128" },
+      { "indexed": false, "name": "amount0", "type": "uint256" },
+      { "indexed": false, "name": "amount1", "type": "uint256" }
+    ],
+    "name": "IncreaseLiquidity",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "tokenId", "type": "uint256" },
+      { "indexed": false, "name": "liquidity", "type": "uint128" },
+      { "indexed": false, "name": "amount0", "type": "uint256" },
+      { "indexed": false, "name": "amount1", "type": "uint256" }
+    ],
+    "name": "DecreaseLiquidity",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "tokenId", "type": "uint256" },
+      { "indexed": false, "name": "recipient", "type": "address" },
+      { "indexed": false, "name": "amount0", "type": "uint256" },
+      { "indexed": false, "name": "amount1", "type": "uint256" }
+    ],
+    "name": "Collect",
+    "type": "event"
+  },
+  {
+    "inputs": [{ "name": "tokenId", "type": "uint256" }],
+    "name": "positions",
+    "outputs": [
+      {
+        "components": [
+          { "name": "currency0", "type": "address" },
+          { "name": "currency1", "type": "address" },
+          { "name": "hooks", "type": "address" },
+          { "name": "poolManager", "type": "address" },
+          { "name": "fee", "type": "uint24" },
+          { "name": "parameters", "type": "bytes32" }
+        ],
+        "name": "poolKey",
+        "type": "tuple"
+      },
+      { "name": "tickLower", "type": "int24" },
+      { "name": "tickUpper", "type": "int24" },
+      { "name": "liquidity", "type": "uint128" },
+      { "name": "feeGrowthInside0LastX128", "type": "uint256" },
+      { "name": "feeGrowthInside1LastX128", "type": "uint256" },
+      { "name": "_subscriber", "type": "address" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "name": "tokenId", "type": "uint256" }],
+    "name": "ownerOf",
+    "outputs": [{ "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
