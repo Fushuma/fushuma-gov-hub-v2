@@ -194,6 +194,9 @@ export async function getPool(
                          currency1 === '0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e' ? 'USDT' :
                          currency1 === '0xf8EA5627691E041dae171350E8Df13c592084848' ? 'USDC' : 'UNKNOWN';
 
+    // Calculate TVL estimate from liquidity and price
+    const tvl = calculateTVLFromLiquidity(liquidity, sqrtPriceX96, 18, 6); // Assuming WFUMA (18) and USDT (6)
+
     return {
       id: poolId,
       token0: currency0,
@@ -204,9 +207,9 @@ export async function getPool(
       liquidity: liquidity.toString(),
       sqrtPriceX96: sqrtPriceX96.toString(),
       tick: Number(tick),
-      tvl: '0', // TODO: Calculate from liquidity and price
-      volume24h: '0', // TODO: Query from events or subgraph
-      apr: 0, // TODO: Calculate from volume and fees
+      tvl: tvl.toFixed(2),
+      volume24h: '0', // Requires event indexing
+      apr: 0, // Requires volume data
     };
   } catch (error) {
     console.error('Error fetching pool:', error);
@@ -455,18 +458,122 @@ function getTokenSymbol(address: Address): string {
 }
 
 /**
+ * Calculate TVL from liquidity and price
+ * Uses the concentrated liquidity math to estimate total value
+ */
+function calculateTVLFromLiquidity(
+  liquidity: bigint,
+  sqrtPriceX96: bigint,
+  decimals0: number,
+  decimals1: number
+): number {
+  if (liquidity === 0n || sqrtPriceX96 === 0n) return 0;
+
+  try {
+    const Q96 = BigInt(2) ** BigInt(96);
+
+    // Calculate price from sqrtPriceX96
+    const priceX192 = sqrtPriceX96 * sqrtPriceX96;
+    const price = Number(priceX192) / Number(Q96 * Q96);
+
+    // For full range liquidity, estimate token amounts
+    // This is a simplified estimate - actual amounts depend on tick range
+    const liquidityNum = Number(liquidity);
+
+    // Estimate amount0 and amount1 using simplified formula
+    // amount0 ≈ L / sqrt(P)
+    // amount1 ≈ L * sqrt(P)
+    const sqrtPrice = Number(sqrtPriceX96) / Number(Q96);
+    const amount0 = liquidityNum / sqrtPrice / (10 ** decimals0);
+    const amount1 = liquidityNum * sqrtPrice / (10 ** decimals1);
+
+    // Calculate TVL (assuming token1 is the quote currency like USDT)
+    // TVL = amount0 * price + amount1
+    const tvl = amount0 * price * (10 ** (decimals1 - decimals0)) + amount1;
+
+    return tvl;
+  } catch (error) {
+    console.error('Error calculating TVL:', error);
+    return 0;
+  }
+}
+
+/**
  * Calculate position value in tokens
- * 
- * TODO: Implement proper calculation
+ * Uses concentrated liquidity math to compute actual token amounts
  */
 export function calculatePositionValue(position: Position): PositionValue {
-  return {
-    amount0: '0',
-    amount1: '0',
-    fees0: '0',
-    fees1: '0',
-    totalValue: '0',
-  };
+  try {
+    const liquidity = BigInt(position.liquidity);
+    if (liquidity === 0n) {
+      return { amount0: '0', amount1: '0', fees0: '0', fees1: '0', totalValue: '0' };
+    }
+
+    const sqrtPriceX96 = position.poolSqrtPriceX96 ? BigInt(position.poolSqrtPriceX96) : BigInt(0);
+    const currentTick = position.poolCurrentTick ?? 0;
+
+    if (sqrtPriceX96 === 0n) {
+      return { amount0: '0', amount1: '0', fees0: '0', fees1: '0', totalValue: '0' };
+    }
+
+    // Calculate sqrt prices at tick boundaries
+    const sqrtRatioA = getSqrtRatioAtTick(position.tickLower);
+    const sqrtRatioB = getSqrtRatioAtTick(position.tickUpper);
+
+    // Calculate token amounts based on current tick position
+    let amount0 = BigInt(0);
+    let amount1 = BigInt(0);
+
+    const Q96 = BigInt(2) ** BigInt(96);
+
+    if (currentTick < position.tickLower) {
+      // Current price below range - all token0
+      amount0 = (liquidity * (sqrtRatioB - sqrtRatioA)) / (sqrtRatioA * sqrtRatioB / Q96);
+    } else if (currentTick >= position.tickUpper) {
+      // Current price above range - all token1
+      amount1 = liquidity * (sqrtRatioB - sqrtRatioA) / Q96;
+    } else {
+      // Current price within range - mix of both tokens
+      amount0 = (liquidity * (sqrtRatioB - sqrtPriceX96)) / (sqrtPriceX96 * sqrtRatioB / Q96);
+      amount1 = liquidity * (sqrtPriceX96 - sqrtRatioA) / Q96;
+    }
+
+    // Format amounts (assuming 18 decimals for token0 and 6 for token1)
+    const amount0Formatted = (Number(amount0) / 1e18).toFixed(6);
+    const amount1Formatted = (Number(amount1) / 1e6).toFixed(6);
+
+    // Estimate fees (would need feeGrowthGlobal data for accurate calculation)
+    const fees0 = position.tokensOwed0 || '0';
+    const fees1 = position.tokensOwed1 || '0';
+
+    // Calculate total value in token1 terms (e.g., USD if token1 is stablecoin)
+    const priceX192 = sqrtPriceX96 * sqrtPriceX96;
+    const price = Number(priceX192) / Number(Q96 * Q96);
+    const totalValue = (Number(amount0) / 1e18 * price * 1e12 + Number(amount1) / 1e6).toFixed(2);
+
+    return {
+      amount0: amount0Formatted,
+      amount1: amount1Formatted,
+      fees0,
+      fees1,
+      totalValue,
+    };
+  } catch (error) {
+    console.error('Error calculating position value:', error);
+    return { amount0: '0', amount1: '0', fees0: '0', fees1: '0', totalValue: '0' };
+  }
+}
+
+/**
+ * Get sqrt ratio at a specific tick
+ */
+function getSqrtRatioAtTick(tick: number): bigint {
+  const absTick = Math.abs(tick);
+  const Q96 = BigInt(2) ** BigInt(96);
+
+  // Use the standard tick math formula: sqrt(1.0001^tick) * 2^96
+  const sqrtRatio = Math.sqrt(Math.pow(1.0001, tick)) * Number(Q96);
+  return BigInt(Math.floor(sqrtRatio));
 }
 
 /**
@@ -499,12 +606,27 @@ export function tickToPrice(tick: number): number {
 }
 
 /**
- * Calculate TVL for a pool
- * 
- * TODO: Implement after price oracle is available
+ * Calculate TVL for a pool using on-chain data
  */
 export function calculatePoolTVL(pool: Pool): string {
-  return pool.tvl || '0';
+  if (!pool.liquidity || !pool.sqrtPriceX96) {
+    return pool.tvl || '0';
+  }
+
+  try {
+    const liquidity = BigInt(pool.liquidity);
+    const sqrtPriceX96 = BigInt(pool.sqrtPriceX96);
+
+    // Use token decimals based on symbols
+    const decimals0 = pool.token0Symbol === 'USDT' || pool.token0Symbol === 'USDC' ? 6 : 18;
+    const decimals1 = pool.token1Symbol === 'USDT' || pool.token1Symbol === 'USDC' ? 6 : 18;
+
+    const tvl = calculateTVLFromLiquidity(liquidity, sqrtPriceX96, decimals0, decimals1);
+    return tvl.toFixed(2);
+  } catch (error) {
+    console.error('Error calculating pool TVL:', error);
+    return pool.tvl || '0';
+  }
 }
 
 /**
@@ -582,8 +704,7 @@ export function getPoolAddress(
 
 /**
  * Estimate liquidity from token amounts
- * 
- * TODO: Implement proper liquidity calculation
+ * Uses Uniswap V3 liquidity math
  */
 export function estimateLiquidity(
   amount0: bigint,
@@ -592,13 +713,36 @@ export function estimateLiquidity(
   tickUpper: number,
   currentTick: number
 ): bigint {
-  return BigInt(0);
+  try {
+    const sqrtRatioA = getSqrtRatioAtTick(tickLower);
+    const sqrtRatioB = getSqrtRatioAtTick(tickUpper);
+    const sqrtRatioCurrent = getSqrtRatioAtTick(currentTick);
+
+    const Q96 = BigInt(2) ** BigInt(96);
+
+    if (currentTick < tickLower) {
+      // Price below range - use amount0
+      if (amount0 === 0n) return 0n;
+      return (amount0 * sqrtRatioA * sqrtRatioB) / (Q96 * (sqrtRatioB - sqrtRatioA));
+    } else if (currentTick >= tickUpper) {
+      // Price above range - use amount1
+      if (amount1 === 0n) return 0n;
+      return (amount1 * Q96) / (sqrtRatioB - sqrtRatioA);
+    } else {
+      // Price within range - use both amounts, take the minimum
+      const liquidity0 = (amount0 * sqrtRatioCurrent * sqrtRatioB) / (Q96 * (sqrtRatioB - sqrtRatioCurrent));
+      const liquidity1 = (amount1 * Q96) / (sqrtRatioCurrent - sqrtRatioA);
+      return liquidity0 < liquidity1 ? liquidity0 : liquidity1;
+    }
+  } catch (error) {
+    console.error('Error estimating liquidity:', error);
+    return BigInt(0);
+  }
 }
 
 /**
  * Calculate token amounts from liquidity
- * 
- * TODO: Implement proper amount calculation
+ * Uses Uniswap V3 concentrated liquidity math
  */
 export function calculateTokenAmounts(
   liquidity: bigint,
@@ -606,8 +750,35 @@ export function calculateTokenAmounts(
   tickUpper: number,
   currentTick: number
 ): { amount0: bigint; amount1: bigint } {
-  return {
-    amount0: BigInt(0),
-    amount1: BigInt(0),
-  };
+  try {
+    if (liquidity === 0n) {
+      return { amount0: 0n, amount1: 0n };
+    }
+
+    const sqrtRatioA = getSqrtRatioAtTick(tickLower);
+    const sqrtRatioB = getSqrtRatioAtTick(tickUpper);
+    const sqrtRatioCurrent = getSqrtRatioAtTick(currentTick);
+
+    const Q96 = BigInt(2) ** BigInt(96);
+
+    let amount0 = 0n;
+    let amount1 = 0n;
+
+    if (currentTick < tickLower) {
+      // Current price below range - all token0
+      amount0 = (liquidity * Q96 * (sqrtRatioB - sqrtRatioA)) / (sqrtRatioA * sqrtRatioB);
+    } else if (currentTick >= tickUpper) {
+      // Current price above range - all token1
+      amount1 = (liquidity * (sqrtRatioB - sqrtRatioA)) / Q96;
+    } else {
+      // Current price within range
+      amount0 = (liquidity * Q96 * (sqrtRatioB - sqrtRatioCurrent)) / (sqrtRatioCurrent * sqrtRatioB);
+      amount1 = (liquidity * (sqrtRatioCurrent - sqrtRatioA)) / Q96;
+    }
+
+    return { amount0, amount1 };
+  } catch (error) {
+    console.error('Error calculating token amounts:', error);
+    return { amount0: 0n, amount1: 0n };
+  }
 }

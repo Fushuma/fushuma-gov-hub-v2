@@ -1,18 +1,20 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useAccount } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, TrendingUp, Droplets, Plus, Minus, DollarSign } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Droplets, Plus, Minus, DollarSign, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { usePosition } from '@/lib/fumaswap/hooks/usePositions';
 import { formatFee } from '@/lib/fumaswap/pools';
 import { toast } from 'sonner';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { calculatePositionAmounts, tickToReadablePrice } from '@/lib/fumaswap/utils/positionUtils';
+import { collectFees, removeLiquidity } from '@/lib/fumaswap/liquidity';
+import { CL_POSITION_MANAGER_ADDRESS } from '@/lib/fumaswap/contracts';
 
 // Format token amount for display
 function formatTokenAmount(amount: string, decimals: number, displayDecimals: number = 4): string {
@@ -37,10 +39,21 @@ function formatTokenAmount(amount: string, decimals: number, displayDecimals: nu
 export default function PositionDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const tokenId = params.id as string;
+  const { writeContractAsync } = useWriteContract();
 
-  const { position, isLoading } = usePosition(tokenId);
+  const { position, isLoading, refetch } = usePosition(tokenId);
+
+  // Transaction state
+  const [isCollecting, setIsCollecting] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+
+  // Wait for transaction confirmation
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   // Calculate position amounts and prices using SDK
   const positionData = useMemo(() => {
@@ -71,17 +84,89 @@ export default function PositionDetailPage() {
     };
   }, [position]);
 
-  const handleCollectFees = () => {
-    toast.info('Fee collection will be available after contract deployment');
+  const handleCollectFees = async () => {
+    if (!position || !address) return;
+
+    try {
+      setIsCollecting(true);
+      toast.info('Collecting fees...');
+
+      const result = await collectFees(
+        {
+          tokenId: position.tokenId,
+          recipient: address,
+          amount0Max: BigInt('340282366920938463463374607431768211455'), // uint128 max
+          amount1Max: BigInt('340282366920938463463374607431768211455'),
+        },
+        writeContractAsync
+      );
+
+      if (result?.hash) {
+        setTxHash(result.hash);
+        toast.success('Fee collection submitted! Waiting for confirmation...');
+      }
+    } catch (error: any) {
+      console.error('Error collecting fees:', error);
+      toast.error(error.message || 'Failed to collect fees');
+    } finally {
+      setIsCollecting(false);
+    }
   };
 
   const handleIncreaseLiquidity = () => {
-    toast.info('Increase liquidity will be available after contract deployment');
+    // Navigate to add liquidity page with pre-filled data
+    router.push(`/defi/fumaswap/liquidity?tokenId=${tokenId}`);
   };
 
-  const handleRemoveLiquidity = () => {
-    toast.info('Remove liquidity will be available after contract deployment');
+  const handleRemoveLiquidity = async () => {
+    if (!position || !address) return;
+
+    try {
+      setIsRemoving(true);
+
+      // Remove 100% of liquidity
+      const liquidity = BigInt(position.liquidity);
+      if (liquidity === 0n) {
+        toast.error('No liquidity to remove');
+        return;
+      }
+
+      toast.info('Removing liquidity...');
+
+      const result = await removeLiquidity(
+        {
+          tokenId: position.tokenId,
+          liquidity,
+          amount0Min: 0n, // Accept any amount (consider adding slippage protection)
+          amount1Min: 0n,
+          deadline: 20, // 20 minutes
+        },
+        writeContractAsync
+      );
+
+      if (result?.hash) {
+        setTxHash(result.hash);
+        toast.success('Liquidity removal submitted! Waiting for confirmation...');
+      }
+    } catch (error: any) {
+      console.error('Error removing liquidity:', error);
+      toast.error(error.message || 'Failed to remove liquidity');
+    } finally {
+      setIsRemoving(false);
+    }
   };
+
+  // Refetch position data after successful transaction
+  useMemo(() => {
+    if (isSuccess && txHash) {
+      toast.success('Transaction confirmed!');
+      refetch();
+      setTxHash(undefined);
+    }
+  }, [isSuccess, txHash, refetch]);
+
+  const hasLiquidity = position && BigInt(position.liquidity) > 0n;
+  const isProcessing = isCollecting || isRemoving || isConfirming;
 
   if (!isConnected) {
     router.push('/defi/fumaswap/positions');
@@ -187,9 +272,13 @@ export default function PositionDetailPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <p className="font-medium">Uncollected Fees</p>
-                <Button onClick={handleCollectFees} disabled>
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Collect Fees
+                <Button onClick={handleCollectFees} disabled={isProcessing}>
+                  {isCollecting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <DollarSign className="h-4 w-4 mr-2" />
+                  )}
+                  {isCollecting ? 'Collecting...' : 'Collect Fees'}
                 </Button>
               </div>
               
@@ -278,15 +367,32 @@ export default function PositionDetailPage() {
             <CardDescription>Increase or decrease your liquidity</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button onClick={handleIncreaseLiquidity} className="w-full" size="lg" disabled>
+            <Button onClick={handleIncreaseLiquidity} className="w-full" size="lg" disabled={isProcessing}>
               <Plus className="h-4 w-4 mr-2" />
               Increase Liquidity
             </Button>
-            
-            <Button onClick={handleRemoveLiquidity} variant="outline" className="w-full" size="lg" disabled>
-              <Minus className="h-4 w-4 mr-2" />
-              Remove Liquidity
+
+            <Button
+              onClick={handleRemoveLiquidity}
+              variant="outline"
+              className="w-full"
+              size="lg"
+              disabled={isProcessing || !hasLiquidity}
+            >
+              {isRemoving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Minus className="h-4 w-4 mr-2" />
+              )}
+              {isRemoving ? 'Removing...' : 'Remove Liquidity'}
             </Button>
+
+            {isConfirming && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Waiting for confirmation...
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
