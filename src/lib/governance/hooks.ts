@@ -137,24 +137,84 @@ export function useCreateLock() {
 }
 
 /**
- * Increase lock amount
+ * Increase lock amount for a veNFT
  */
-export function useIncreaseLockAmount() {
+export function useIncreaseAmount() {
   return useWriteContract();
 }
 
 /**
- * Extend lock duration
+ * Start exit queue (initiate cooldown for withdrawal)
  */
-export function useExtendLock() {
+export function useStartExit() {
   return useWriteContract();
 }
 
 /**
- * Withdraw from expired lock
+ * Complete exit and withdraw tokens after cooldown
  */
-export function useWithdraw() {
+export function useCompleteExit() {
   return useWriteContract();
+}
+
+/**
+ * Check if a token is in exit queue
+ */
+export function useInExitQueue(tokenId?: bigint) {
+  return useReadContract({
+    address: VOTING_ESCROW_ADDRESS as Address,
+    abi: VotingEscrowAbi,
+    functionName: 'inExitQueue',
+    args: tokenId !== undefined ? [tokenId] : undefined,
+    query: {
+      enabled: tokenId !== undefined,
+    },
+  });
+}
+
+/**
+ * Get exit queue time for a token
+ */
+export function useExitQueueTime(tokenId?: bigint) {
+  return useReadContract({
+    address: VOTING_ESCROW_ADDRESS as Address,
+    abi: VotingEscrowAbi,
+    functionName: 'exitQueueTime',
+    args: tokenId !== undefined ? [tokenId] : undefined,
+    query: {
+      enabled: tokenId !== undefined,
+    },
+  });
+}
+
+/**
+ * Get all token IDs owned by an address
+ */
+export function useTokensOfOwner(owner?: Address) {
+  return useReadContract({
+    address: VOTING_ESCROW_ADDRESS as Address,
+    abi: VotingEscrowAbi,
+    functionName: 'tokensOfOwner',
+    args: owner ? [owner] : undefined,
+    query: {
+      enabled: !!owner,
+    },
+  });
+}
+
+/**
+ * Get locked balance for a token
+ */
+export function useLockedBalance(tokenId?: bigint) {
+  return useReadContract({
+    address: VOTING_ESCROW_ADDRESS as Address,
+    abi: VotingEscrowAbi,
+    functionName: 'getLockedBalance',
+    args: tokenId !== undefined ? [tokenId] : undefined,
+    query: {
+      enabled: tokenId !== undefined,
+    },
+  });
 }
 
 // ============================================================================

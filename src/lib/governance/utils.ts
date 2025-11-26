@@ -2,7 +2,7 @@
  * Governance Utility Functions
  */
 
-import { Address } from 'viem';
+import { Address, keccak256, encodeAbiParameters, parseAbiParameters } from 'viem';
 import { GOVERNANCE_PARAMS } from './contracts';
 import { ProposalState, VoteType } from './types';
 
@@ -329,19 +329,40 @@ export function parseProposalDescription(description: string): {
 
 /**
  * Generate proposal ID from parameters
+ * This matches the OpenZeppelin Governor proposalId calculation:
+ * uint256(keccak256(abi.encode(targets, values, calldatas, keccak256(bytes(description)))))
+ *
  * @param targets Target addresses
  * @param values Values to send
  * @param calldatas Calldata for each call
  * @param description Proposal description
- * @returns Proposal ID (keccak256 hash)
+ * @returns Proposal ID (keccak256 hash as hex string)
  */
 export function generateProposalId(
   targets: Address[],
   values: bigint[],
-  calldatas: string[],
+  calldatas: `0x${string}`[],
   description: string
-): string {
-  // This is a simplified version - actual implementation should use keccak256
-  // In practice, use viem's keccak256 function with proper encoding
-  return '0x' + Math.random().toString(16).slice(2).padStart(64, '0');
+): `0x${string}` {
+  // Hash the description first (keccak256(bytes(description)))
+  const descriptionHash = keccak256(new TextEncoder().encode(description) as unknown as `0x${string}`);
+
+  // Encode the parameters: (address[], uint256[], bytes[], bytes32)
+  const encoded = encodeAbiParameters(
+    parseAbiParameters('address[], uint256[], bytes[], bytes32'),
+    [targets, values, calldatas, descriptionHash]
+  );
+
+  // Return the keccak256 hash of the encoded data
+  return keccak256(encoded);
+}
+
+/**
+ * Generate description hash for proposal
+ * Used when queueing or executing a proposal
+ * @param description Proposal description
+ * @returns Description hash
+ */
+export function hashProposalDescription(description: string): `0x${string}` {
+  return keccak256(new TextEncoder().encode(description) as unknown as `0x${string}`);
 }
