@@ -19,6 +19,14 @@ import {
   useVeNFTBalance,
   useTotalVotingPower,
   useCreateLock,
+  useTokensOfOwner,
+  useVeNFTDetails,
+  useVotingPower,
+  useInExitQueue,
+  useExitQueueTime,
+  useIncreaseAmount,
+  useStartExit,
+  useCompleteExit,
   parseWFUMAAmount,
   WFUMA_ADDRESS,
   VOTING_ESCROW_ADDRESS,
@@ -27,40 +35,312 @@ import {
   GOVERNANCE_PARAMS,
 } from '@/lib/governance';
 
+// Lock card component for displaying individual locks
+function LockCard({
+  tokenId,
+  onRefresh
+}: {
+  tokenId: bigint;
+  onRefresh: () => void;
+}) {
+  const { data: lockDetails } = useVeNFTDetails(tokenId);
+  const { data: votingPower } = useVotingPower(tokenId);
+  const { data: inExitQueue } = useInExitQueue(tokenId);
+  const { data: exitQueueTime } = useExitQueueTime(tokenId);
+  const { data: allowance } = useWFUMAAllowance();
+
+  const { writeContract: increaseAmount, isPending: isIncreasing, data: increaseHash } = useIncreaseAmount();
+  const { writeContract: startExit, isPending: isStartingExit, data: startExitHash } = useStartExit();
+  const { writeContract: completeExit, isPending: isCompleting, data: completeExitHash } = useCompleteExit();
+  const { writeContract: approve, isPending: isApproving } = useApproveWFUMA();
+
+  const [increaseModalOpen, setIncreaseModalOpen] = useState(false);
+  const [increaseAmountInput, setIncreaseAmountInput] = useState('');
+
+  // Wait for transactions
+  const { isSuccess: isIncreaseSuccess } = useWaitForTransactionReceipt({ hash: increaseHash });
+  const { isSuccess: isStartExitSuccess } = useWaitForTransactionReceipt({ hash: startExitHash });
+  const { isSuccess: isCompleteExitSuccess } = useWaitForTransactionReceipt({ hash: completeExitHash });
+
+  useEffect(() => {
+    if (isIncreaseSuccess) {
+      toast.success('Lock amount increased!');
+      setIncreaseModalOpen(false);
+      setIncreaseAmountInput('');
+      onRefresh();
+    }
+  }, [isIncreaseSuccess, onRefresh]);
+
+  useEffect(() => {
+    if (isStartExitSuccess) {
+      toast.success('Exit queue started! Cooldown period begins now.');
+      onRefresh();
+    }
+  }, [isStartExitSuccess, onRefresh]);
+
+  useEffect(() => {
+    if (isCompleteExitSuccess) {
+      toast.success('Withdrawal complete! Tokens returned to wallet.');
+      onRefresh();
+    }
+  }, [isCompleteExitSuccess, onRefresh]);
+
+  const cooldownPeriod = GOVERNANCE_PARAMS.VotingEscrow.cooldownPeriod;
+  const lockedAmount = lockDetails && Array.isArray(lockDetails) ? lockDetails[0] : 0n;
+  const startTime = lockDetails && Array.isArray(lockDetails) ? lockDetails[1] : 0n;
+
+  const canCompleteExit = inExitQueue && exitQueueTime &&
+    Number(exitQueueTime) + cooldownPeriod < Math.floor(Date.now() / 1000);
+
+  const timeUntilWithdraw = inExitQueue && exitQueueTime ?
+    Math.max(0, (Number(exitQueueTime) + cooldownPeriod) - Math.floor(Date.now() / 1000)) : 0;
+
+  const handleIncreaseAmount = async () => {
+    if (!increaseAmountInput) return;
+
+    try {
+      const amountWei = parseWFUMAAmount(increaseAmountInput);
+      const currentAllowance = allowance ? BigInt(allowance.toString()) : 0n;
+
+      if (currentAllowance < amountWei) {
+        approve({
+          address: WFUMA_ADDRESS as `0x${string}`,
+          abi: WFUMAAbi,
+          functionName: 'approve',
+          args: [VOTING_ESCROW_ADDRESS as `0x${string}`, amountWei],
+        });
+        toast.info('Please approve WFUMA first, then increase amount');
+        return;
+      }
+
+      increaseAmount({
+        address: VOTING_ESCROW_ADDRESS as `0x${string}`,
+        abi: VotingEscrowAbi,
+        functionName: 'increaseAmount',
+        args: [tokenId, amountWei],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to increase amount';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleStartExit = async () => {
+    try {
+      startExit({
+        address: VOTING_ESCROW_ADDRESS as `0x${string}`,
+        abi: VotingEscrowAbi,
+        functionName: 'startExit',
+        args: [tokenId],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start exit';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleCompleteExit = async () => {
+    try {
+      completeExit({
+        address: VOTING_ESCROW_ADDRESS as `0x${string}`,
+        abi: VotingEscrowAbi,
+        functionName: 'completeExit',
+        args: [tokenId],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to complete withdrawal';
+      toast.error(errorMessage);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    if (days > 0) return `${days}d ${hours}h`;
+    return `${hours}h`;
+  };
+
+  return (
+    <Card className={inExitQueue ? 'border-yellow-500' : ''}>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg">veNFT #{tokenId.toString()}</CardTitle>
+            {inExitQueue && (
+              <Badge variant="outline" className="mt-2 text-yellow-600 border-yellow-500">
+                In Exit Queue
+              </Badge>
+            )}
+          </div>
+          <Lock className="h-6 w-6 text-muted-foreground" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Locked Amount</p>
+            <p className="text-lg font-bold">
+              {lockedAmount ? (Number(lockedAmount) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} WFUMA
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Voting Power</p>
+            <p className="text-lg font-bold">
+              {votingPower ? (Number(votingPower) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'}
+            </p>
+          </div>
+        </div>
+
+        {startTime && Number(startTime) > 0 && (
+          <div>
+            <p className="text-sm text-muted-foreground">Lock Created</p>
+            <p className="text-sm">
+              {new Date(Number(startTime) * 1000).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric'
+              })}
+            </p>
+          </div>
+        )}
+
+        {inExitQueue && timeUntilWithdraw > 0 && (
+          <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <Calendar className="h-4 w-4 inline mr-1" />
+              Cooldown remaining: {formatDuration(timeUntilWithdraw)}
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          {!inExitQueue ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setIncreaseModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Increase
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={handleStartExit}
+                disabled={isStartingExit}
+              >
+                {isStartingExit ? 'Processing...' : 'Start Exit'}
+              </Button>
+            </>
+          ) : canCompleteExit ? (
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={handleCompleteExit}
+              disabled={isCompleting}
+            >
+              {isCompleting ? 'Withdrawing...' : 'Withdraw Tokens'}
+            </Button>
+          ) : (
+            <Button size="sm" className="w-full" disabled>
+              Cooldown in Progress
+            </Button>
+          )}
+        </div>
+
+        {/* Increase Amount Modal */}
+        {increaseModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md m-4">
+              <CardHeader>
+                <CardTitle>Increase Lock Amount</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Add more WFUMA to veNFT #{tokenId.toString()}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Amount to Add</Label>
+                  <Input
+                    type="number"
+                    placeholder="0.0"
+                    value={increaseAmountInput}
+                    onChange={(e) => setIncreaseAmountInput(e.target.value)}
+                    min="0"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setIncreaseModalOpen(false);
+                      setIncreaseAmountInput('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleIncreaseAmount}
+                    disabled={!increaseAmountInput || isIncreasing || isApproving}
+                  >
+                    {isApproving ? 'Approving...' : isIncreasing ? 'Increasing...' : 'Confirm'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function VeNFTPage() {
   const { address, isConnected } = useAccount();
-  
+
   // Contract hooks
-  const { data: wfumaBalance } = useWFUMABalance(address);
+  const { data: wfumaBalance, refetch: refetchBalance } = useWFUMABalance(address);
   const { data: allowance } = useWFUMAAllowance(address);
-  const { data: veNFTBalance } = useVeNFTBalance(address);
-  const { data: totalVotingPower } = useTotalVotingPower(address);
+  const { data: veNFTBalance, refetch: refetchVeNFTBalance } = useVeNFTBalance(address);
+  const { data: totalVotingPower, refetch: refetchVotingPower } = useTotalVotingPower(address);
+  const { data: tokenIds, refetch: refetchTokenIds } = useTokensOfOwner(address);
   const { writeContract: approve, isPending: isApproving, data: approveHash } = useApproveWFUMA();
   const { writeContract: createLock, isPending: isCreating, data: createLockHash } = useCreateLock();
-  
+
   // Wait for transactions
   const { isLoading: isApproveConfirming, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({
     hash: approveHash,
   });
-  
+
   const { isLoading: isCreateLockConfirming, isSuccess: isCreateLockSuccess } = useWaitForTransactionReceipt({
     hash: createLockHash,
   });
-  
+
   // Handle approve success
   useEffect(() => {
     if (isApproveSuccess && approveHash) {
       toast.success('WFUMA approved successfully!');
     }
   }, [isApproveSuccess, approveHash]);
-  
+
   // Handle create lock success
   useEffect(() => {
     if (isCreateLockSuccess && createLockHash) {
       toast.success('Lock created successfully!');
       setLockAmount('');
+      handleRefreshAll();
     }
   }, [isCreateLockSuccess, createLockHash]);
+
+  const handleRefreshAll = () => {
+    refetchBalance();
+    refetchVeNFTBalance();
+    refetchVotingPower();
+    refetchTokenIds();
+  };
 
   // Form state
   const [lockAmount, setLockAmount] = useState('');
@@ -86,9 +366,9 @@ export default function VeNFTPage() {
         functionName: 'approve',
         args: [VOTING_ESCROW_ADDRESS as `0x${string}`, amountWei],
       });
-    } catch (error: any) {
-      console.error('Approve error:', error);
-      toast.error(error.message || 'Failed to approve WFUMA');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to approve WFUMA';
+      toast.error(errorMessage);
     }
   };
 
@@ -111,9 +391,9 @@ export default function VeNFTPage() {
         functionName: 'createLock',
         args: [amountWei],
       });
-    } catch (error: any) {
-      console.error('Create lock error:', error);
-      toast.error(error.message || 'Failed to create lock');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create lock';
+      toast.error(errorMessage);
     }
   };
 
@@ -416,14 +696,48 @@ export default function VeNFTPage() {
               </CardHeader>
               <CardContent>
                 {isConnected ? (
-                  veNFTBalance && Number(veNFTBalance) > 0 ? (
+                  tokenIds && Array.isArray(tokenIds) && tokenIds.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {(tokenIds as bigint[]).map((tokenId) => (
+                          <LockCard
+                            key={tokenId.toString()}
+                            tokenId={tokenId}
+                            onRefresh={handleRefreshAll}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Lock Management Info */}
+                      <Card className="bg-muted border-0 mt-6">
+                        <CardContent className="pt-6">
+                          <h4 className="font-semibold text-sm mb-3">Lock Management Guide:</h4>
+                          <ul className="space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span><strong>Increase Amount:</strong> Add more WFUMA to your existing lock to boost voting power</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span><strong>Start Exit:</strong> Begin the {GOVERNANCE_PARAMS.VotingEscrow.cooldownPeriod / 86400} day cooldown period to withdraw</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-yellow-500 mt-0.5">⚠</span>
+                              <span>During cooldown, your voting power is <strong>zero</strong></span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span>After cooldown completes, click "Withdraw Tokens" to receive your WFUMA</span>
+                            </li>
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ) : veNFTBalance && Number(veNFTBalance) > 0 ? (
                     <div className="text-center py-8">
                       <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                       <p className="text-muted-foreground">
-                        You have {veNFTBalance.toString()} veNFT{Number(veNFTBalance) > 1 ? 's' : ''}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Lock management interface coming soon
+                        Loading your {veNFTBalance.toString()} veNFT{Number(veNFTBalance) > 1 ? 's' : ''}...
                       </p>
                     </div>
                   ) : (

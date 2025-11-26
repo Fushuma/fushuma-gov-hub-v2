@@ -127,11 +127,15 @@ export default function GaugesPage() {
 
       toast.success('Votes submitted successfully!');
       setVoteAllocations({});
-    } catch (error: any) {
-      console.error('Vote error:', error);
-      toast.error(error.message || 'Failed to submit votes');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit votes';
+      toast.error(errorMessage);
     }
   };
+
+  // Check if we're in voting phase (phase 0)
+  const isVotingPhase = epochPhase !== undefined && Number(epochPhase) === 0;
+  const canVote = isConnected && votingPower && votingPower > 0n && isVotingPhase;
 
   const totalAllocated = getTotalAllocated();
   const remainingAllocation = 100 - totalAllocated;
@@ -292,12 +296,12 @@ export default function GaugesPage() {
                             min="0"
                             max="100"
                             step="0.1"
-                            disabled={!isConnected || !votingPower || votingPower === 0n}
+                            disabled={!canVote}
                           />
                           <Button
                             variant="outline"
                             onClick={() => handleVoteAllocationChange(gauge.id.toString(), remainingAllocation.toFixed(1))}
-                            disabled={!isConnected || !votingPower || votingPower === 0n || remainingAllocation <= 0}
+                            disabled={!canVote || remainingAllocation <= 0}
                           >
                             Max
                           </Button>
@@ -314,11 +318,23 @@ export default function GaugesPage() {
               })}
             </div>
 
+            {/* Voting Phase Warning */}
+            {isConnected && votingPower && votingPower > 0n && !isVotingPhase && (
+              <div className="bg-yellow-50 dark:bg-yellow-950 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div className="flex gap-2 items-center">
+                  <Info className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    Voting is only available during the voting phase. Current phase: {epochPhase !== undefined ? getEpochPhaseLabel(Number(epochPhase)) : 'Unknown'}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Submit Button */}
             <div className="pt-4">
               <Button
                 onClick={handleSubmitVotes}
-                disabled={!isConnected || !votingPower || votingPower === 0n || totalAllocated === 0 || totalAllocated > 100 || isVoting}
+                disabled={!canVote || totalAllocated === 0 || totalAllocated > 100 || isVoting}
                 className="w-full"
                 size="lg"
               >

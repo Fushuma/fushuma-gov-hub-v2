@@ -148,19 +148,33 @@ export const proposalsRouter = router({
         votingPower: input.votingPower,
       });
       
-      // Update proposal vote counts
+      // Update proposal vote counts based on vote choice
       if (input.voteChoice === "for") {
         await ctx.db
           .update(proposals)
-          .set({ votesFor: sql`${proposals.votesFor} + ${input.votingPower}` })
+          .set({
+            votesFor: sql`${proposals.votesFor} + ${input.votingPower}`,
+            totalVotes: sql`${proposals.totalVotes} + ${input.votingPower}`
+          })
           .where(eq(proposals.id, input.proposalId));
-      } else {
+      } else if (input.voteChoice === "against") {
         await ctx.db
           .update(proposals)
-          .set({ votesAgainst: sql`${proposals.votesAgainst} + ${input.votingPower}` })
+          .set({
+            votesAgainst: sql`${proposals.votesAgainst} + ${input.votingPower}`,
+            totalVotes: sql`${proposals.totalVotes} + ${input.votingPower}`
+          })
+          .where(eq(proposals.id, input.proposalId));
+      } else if (input.voteChoice === "abstain") {
+        await ctx.db
+          .update(proposals)
+          .set({
+            votesAbstain: sql`${proposals.votesAbstain} + ${input.votingPower}`,
+            totalVotes: sql`${proposals.totalVotes} + ${input.votingPower}`
+          })
           .where(eq(proposals.id, input.proposalId));
       }
-      
+
       return { success: true };
     }),
 

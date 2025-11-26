@@ -232,6 +232,7 @@ export const proposals = mysqlTable("proposals", {
   status: mysqlEnum("status", ["pending", "active", "passed", "rejected", "executed", "cancelled"]).default("pending").notNull(),
   votesFor: int("votesFor").default(0).notNull(),
   votesAgainst: int("votesAgainst").default(0).notNull(),
+  votesAbstain: int("votesAbstain").default(0).notNull(),
   totalVotes: int("totalVotes").default(0).notNull(),
   quorum: int("quorum").notNull(),
   startDate: timestamp("startDate").notNull(),

@@ -6,27 +6,56 @@ import { Navigation } from '@/components/layout/Navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, User, TrendingUp, TrendingDown, Clock, CheckCircle } from 'lucide-react';
-import { useAccount, useBlockNumber } from 'wagmi';
+import { ArrowLeft, Calendar, User, TrendingUp, TrendingDown, Clock, CheckCircle, Play, ListChecks, ExternalLink } from 'lucide-react';
+import { useAccount, useBlockNumber, useWaitForTransactionReceipt } from 'wagmi';
 import { toast } from 'sonner';
 import {
   useCastVote,
   useHasVoted,
   useTotalVotingPower,
   useProposalState,
+  useQueueProposal,
+  useExecuteProposal,
   getProposalStateLabel,
   getProposalStateColor,
   canVoteOnProposal,
+  canQueueProposal,
+  canExecuteProposal,
   estimateTimeUntilEnd,
   formatLockDuration,
+  hashProposalDescription,
   ProposalState,
   VoteType,
   FUSHUMA_GOVERNOR_ADDRESS,
   FushumaGovernorAbi,
+  GOVERNANCE_PARAMS,
+  GOVERNANCE_NETWORK,
 } from '@/lib/governance';
 
+// Helper to get transaction explorer URL
+const getTransactionUrl = (hash: string) =>
+  `${GOVERNANCE_NETWORK.explorerUrl}/tx/${hash}`;
+
+// Mock proposal type for frontend display
+interface MockProposal {
+  id: bigint;
+  title: string;
+  description: string;
+  proposer: string;
+  state: ProposalState;
+  forVotes: bigint;
+  againstVotes: bigint;
+  abstainVotes: bigint;
+  startBlock: bigint;
+  endBlock: bigint;
+  createdAt: Date;
+  targets: string[];
+  values: bigint[];
+  calldatas: string[];
+}
+
 // Mock proposal data - in production, this would come from event indexing or subgraph
-const MOCK_PROPOSALS: Record<string, any> = {
+const MOCK_PROPOSALS: Record<string, MockProposal> = {
   '1': {
     id: 1n,
     title: 'Increase Grant Budget for Q1 2026',
@@ -127,9 +156,40 @@ export default function ProposalDetailPage() {
   const { data: currentBlock } = useBlockNumber({ watch: true });
   const { data: votingPower } = useTotalVotingPower(address);
   const { data: hasVoted } = useHasVoted(proposal?.id, address);
-  const { writeContract: castVote, isPending: isVoting } = useCastVote();
+  const { writeContract: castVote, isPending: isVoting, data: voteHash } = useCastVote();
+  const { writeContract: queueProposal, isPending: isQueueing, data: queueHash } = useQueueProposal();
+  const { writeContract: executeProposal, isPending: isExecuting, data: executeHash } = useExecuteProposal();
+
+  // Wait for transaction receipts
+  const { isSuccess: isVoteSuccess, isLoading: isVoteConfirming } = useWaitForTransactionReceipt({ hash: voteHash });
+  const { isSuccess: isQueueSuccess } = useWaitForTransactionReceipt({ hash: queueHash });
+  const { isSuccess: isExecuteSuccess } = useWaitForTransactionReceipt({ hash: executeHash });
 
   const [selectedVote, setSelectedVote] = useState<VoteType | null>(null);
+  const [confirmedVoteHash, setConfirmedVoteHash] = useState<string | null>(null);
+
+  // Handle vote success
+  useEffect(() => {
+    if (isVoteSuccess && voteHash) {
+      toast.success('Vote cast successfully!');
+      setConfirmedVoteHash(voteHash);
+      setSelectedVote(null);
+    }
+  }, [isVoteSuccess, voteHash]);
+
+  // Handle queue success
+  useEffect(() => {
+    if (isQueueSuccess && queueHash) {
+      toast.success('Proposal queued for execution!');
+    }
+  }, [isQueueSuccess, queueHash]);
+
+  // Handle execute success
+  useEffect(() => {
+    if (isExecuteSuccess && executeHash) {
+      toast.success('Proposal executed successfully!');
+    }
+  }, [isExecuteSuccess, executeHash]);
 
   if (!proposal) {
     return (
@@ -178,10 +238,62 @@ export default function ProposalDetailPage() {
       });
       // Success will be handled by transaction confirmation
       // Don't show success toast here to avoid showing it before tx is confirmed
-    } catch (error: any) {
-      console.error('Vote error:', error);
-      toast.error(error.message || 'Failed to cast vote');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cast vote';
+      toast.error(errorMessage);
       setSelectedVote(null);
+    }
+  };
+
+  const handleQueueProposal = async () => {
+    if (!isConnected) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    try {
+      const descriptionHash = hashProposalDescription(proposal.description);
+
+      await queueProposal({
+        address: FUSHUMA_GOVERNOR_ADDRESS as `0x${string}`,
+        abi: FushumaGovernorAbi,
+        functionName: 'queue',
+        args: [
+          proposal.targets as `0x${string}`[],
+          proposal.values,
+          proposal.calldatas as `0x${string}`[],
+          descriptionHash,
+        ],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to queue proposal';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleExecuteProposal = async () => {
+    if (!isConnected) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    try {
+      const descriptionHash = hashProposalDescription(proposal.description);
+
+      await executeProposal({
+        address: FUSHUMA_GOVERNOR_ADDRESS as `0x${string}`,
+        abi: FushumaGovernorAbi,
+        functionName: 'execute',
+        args: [
+          proposal.targets as `0x${string}`[],
+          proposal.values,
+          proposal.calldatas as `0x${string}`[],
+          descriptionHash,
+        ],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to execute proposal';
+      toast.error(errorMessage);
     }
   };
 
@@ -375,35 +487,39 @@ export default function ProposalDetailPage() {
                 ) : !votingPower || votingPower === 0n ? (
                   <div className="text-center py-4">
                     <p className="text-muted-foreground mb-2">You need voting power to vote</p>
-                    <Button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('=== CREATE LOCK BUTTON CLICKED ===');
-                        console.log('Voting power:', votingPower);
-                        console.log('Is connected:', isConnected);
-                        console.log('Current path:', window.location.pathname);
-                        try {
-                          console.log('Attempting navigation to /governance/venft');
-                          router.push('/governance/venft');
-                          console.log('Navigation initiated successfully');
-                        } catch (error) {
-                          console.error('Navigation error:', error);
-                          toast.error('Failed to navigate. Please try refreshing the page.');
-                        }
-                      }} 
+                    <Button
+                      onClick={() => router.push('/governance/venft')}
                       size="sm"
-                      type="button"
                     >
                       Lock WFUMA to get voting power
                     </Button>
                   </div>
-                ) : hasVoted ? (
+                ) : hasVoted || confirmedVoteHash ? (
                   <div className="text-center py-4">
                     <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
-                    <p className="text-muted-foreground mb-2">You have already voted</p>
-                    <p className="text-sm">
+                    <p className="text-muted-foreground mb-2">
+                      {confirmedVoteHash ? 'Your vote has been recorded!' : 'You have already voted'}
+                    </p>
+                    <p className="text-sm mb-3">
                       Your voting power: {(Number(votingPower) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </p>
+                    {confirmedVoteHash && (
+                      <a
+                        href={getTransactionUrl(confirmedVoteHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        View transaction <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                ) : isVoteConfirming ? (
+                  <div className="text-center py-4">
+                    <Clock className="h-12 w-12 text-blue-500 mx-auto mb-2 animate-pulse" />
+                    <p className="text-muted-foreground mb-2">Confirming your vote...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Please wait while the transaction is being confirmed
                     </p>
                   </div>
                 ) : !isActive ? (
@@ -444,6 +560,73 @@ export default function ProposalDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Proposal Execution Actions */}
+            {(canQueueProposal(proposal.state) || canExecuteProposal(proposal.state)) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Proposal Execution</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {canQueueProposal(proposal.state) && (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        This proposal has passed and can be queued for execution.
+                      </p>
+                      <Button
+                        onClick={handleQueueProposal}
+                        disabled={!isConnected || isQueueing}
+                        className="w-full"
+                      >
+                        <ListChecks className="h-4 w-4 mr-2" />
+                        {isQueueing ? 'Queueing...' : 'Queue for Execution'}
+                      </Button>
+                    </>
+                  )}
+                  {canExecuteProposal(proposal.state) && (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        This proposal is queued and ready to be executed after the timelock delay of {GOVERNANCE_PARAMS.FushumaGovernor.timelockDelay / 86400} days.
+                      </p>
+                      <Button
+                        onClick={handleExecuteProposal}
+                        disabled={!isConnected || isExecuting}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        {isExecuting ? 'Executing...' : 'Execute Proposal'}
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Proposal State Info for other states */}
+            {proposal.state === ProposalState.Executed && (
+              <Card className="border-green-500">
+                <CardContent className="py-4 text-center">
+                  <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-green-600">Proposal Executed</p>
+                </CardContent>
+              </Card>
+            )}
+            {proposal.state === ProposalState.Defeated && (
+              <Card className="border-red-500">
+                <CardContent className="py-4 text-center">
+                  <TrendingDown className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-red-600">Proposal Defeated</p>
+                </CardContent>
+              </Card>
+            )}
+            {proposal.state === ProposalState.Canceled && (
+              <Card className="border-gray-500">
+                <CardContent className="py-4 text-center">
+                  <Clock className="h-8 w-8 text-gray-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-600">Proposal Canceled</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </main>
