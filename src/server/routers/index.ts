@@ -5,6 +5,7 @@ import { newsRouter } from "./news";
 import { launchpadRouter } from "./launchpad";
 import { proposalsRouter } from "./proposals";
 import { defiRouter } from "./defi";
+import { delegatesRouter } from "./delegates";
 
 export const appRouter = router({
   auth: authRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   launchpad: launchpadRouter,
   proposals: proposalsRouter,
   defi: defiRouter,
+  delegates: delegatesRouter,
 });
 
 export type AppRouter = typeof appRouter;

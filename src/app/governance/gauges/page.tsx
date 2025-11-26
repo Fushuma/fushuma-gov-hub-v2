@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Navigation } from '@/components/layout/Navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Calendar, Wallet, Vote, Info } from 'lucide-react';
-import { useAccount } from 'wagmi';
+import { TrendingUp, Calendar, Wallet, Vote, Info, Loader2 } from 'lucide-react';
+import { useAccount, useReadContracts } from 'wagmi';
 import { toast } from 'sonner';
 import {
   useTotalVotingPower,
@@ -17,57 +17,118 @@ import {
   useEpochPhase,
   useTotalGaugeWeight,
   useVoteForGaugeWeights,
+  useGaugeCount,
+  useActiveGauges,
   getEpochPhaseLabel,
   calculateEpochProgress,
   GAUGE_CONTROLLER_ADDRESS,
   GaugeControllerAbi,
   GOVERNANCE_PARAMS,
 } from '@/lib/governance';
+import type { Address } from 'viem';
 
-// Mock gauges - in production, these would come from contract events
-const MOCK_GAUGES = [
-  {
-    id: 0n,
-    name: 'Fushuma Grant Gauge',
-    description: 'Distributes WFUMA to approved grant projects',
-    address: '0x0D6833778cf1fa803D21075b800483F68f57A153',
-    type: 'Grant',
-    weight: 5000000000000000000000n,
-    userVote: 0n,
-  },
-  {
-    id: 1n,
-    name: 'FumaSwap LP Rewards',
-    description: 'Rewards for liquidity providers on FumaSwap',
-    address: '0x0000000000000000000000000000000000000001',
-    type: 'DeFi',
-    weight: 3000000000000000000000n,
-    userVote: 0n,
-  },
-  {
-    id: 2n,
-    name: 'Developer Incentives',
-    description: 'Rewards for ecosystem developers and builders',
-    address: '0x0000000000000000000000000000000000000002',
-    type: 'Development',
-    weight: 2000000000000000000000n,
-    userVote: 0n,
-  },
-];
+// Gauge type definitions
+interface Gauge {
+  id: bigint;
+  name: string;
+  description: string;
+  address: string;
+  type: string;
+  weight: bigint;
+  isActive: boolean;
+}
+
+// Gauge type mappings
+const GAUGE_TYPE_NAMES: Record<number, string> = {
+  0: 'Grant',
+  1: 'DeFi',
+  2: 'Development',
+  3: 'Community',
+};
+
+const GAUGE_DESCRIPTIONS: Record<string, string> = {
+  '0x0D6833778cf1fa803D21075b800483F68f57A153': 'Distributes WFUMA to approved grant projects',
+};
 
 export default function GaugesPage() {
   const { address, isConnected } = useAccount();
-  
+
   // Contract hooks
   const { data: votingPower } = useTotalVotingPower(address);
   const { data: currentEpoch } = useCurrentEpoch();
   const { data: epochPhase } = useEpochPhase();
-  const { data: totalWeight } = useTotalGaugeWeight();
+  const { data: totalWeight, isLoading: isLoadingWeight } = useTotalGaugeWeight();
   const { writeContract: voteForGauges, isPending: isVoting } = useVoteForGaugeWeights();
+  const { data: gaugeCount, isLoading: isLoadingCount } = useGaugeCount();
+  const { data: activeGaugeIds, isLoading: isLoadingActive } = useActiveGauges();
 
   // Local state
-  const [gauges, setGauges] = useState(MOCK_GAUGES);
   const [voteAllocations, setVoteAllocations] = useState<Record<string, string>>({});
+
+  // Build contracts array to fetch all gauge info
+  const gaugeContracts = useMemo(() => {
+    if (!gaugeCount || gaugeCount === 0n) return [];
+
+    const contracts = [];
+    for (let i = 0n; i < gaugeCount; i++) {
+      contracts.push({
+        address: GAUGE_CONTROLLER_ADDRESS as Address,
+        abi: GaugeControllerAbi,
+        functionName: 'gauges',
+        args: [i],
+      });
+      contracts.push({
+        address: GAUGE_CONTROLLER_ADDRESS as Address,
+        abi: GaugeControllerAbi,
+        functionName: 'getGaugeWeight',
+        args: [i],
+      });
+    }
+    return contracts;
+  }, [gaugeCount]);
+
+  // Fetch all gauge data in one call
+  const { data: gaugeData, isLoading: isLoadingGauges } = useReadContracts({
+    contracts: gaugeContracts as any,
+    query: {
+      enabled: gaugeContracts.length > 0,
+    },
+  });
+
+  // Process gauge data into usable format
+  const gauges: Gauge[] = useMemo(() => {
+    if (!gaugeData || !gaugeCount) return [];
+
+    const processedGauges: Gauge[] = [];
+    const count = Number(gaugeCount);
+
+    for (let i = 0; i < count; i++) {
+      const gaugeIndex = i * 2;
+      const weightIndex = i * 2 + 1;
+
+      const gaugeResult = gaugeData[gaugeIndex];
+      const weightResult = gaugeData[weightIndex];
+
+      if (gaugeResult?.status === 'success' && weightResult?.status === 'success') {
+        const gauge = gaugeResult.result as any;
+        const weight = weightResult.result as bigint;
+
+        processedGauges.push({
+          id: BigInt(i),
+          name: gauge.name || `Gauge ${i}`,
+          description: GAUGE_DESCRIPTIONS[gauge.gaugeAddress] || `Gauge for ${GAUGE_TYPE_NAMES[gauge.gaugeType] || 'General'} allocation`,
+          address: gauge.gaugeAddress,
+          type: GAUGE_TYPE_NAMES[gauge.gaugeType] || 'General',
+          weight: weight,
+          isActive: gauge.isActive,
+        });
+      }
+    }
+
+    return processedGauges;
+  }, [gaugeData, gaugeCount]);
+
+  const isLoadingData = isLoadingCount || isLoadingActive || isLoadingGauges || isLoadingWeight;
 
   const epochDuration = GOVERNANCE_PARAMS.EpochManager.epochDuration;
   const currentEpochNum = currentEpoch ? Number(currentEpoch) : 0;
@@ -254,68 +315,85 @@ export default function GaugesPage() {
 
             {/* Gauge List */}
             <div className="space-y-4">
-              {gauges.map((gauge) => {
-                const gaugeWeight = Number(gauge.weight) / 1e18;
-                const totalWeightNum = totalWeight ? Number(totalWeight) / 1e18 : 1;
-                const weightPercentage = (gaugeWeight / totalWeightNum) * 100;
-                const userAllocation = voteAllocations[gauge.id.toString()] || '';
+              {isLoadingData ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading gauges...</span>
+                </div>
+              ) : gauges.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="py-12 text-center">
+                    <Vote className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No Gauges Available</h3>
+                    <p className="text-muted-foreground">
+                      No gauges have been added to the controller yet.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                gauges.filter(g => g.isActive).map((gauge) => {
+                  const gaugeWeight = Number(gauge.weight) / 1e18;
+                  const totalWeightNum = totalWeight ? Number(totalWeight) / 1e18 : 1;
+                  const weightPercentage = totalWeightNum > 0 ? (gaugeWeight / totalWeightNum) * 100 : 0;
+                  const userAllocation = voteAllocations[gauge.id.toString()] || '';
 
-                return (
-                  <Card key={gauge.id.toString()} className="border-2">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{gauge.name}</CardTitle>
-                          <CardDescription className="mt-1">{gauge.description}</CardDescription>
+                  return (
+                    <Card key={gauge.id.toString()} className="border-2">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">{gauge.name}</CardTitle>
+                            <CardDescription className="mt-1">{gauge.description}</CardDescription>
+                          </div>
+                          <Badge variant="outline">{gauge.type}</Badge>
                         </div>
-                        <Badge variant="outline">{gauge.type}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Current Weight */}
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Current Weight:</span>
-                          <span className="font-medium">
-                            {gaugeWeight.toLocaleString(undefined, { maximumFractionDigits: 0 })} ({weightPercentage.toFixed(1)}%)
-                          </span>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Current Weight */}
+                        <div>
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-muted-foreground">Current Weight:</span>
+                            <span className="font-medium">
+                              {gaugeWeight.toLocaleString(undefined, { maximumFractionDigits: 0 })} ({weightPercentage.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <Progress value={weightPercentage} className="h-1" />
                         </div>
-                        <Progress value={weightPercentage} className="h-1" />
-                      </div>
 
-                      {/* Vote Allocation Input */}
-                      <div className="space-y-2">
-                        <Label htmlFor={`gauge-${gauge.id}`}>Your Allocation (%)</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id={`gauge-${gauge.id}`}
-                            type="number"
-                            placeholder="0"
-                            value={userAllocation}
-                            onChange={(e) => handleVoteAllocationChange(gauge.id.toString(), e.target.value)}
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            disabled={!canVote}
-                          />
-                          <Button
-                            variant="outline"
-                            onClick={() => handleVoteAllocationChange(gauge.id.toString(), remainingAllocation.toFixed(1))}
-                            disabled={!canVote || remainingAllocation <= 0}
-                          >
-                            Max
-                          </Button>
+                        {/* Vote Allocation Input */}
+                        <div className="space-y-2">
+                          <Label htmlFor={`gauge-${gauge.id}`}>Your Allocation (%)</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id={`gauge-${gauge.id}`}
+                              type="number"
+                              placeholder="0"
+                              value={userAllocation}
+                              onChange={(e) => handleVoteAllocationChange(gauge.id.toString(), e.target.value)}
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              disabled={!canVote}
+                            />
+                            <Button
+                              variant="outline"
+                              onClick={() => handleVoteAllocationChange(gauge.id.toString(), remainingAllocation.toFixed(1))}
+                              disabled={!canVote || remainingAllocation <= 0}
+                            >
+                              Max
+                            </Button>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Gauge Address */}
-                      <div className="text-xs text-muted-foreground">
-                        Address: {gauge.address.slice(0, 10)}...{gauge.address.slice(-8)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        {/* Gauge Address */}
+                        <div className="text-xs text-muted-foreground">
+                          Address: {gauge.address.slice(0, 10)}...{gauge.address.slice(-8)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
             </div>
 
             {/* Voting Phase Warning */}

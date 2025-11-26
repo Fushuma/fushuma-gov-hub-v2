@@ -429,6 +429,43 @@ export function useCouncilMembers() {
 // ============================================================================
 
 /**
+ * Get total number of gauges
+ */
+export function useGaugeCount() {
+  return useReadContract({
+    address: GAUGE_CONTROLLER_ADDRESS as Address,
+    abi: GaugeControllerAbi,
+    functionName: 'gaugeCount',
+  });
+}
+
+/**
+ * Get gauge info by ID
+ */
+export function useGaugeInfo(gaugeId?: bigint) {
+  return useReadContract({
+    address: GAUGE_CONTROLLER_ADDRESS as Address,
+    abi: GaugeControllerAbi,
+    functionName: 'gauges',
+    args: gaugeId !== undefined ? [gaugeId] : undefined,
+    query: {
+      enabled: gaugeId !== undefined,
+    },
+  });
+}
+
+/**
+ * Get all active gauges
+ */
+export function useActiveGauges() {
+  return useReadContract({
+    address: GAUGE_CONTROLLER_ADDRESS as Address,
+    abi: GaugeControllerAbi,
+    functionName: 'getActiveGauges',
+  });
+}
+
+/**
  * Get gauge weight
  */
 export function useGaugeWeight(gaugeId?: bigint) {

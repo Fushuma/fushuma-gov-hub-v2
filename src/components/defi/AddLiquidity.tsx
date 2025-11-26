@@ -296,12 +296,39 @@ export function AddLiquidity() {
         tickUpper = fullRange.tickUpper;
         console.log('✅ Full range ticks:', { tickLower, tickUpper });
       } else {
-        // For custom range, use simple tick calculation
-        // TODO: Implement proper price-to-tick conversion
+        // For custom range, convert prices to ticks
         const tickSpacing = TICK_SPACINGS[feeTier];
-        tickLower = -887200; // Near minimum tick
-        tickUpper = 887200;  // Near maximum tick
-        console.log('✅ Custom range ticks:', { tickLower, tickUpper, tickSpacing });
+
+        // Parse price inputs
+        const minPrice = parseFloat(priceLower) || 0;
+        const maxPrice = parseFloat(priceUpper) || Number.MAX_SAFE_INTEGER;
+
+        if (minPrice <= 0 || maxPrice <= 0 || minPrice >= maxPrice) {
+          toast.error('Please enter valid price range (min must be less than max)');
+          return;
+        }
+
+        // Convert prices to ticks using: tick = log(price) / log(1.0001)
+        const rawTickLower = Math.floor(Math.log(minPrice) / Math.log(1.0001));
+        const rawTickUpper = Math.ceil(Math.log(maxPrice) / Math.log(1.0001));
+
+        // Round to nearest tick spacing
+        tickLower = Math.ceil(rawTickLower / tickSpacing) * tickSpacing;
+        tickUpper = Math.floor(rawTickUpper / tickSpacing) * tickSpacing;
+
+        // Clamp to valid tick range
+        const MIN_TICK = Math.ceil(-887272 / tickSpacing) * tickSpacing;
+        const MAX_TICK = Math.floor(887272 / tickSpacing) * tickSpacing;
+        tickLower = Math.max(tickLower, MIN_TICK);
+        tickUpper = Math.min(tickUpper, MAX_TICK);
+
+        console.log('✅ Custom range ticks:', {
+          tickLower,
+          tickUpper,
+          tickSpacing,
+          minPrice,
+          maxPrice,
+        });
       }
       
       // Prepare liquidity params
@@ -620,9 +647,12 @@ export function AddLiquidity() {
                 <span className="text-muted-foreground">Estimated APR</span>
                 <Badge variant="secondary">
                   <TrendingUp className="h-3 w-3 mr-1" />
-                  15.5%
+                  {rangeType === 'full' ? 'Variable' : 'Higher with narrow range'}
                 </Badge>
               </div>
+              <p className="text-xs text-muted-foreground">
+                APR depends on trading volume and fee earnings. Concentrated positions earn more when in range.
+              </p>
             </div>
             
             <Separator />
