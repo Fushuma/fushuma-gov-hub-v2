@@ -27,9 +27,21 @@ const CL_POSITION_MANAGER_ADDRESS = '0x750525284ec59F21CF1c03C62A062f6B6473B7b1'
 
 // Known tokens with metadata
 const TOKEN_METADATA: Record<string, { symbol: string; name: string; decimals: number }> = {
-  '0xbca7b11c788dbb85be92627ef1e60a2a9b7e2c6e': { symbol: 'WFUMA', name: 'Wrapped FUMA', decimals: 18 },
-  '0x1e11d176117dbedbD234b1c6a10c6eb8dceD275e'.toLowerCase(): { symbol: 'USDT', name: 'Tether USD', decimals: 6 },
-  '0xf8ea5627691e041dae171350e8df13c592084848': { symbol: 'USDC', name: 'USD Coin', decimals: 6 },
+  '0xbca7b11c788dbb85be92627ef1e60a2a9b7e2c6e': {
+    symbol: 'WFUMA',
+    name: 'Wrapped FUMA',
+    decimals: 18,
+  },
+  '0x1e11d176117dbedbd234b1c6a10c6eb8dced275e': {
+    symbol: 'USDT',
+    name: 'Tether USD',
+    decimals: 6,
+  },
+  '0xf8ea5627691e041dae171350e8df13c592084848': {
+    symbol: 'USDC',
+    name: 'USD Coin',
+    decimals: 6,
+  },
 };
 
 // Known pools configuration
