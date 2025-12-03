@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc";
+import { router, publicProcedure, adminProcedure } from "../_core/trpc";
 import { createPublicClient, http, type Address, formatUnits } from 'viem';
+import { runFullIndexing, getRecentTransactions as getIndexedTransactions, calculatePoolStats } from "../services/defi-indexer";
 
 /**
  * DeFi Router
@@ -481,8 +482,46 @@ export const defiRouter = router({
     }),
 
   /**
-   * Get recent transactions
-   * Note: Requires event indexing for real transaction data
+   * Sync/index DeFi events from blockchain (admin only)
+   */
+  sync: adminProcedure
+    .mutation(async () => {
+      try {
+        const result = await runFullIndexing();
+        return {
+          success: true,
+          swaps: result.swaps,
+          liquidityEvents: result.liquidityEvents,
+        };
+      } catch (error) {
+        console.error('Error syncing DeFi events:', error);
+        throw new Error('Failed to sync DeFi events from blockchain');
+      }
+    }),
+
+  /**
+   * Get pool statistics with indexed data
+   */
+  getPoolStats: publicProcedure
+    .input(z.object({ poolId: z.string() }))
+    .query(async ({ input }) => {
+      try {
+        return await calculatePoolStats(input.poolId);
+      } catch (error) {
+        console.error('Error getting pool stats:', error);
+        return {
+          poolId: input.poolId,
+          volume24h: '0',
+          volume7d: '0',
+          fees24h: '0',
+          tvl: '0',
+          transactionCount24h: 0,
+        };
+      }
+    }),
+
+  /**
+   * Get recent transactions from indexed events
    */
   getRecentTransactions: publicProcedure
     .input(
@@ -492,12 +531,21 @@ export const defiRouter = router({
       })
     )
     .query(async ({ input }) => {
-      // This would require indexing Swap, Mint, Burn events from the contracts
-      // For now, return empty with a note
-      return {
-        transactions: [],
-        note: 'Transaction history requires event indexing. Deploy a subgraph for full transaction tracking.',
-      };
+      try {
+        const typeFilter = input.type === 'all' ? undefined : input.type;
+        const transactions = await getIndexedTransactions(input.limit, typeFilter);
+        return {
+          transactions,
+          indexed: true,
+        };
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+        return {
+          transactions: [],
+          indexed: false,
+          note: 'Run sync to index transaction history.',
+        };
+      }
     }),
 
   /**
