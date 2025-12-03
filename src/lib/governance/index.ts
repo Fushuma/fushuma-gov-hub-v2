@@ -8,3 +8,4 @@ export * from './types';
 export * from './abis';
 export * from './hooks';
 export * from './utils';
+export * from './useProposals';

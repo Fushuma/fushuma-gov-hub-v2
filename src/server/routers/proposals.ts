@@ -4,6 +4,36 @@ import { proposals, proposalVotes } from "@/db/schema";
 import { eq, desc, and, isNull, like, or, sql } from "drizzle-orm";
 
 export const proposalsRouter = router({
+  // Sync proposals from blockchain
+  sync: adminProcedure
+    .mutation(async ({ ctx }) => {
+      try {
+        // Lazy import to avoid initialization issues
+        const { indexProposals, updateProposalStates } = await import("../services/governance-indexer");
+        const indexed = await indexProposals();
+        await updateProposalStates();
+        return { success: true, count: indexed.length };
+      } catch (error) {
+        console.error('Error syncing proposals:', error);
+        throw new Error('Failed to sync proposals from blockchain');
+      }
+    }),
+
+  // Get proposal from blockchain by ID
+  getFromChain: publicProcedure
+    .input(z.object({ proposalId: z.string() }))
+    .query(async ({ input }) => {
+      try {
+        // Lazy import to avoid initialization issues
+        const { getProposalFromContract } = await import("../services/governance-indexer");
+        const proposal = await getProposalFromContract(BigInt(input.proposalId));
+        return proposal;
+      } catch (error) {
+        console.error('Error fetching proposal from chain:', error);
+        throw new Error('Failed to fetch proposal from blockchain');
+      }
+    }),
+
   list: publicProcedure
     .input(
       z.object({

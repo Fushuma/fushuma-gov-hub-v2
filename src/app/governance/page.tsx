@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Navigation } from '@/components/layout/Navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Wallet } from 'lucide-react';
+import { ArrowRight, Wallet, RefreshCw, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import {
@@ -15,63 +15,25 @@ import {
   getProposalStateColor,
   ProposalState,
 } from '@/lib/governance';
-
-// Mock data for now - will be replaced with contract event indexing
-const MOCK_PROPOSALS = [
-  {
-    id: 1n,
-    title: 'Increase Grant Budget for Q1 2026',
-    description: 'Proposal to increase the quarterly grant budget from 100,000 WFUMA to 150,000 WFUMA to support more community projects.',
-    proposer: '0xC8e420222d4c93355776eD77f9A34757fb6f3eea',
-    state: ProposalState.Active,
-    forVotes: 45000n,
-    againstVotes: 12000n,
-    abstainVotes: 3000n,
-    startBlock: 1000000n,
-    endBlock: 1050400n,
-    createdAt: new Date('2025-11-10'),
-  },
-  {
-    id: 2n,
-    title: 'Protocol Upgrade: Fushuma V3',
-    description: 'Major protocol upgrade to improve transaction speeds and reduce gas costs. This includes optimizations to the zkEVM layer.',
-    proposer: '0x7152B9A7BD708750892e577Fcc96ea24FDDF37a4',
-    state: ProposalState.Succeeded,
-    forVotes: 120000n,
-    againstVotes: 8000n,
-    abstainVotes: 2000n,
-    startBlock: 950000n,
-    endBlock: 1000400n,
-    createdAt: new Date('2025-11-05'),
-  },
-  {
-    id: 3n,
-    title: 'Add New Gauge for DeFi Rewards',
-    description: 'Create a new gauge to distribute rewards to liquidity providers on FumaSwap.',
-    proposer: '0x45FAc82b24511927a201C2cdFC506625dECe3d22',
-    state: ProposalState.Pending,
-    forVotes: 0n,
-    againstVotes: 0n,
-    abstainVotes: 0n,
-    startBlock: 1100000n,
-    endBlock: 1150400n,
-    createdAt: new Date('2025-11-15'),
-  },
-];
+import { useGovernanceProposals, type GovernanceProposal } from '@/lib/governance/useProposals';
 
 export default function GovernancePage() {
   const { address, isConnected } = useAccount();
   const [statusFilter, setStatusFilter] = useState<ProposalState | 'all'>('all');
-  const [proposals, setProposals] = useState(MOCK_PROPOSALS);
+
+  // Fetch proposals from the blockchain
+  const { proposals: onChainProposals, loading, error, refetch } = useGovernanceProposals();
 
   // Get user's voting power
   const { data: votingPower } = useTotalVotingPower(address);
   const { data: proposalThreshold } = useProposalThreshold();
 
   // Filter proposals based on status
-  const filteredProposals = proposals.filter(
-    (p) => statusFilter === 'all' || p.state === statusFilter
-  );
+  const filteredProposals = useMemo(() => {
+    return onChainProposals.filter(
+      (p) => statusFilter === 'all' || p.state === statusFilter
+    );
+  }, [onChainProposals, statusFilter]);
 
   const canCreateProposal = votingPower && proposalThreshold && votingPower >= proposalThreshold;
 
@@ -87,11 +49,22 @@ export default function GovernancePage() {
               Vote on proposals to shape the future of Fushuma
             </p>
           </div>
-          <Link href="/governance/create">
-            <Button disabled={!isConnected || !canCreateProposal}>
-              Create Proposal
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => refetch()}
+              disabled={loading}
+              title="Refresh proposals"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-          </Link>
+            <Link href="/governance/create">
+              <Button disabled={!isConnected || !canCreateProposal}>
+                Create Proposal
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* User Stats */}
@@ -168,8 +141,38 @@ export default function GovernancePage() {
           </Button>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <Card className="mb-6 border-red-500">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertCircle className="h-5 w-5" />
+                <span>Error loading proposals: {error.message}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="space-y-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mt-2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* Empty State */}
-        {filteredProposals.length === 0 && (
+        {!loading && filteredProposals.length === 0 && (
           <Card>
             <CardContent className="py-16 text-center">
               <h3 className="text-xl font-semibold mb-2">No Proposals Found</h3>
@@ -188,7 +191,7 @@ export default function GovernancePage() {
         )}
 
         {/* Proposals List */}
-        {filteredProposals.length > 0 && (
+        {!loading && filteredProposals.length > 0 && (
           <div className="space-y-6">
             {filteredProposals.map((proposal) => (
               <ProposalCard key={proposal.id.toString()} proposal={proposal} />
@@ -212,7 +215,7 @@ export default function GovernancePage() {
   );
 }
 
-function ProposalCard({ proposal }: { proposal: typeof MOCK_PROPOSALS[0] }) {
+function ProposalCard({ proposal }: { proposal: GovernanceProposal }) {
   const totalVotes = proposal.forVotes + proposal.againstVotes + proposal.abstainVotes;
   const forPercentage = totalVotes > 0n ? Number((proposal.forVotes * 10000n) / totalVotes) / 100 : 0;
   const againstPercentage = totalVotes > 0n ? Number((proposal.againstVotes * 10000n) / totalVotes) / 100 : 0;
