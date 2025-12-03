@@ -396,17 +396,22 @@ export async function getUserPositions(address: Address): Promise<Position[]> {
         const token1Symbol = getTokenSymbol(poolKey.currency1 as Address);
 
         // Fetch pool state for this position's pool
+        // Convert fee to number (contract returns BigInt which won't match TICK_SPACINGS keys)
+        const feeNumber = Number(poolKey.fee) as FeeAmount;
         let poolSqrtPriceX96 = '0';
         let poolCurrentTick = 0;
         try {
           const poolData = await getPool(
             poolKey.currency0 as Address,
             poolKey.currency1 as Address,
-            poolKey.fee as FeeAmount
+            feeNumber
           );
           if (poolData) {
             poolSqrtPriceX96 = poolData.sqrtPriceX96;
             poolCurrentTick = poolData.tick;
+            console.log(`Pool data fetched for position ${tokenId}: sqrtPriceX96=${poolSqrtPriceX96}, tick=${poolCurrentTick}`);
+          } else {
+            console.warn(`No pool data found for position ${tokenId} with fee ${feeNumber}`);
           }
         } catch (poolErr) {
           console.error('Error fetching pool data for position:', poolErr);
@@ -419,7 +424,7 @@ export async function getUserPositions(address: Address): Promise<Position[]> {
           token1: poolKey.currency1 as Address,
           token0Symbol,
           token1Symbol,
-          fee: poolKey.fee as FeeAmount,
+          fee: feeNumber,
           tickLower: Number(tickLower),
           tickUpper: Number(tickUpper),
           liquidity: liquidity.toString(),
