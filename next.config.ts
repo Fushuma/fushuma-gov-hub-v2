@@ -14,7 +14,6 @@ const nextConfig: NextConfig = {
   // Image optimization
   images: {
     formats: ['image/avif', 'image/webp'],
-    unoptimized: process.env.NODE_ENV === 'production' ? false : true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -23,25 +22,33 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // Use webpack compiler instead of Turbopack
-  turbopack: undefined,
+  // Turbopack configuration (Next.js 16+)
+  turbopack: {},
   
   // Output file tracing root
   outputFileTracingRoot: process.cwd(),
+  outputFileTracingExcludes: {
+    '/**/*': ['**/*.map', '**/*.test.*', '**/node_modules/**'],
+  },
   
-  // Webpack configuration
-  webpack: (config) => {
-    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+  // Webpack configuration (for Turbopack compatibility)
+  webpack: (config, { isServer }) => {
+    // Only apply webpack config if not using Turbopack
+    if (process.env.NEXT_BUILD_TOOL !== 'turbopack') {
+      config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    }
     return config;
   },
   
   // Experimental features
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    // Enable Turbopack with proper configuration
+    // turbopack: true,
   },
   
   // Server external packages (moved from experimental)
-  serverExternalPackages: ['thread-stream', 'pino', 'pino-pretty'],
+  serverExternalPackages: ['thread-stream', 'pino', 'pino-pretty', 'pino-http'],
   
   // Headers for security
   async headers() {
@@ -66,6 +73,11 @@ const nextConfig: NextConfig = {
     ];
   },
 };
+
+// Ensure turbopack is properly configured
+if (!nextConfig.turbopack) {
+  nextConfig.turbopack = {};
+}
 
 export default nextConfig;
 
