@@ -1,198 +1,250 @@
-# Fushuma DeFi Subgraph
+# FumaSwap V4 Subgraph
 
-This directory contains the subgraph schema and configuration for indexing Fushuma DeFi data.
+This subgraph indexes FumaSwap V4 (concentrated liquidity) events on the Fushuma Network for analytics and historical data.
 
-## Overview
+## Entities Indexed
 
-The subgraph indexes all DeFi events from the FumaSwap V4 (Infinity) contracts deployed on Fushuma Network, including:
+- **Factory**: Global protocol statistics (TVL, volume, fees)
+- **Pool**: Individual pool data, prices, liquidity
+- **Token**: Token metadata, volume, TVL
+- **Swap**: Individual swap transactions
+- **Mint/Burn**: Liquidity addition/removal events
+- **Position**: NFT-based liquidity positions
+- **PoolDayData/PoolHourData**: Aggregated pool analytics
+- **TokenDayData/TokenHourData**: Aggregated token analytics
+- **FumaSwapDayData**: Daily protocol-wide metrics
 
-- Pool creation and updates
-- Swaps
-- Liquidity additions and removals
-- Fee collections
-- Token data and analytics
+## Contract Addresses (Fushuma Mainnet)
+
+| Contract | Address |
+|----------|---------|
+| CLPoolManager | `0x2D691Ff314F7BB2Ce9Aeb94d556440Bb0DdbFe1e` |
+| CLPositionManager | `0x750525284ec59F21CF1c03C62A062f6B6473B7b1` |
+| WFUMA | `0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E` |
+| USDT | `0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e` |
 
 ## Prerequisites
 
-Before deploying the subgraph, ensure:
-
-1. **Smart contracts are deployed** on Fushuma Network
-2. **The Graph Node** is running (hosted service or self-hosted)
-3. **Contract addresses** are updated in `subgraph.yaml`
+1. **Node.js** (v18+)
+2. **Graph CLI**: `npm install -g @graphprotocol/graph-cli`
+3. **Graph Node** (for self-hosting) or **Subgraph Studio** account
 
 ## Setup
 
-### 1. Install Dependencies
-
 ```bash
-npm install -g @graphprotocol/graph-cli
+# Install dependencies
+cd subgraph
+npm install
+
+# Generate types from schema and ABIs
+npm run codegen
+
+# Build the subgraph
+npm run build
 ```
 
-### 2. Create subgraph.yaml
+## Deployment Options
 
-Create a `subgraph.yaml` file with the following structure:
+### Option 1: The Graph Hosted Service (Recommended for Production)
+
+1. Create a subgraph on [Subgraph Studio](https://thegraph.com/studio/)
+2. Get your deploy key
+3. Deploy:
+
+```bash
+graph auth --studio <DEPLOY_KEY>
+npm run deploy
+```
+
+### Option 2: Self-Hosted Graph Node
+
+1. Set up a Graph Node with Fushuma RPC:
 
 ```yaml
-specVersion: 0.0.5
-schema:
-  file: ./schema.graphql
-dataSources:
-  - kind: ethereum
-    name: Vault
-    network: fushuma
-    source:
-      address: "0x..." # Vault contract address
-      abi: Vault
-      startBlock: 0 # Block number when contract was deployed
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Factory
-        - Pool
-        - Token
-      abis:
-        - name: Vault
-          file: ./abis/Vault.json
-      eventHandlers:
-        - event: PoolInitialized(indexed address,indexed address,indexed uint24,int24,uint160)
-          handler: handlePoolInitialized
-      file: ./src/mappings/vault.ts
-  
-  - kind: ethereum
-    name: CLPoolManager
-    network: fushuma
-    source:
-      address: "0x..." # CLPoolManager contract address
-      abi: CLPoolManager
-      startBlock: 0
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Pool
-        - Swap
-        - Mint
-        - Burn
-      abis:
-        - name: CLPoolManager
-          file: ./abis/CLPoolManager.json
-      eventHandlers:
-        - event: Swap(indexed address,indexed address,int256,int256,uint160,uint128,int24)
-          handler: handleSwap
-        - event: Mint(address,indexed address,indexed int24,indexed int24,uint128,uint256,uint256)
-          handler: handleMint
-        - event: Burn(indexed address,indexed int24,indexed int24,uint128,uint256,uint256)
-          handler: handleBurn
-      file: ./src/mappings/pool.ts
-  
-  - kind: ethereum
-    name: CLPositionManager
-    network: fushuma
-    source:
-      address: "0x..." # CLPositionManager contract address
-      abi: CLPositionManager
-      startBlock: 0
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Position
-      abis:
-        - name: CLPositionManager
-          file: ./abis/CLPositionManager.json
-      eventHandlers:
-        - event: IncreaseLiquidity(indexed uint256,uint128,uint256,uint256)
-          handler: handleIncreaseLiquidity
-        - event: DecreaseLiquidity(indexed uint256,uint128,uint256,uint256)
-          handler: handleDecreaseLiquidity
-        - event: Collect(indexed uint256,address,uint256,uint256)
-          handler: handleCollect
-      file: ./src/mappings/position.ts
+# docker-compose.yml for Graph Node
+version: '3'
+services:
+  graph-node:
+    image: graphprotocol/graph-node
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8020:8020'
+      - '8030:8030'
+      - '8040:8040'
+    depends_on:
+      - ipfs
+      - postgres
+    environment:
+      postgres_host: postgres
+      postgres_user: graph-node
+      postgres_pass: let-me-in
+      postgres_db: graph-node
+      ipfs: 'ipfs:5001'
+      ethereum: 'fushuma:https://rpc.fushuma.com'
+      GRAPH_LOG: info
+  ipfs:
+    image: ipfs/kubo:v0.14.0
+    ports:
+      - '5001:5001'
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: graph-node
+      POSTGRES_PASSWORD: let-me-in
+      POSTGRES_DB: graph-node
 ```
 
-### 3. Create Mapping Handlers
-
-Create mapping handlers in `src/mappings/` to process events:
-
-- `vault.ts` - Handle pool initialization
-- `pool.ts` - Handle swaps, mints, burns
-- `position.ts` - Handle position updates
-- `helpers.ts` - Utility functions
-
-### 4. Deploy Subgraph
-
-#### Option A: Hosted Service (The Graph)
+2. Deploy to local node:
 
 ```bash
-# Authenticate
-graph auth --product hosted-service <ACCESS_TOKEN>
+npm run create-local
+npm run deploy-local
+```
 
-# Create subgraph
-graph create --node https://api.thegraph.com/deploy/ fushuma/fushuma-defi
+### Option 3: Goldsky (Subgraph-as-a-Service)
+
+```bash
+# Install Goldsky CLI
+curl https://goldsky.com | sh
+
+# Login
+goldsky login
 
 # Deploy
-graph deploy --node https://api.thegraph.com/deploy/ fushuma/fushuma-defi
+goldsky subgraph deploy fumaswap-v4/1.0.0 --path .
 ```
 
-#### Option B: Self-Hosted Graph Node
+## Network Configuration
 
-```bash
-# Build
-graph build
+Add Fushuma to your graph-node configuration if not already supported:
 
-# Create subgraph on local node
-graph create fushuma-defi --node http://localhost:8020
-
-# Deploy to local node
-graph deploy fushuma-defi --node http://localhost:8020 --ipfs http://localhost:5001
+```json
+{
+  "network": "fushuma",
+  "chainId": 121224,
+  "rpc": "https://rpc.fushuma.com"
+}
 ```
 
-## Querying the Subgraph
+## Example Queries
 
-Once deployed, you can query the subgraph using GraphQL:
-
+### Get Global Statistics
 ```graphql
 {
-  pools(first: 10, orderBy: tvlUSD, orderDirection: desc) {
+  factory(id: "factory") {
+    poolCount
+    txCount
+    totalVolumeUSD
+    totalFeesUSD
+    totalValueLockedUSD
+  }
+}
+```
+
+### Get Pools with Volume
+```graphql
+{
+  pools(first: 10, orderBy: volumeUSD, orderDirection: desc) {
     id
-    token0 {
-      symbol
-    }
-    token1 {
-      symbol
-    }
-    feeTier
-    tvlUSD
+    token0 { symbol }
+    token1 { symbol }
     volumeUSD
+    feesUSD
+    totalValueLockedUSD
+  }
+}
+```
+
+### Get Pool Day Data (Historical)
+```graphql
+{
+  poolDayDatas(
+    first: 30
+    orderBy: date
+    orderDirection: desc
+    where: { pool: "0x..." }
+  ) {
+    date
+    volumeUSD
+    tvlUSD
+    feesUSD
+    open
+    high
+    low
+    close
+  }
+}
+```
+
+### Get Recent Swaps
+```graphql
+{
+  swaps(first: 20, orderBy: timestamp, orderDirection: desc) {
+    id
+    timestamp
+    pool {
+      token0 { symbol }
+      token1 { symbol }
+    }
+    amount0
+    amount1
+    amountUSD
+  }
+}
+```
+
+### Get User Positions
+```graphql
+{
+  positions(where: { owner: "0x..." }) {
+    id
+    liquidity
+    depositedToken0
+    depositedToken1
+    collectedFeesToken0
+    collectedFeesToken1
   }
 }
 ```
 
 ## Integration with Frontend
 
-The subgraph endpoint will be used in the tRPC API (`src/server/routers/defi.ts`) to fetch pool data, positions, and analytics.
+After deploying, update the DeFi router to use the subgraph:
 
-Update the subgraph URL in your environment variables:
+```typescript
+// src/lib/subgraph.ts
+const SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/fushuma/fumaswap-v4';
 
-```env
-SUBGRAPH_URL=https://api.thegraph.com/subgraphs/name/fushuma/fushuma-defi
+export async function querySubgraph(query: string, variables = {}) {
+  const response = await fetch(SUBGRAPH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+  });
+  const data = await response.json();
+  return data.data;
+}
 ```
 
-## TODO
+## Troubleshooting
 
-- [ ] Deploy smart contracts
-- [ ] Update contract addresses in subgraph.yaml
-- [ ] Implement mapping handlers
-- [ ] Deploy subgraph to The Graph
-- [ ] Update tRPC router with subgraph queries
-- [ ] Test all queries and ensure data accuracy
+### Subgraph not syncing
+- Verify RPC endpoint is accessible
+- Check contract addresses are correct
+- Ensure startBlock is before contract deployment
 
-## Resources
+### Missing data
+- The subgraph only indexes data from `startBlock` onwards
+- Historical data before deployment is not available
 
-- [The Graph Documentation](https://thegraph.com/docs/)
-- [FumaSwap V4 Contracts](https://github.com/fumaswap/infinity-core)
-- [Subgraph Best Practices](https://thegraph.com/docs/en/developer/create-subgraph-hosted/)
+### Price calculations
+- Prices are derived from sqrtPriceX96
+- USD values use FUMA price (currently hardcoded at $0.0015)
+- For accurate USD pricing, integrate a price oracle
+
+## License
+
+MIT

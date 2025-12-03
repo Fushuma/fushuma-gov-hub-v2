@@ -1,0 +1,76 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+description: FumaSwap V4 Subgraph - Concentrated Liquidity DEX on Fushuma Network
+repository: https://github.com/Fushuma/fushuma-gov-hub-v2
+
+dataSources:
+  # CLPoolManager - handles pool initialization and swaps
+  - kind: ethereum/contract
+    name: CLPoolManager
+    network: fushuma
+    source:
+      address: "0x2D691Ff314F7BB2Ce9Aeb94d556440Bb0DdbFe1e"
+      abi: CLPoolManager
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Factory
+        - Pool
+        - Token
+        - Swap
+        - PoolDayData
+        - PoolHourData
+        - TokenDayData
+        - FumaSwapDayData
+      abis:
+        - name: CLPoolManager
+          file: ./abis/CLPoolManager.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Initialize(indexed bytes32,indexed address,indexed address,address,uint24,bytes32,uint160,int24)
+          handler: handleInitialize
+        - event: Swap(indexed bytes32,indexed address,int128,int128,uint160,uint128,int24,uint24,uint24)
+          handler: handleSwap
+        - event: ModifyLiquidity(indexed bytes32,indexed address,int24,int24,int256,bytes32)
+          handler: handleModifyLiquidity
+        - event: ProtocolFeeUpdated(indexed bytes32,uint24)
+          handler: handleProtocolFeeUpdated
+      file: ./src/mappings/pool-manager.ts
+
+  # CLPositionManager - handles NFT positions
+  - kind: ethereum/contract
+    name: CLPositionManager
+    network: fushuma
+    source:
+      address: "0x750525284ec59F21CF1c03C62A062f6B6473B7b1"
+      abi: CLPositionManager
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Position
+        - PositionSnapshot
+      abis:
+        - name: CLPositionManager
+          file: ./abis/CLPositionManager.json
+        - name: CLPoolManager
+          file: ./abis/CLPoolManager.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleTransfer
+        - event: IncreaseLiquidity(indexed uint256,uint128,uint256,uint256)
+          handler: handleIncreaseLiquidity
+        - event: DecreaseLiquidity(indexed uint256,uint128,uint256,uint256)
+          handler: handleDecreaseLiquidity
+        - event: Collect(indexed uint256,address,uint256,uint256)
+          handler: handleCollect
+      file: ./src/mappings/position-manager.ts

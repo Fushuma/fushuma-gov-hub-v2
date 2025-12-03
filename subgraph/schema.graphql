@@ -1,19 +1,20 @@
-# Fushuma DeFi Subgraph Schema
-# Based on PancakeSwap V4 (Infinity) architecture
-#
-# This schema will be used to index on-chain DeFi data
-# Deploy this to The Graph after smart contracts are deployed
+# FumaSwap V4 Subgraph Schema
+# Tracks pools, swaps, liquidity, and positions for analytics
 
+# Global factory/protocol statistics
 type Factory @entity {
-  id: ID!
+  id: ID! # "factory"
   poolCount: BigInt!
   txCount: BigInt!
   totalVolumeUSD: BigDecimal!
-  totalValueLockedUSD: BigDecimal!
+  totalVolumeFUMA: BigDecimal!
   totalFeesUSD: BigDecimal!
+  totalValueLockedUSD: BigDecimal!
+  totalValueLockedFUMA: BigDecimal!
   owner: Bytes!
 }
 
+# Token entity
 type Token @entity {
   id: ID! # token address
   symbol: String!
@@ -28,41 +29,63 @@ type Token @entity {
   poolCount: BigInt!
   totalValueLocked: BigDecimal!
   totalValueLockedUSD: BigDecimal!
-  derivedETH: BigDecimal!
-  whitelistPools: [Pool!]!
+  derivedFUMA: BigDecimal!
+
+  # Token day data
   tokenDayData: [TokenDayData!]! @derivedFrom(field: "token")
+
+  # Pools containing this token
+  whitelistPools: [Pool!]!
 }
 
+# Pool entity - concentrated liquidity pool
 type Pool @entity {
-  id: ID! # pool address
-  createdAtTimestamp: BigInt!
-  createdAtBlockNumber: BigInt!
+  id: ID! # pool id (bytes32)
   token0: Token!
   token1: Token!
-  feeTier: BigInt!
+  fee: BigInt!
   tickSpacing: BigInt!
+  hooks: Bytes!
+
+  # Pool state
   liquidity: BigInt!
   sqrtPrice: BigInt!
+  tick: BigInt
+
+  # Fee tracking
+  feeGrowthGlobal0X128: BigInt!
+  feeGrowthGlobal1X128: BigInt!
+  protocolFee: BigInt!
+
+  # Price tracking
   token0Price: BigDecimal!
   token1Price: BigDecimal!
-  tick: BigInt
-  observationIndex: BigInt!
+
+  # Volume tracking
   volumeToken0: BigDecimal!
   volumeToken1: BigDecimal!
   volumeUSD: BigDecimal!
   untrackedVolumeUSD: BigDecimal!
   feesUSD: BigDecimal!
+
+  # Transaction count
   txCount: BigInt!
-  collectedFeesToken0: BigDecimal!
-  collectedFeesToken1: BigDecimal!
-  collectedFeesUSD: BigDecimal!
+
+  # TVL tracking
   totalValueLockedToken0: BigDecimal!
   totalValueLockedToken1: BigDecimal!
-  totalValueLockedETH: BigDecimal!
   totalValueLockedUSD: BigDecimal!
-  liquidityProviderCount: BigInt!
-  poolHourData: [PoolHourData!]! @derivedFrom(field: "pool")
+  totalValueLockedFUMA: BigDecimal!
+
+  # Lifecycle
+  createdAtTimestamp: BigInt!
+  createdAtBlockNumber: BigInt!
+
+  # Aggregated data
   poolDayData: [PoolDayData!]! @derivedFrom(field: "pool")
+  poolHourData: [PoolHourData!]! @derivedFrom(field: "pool")
+
+  # Liquidity positions
   mints: [Mint!]! @derivedFrom(field: "pool")
   burns: [Burn!]! @derivedFrom(field: "pool")
   swaps: [Swap!]! @derivedFrom(field: "pool")
@@ -70,14 +93,66 @@ type Pool @entity {
   ticks: [Tick!]! @derivedFrom(field: "pool")
 }
 
+# Tick entity for liquidity distribution
+type Tick @entity {
+  id: ID! # pool address + tick index
+  poolAddress: Bytes!
+  pool: Pool!
+  tickIdx: BigInt!
+  liquidityGross: BigInt!
+  liquidityNet: BigInt!
+  price0: BigDecimal!
+  price1: BigDecimal!
+
+  # Fee growth outside
+  feeGrowthOutside0X128: BigInt!
+  feeGrowthOutside1X128: BigInt!
+
+  createdAtTimestamp: BigInt!
+  createdAtBlockNumber: BigInt!
+}
+
+# NFT Position entity
 type Position @entity {
-  id: ID! # NFT token ID
+  id: ID! # NFT token id
   owner: Bytes!
   pool: Pool!
   token0: Token!
   token1: Token!
   tickLower: Tick!
   tickUpper: Tick!
+  liquidity: BigInt!
+
+  # Token amounts
+  depositedToken0: BigDecimal!
+  depositedToken1: BigDecimal!
+  withdrawnToken0: BigDecimal!
+  withdrawnToken1: BigDecimal!
+
+  # Fees collected
+  collectedFeesToken0: BigDecimal!
+  collectedFeesToken1: BigDecimal!
+
+  # Fee growth tracking
+  feeGrowthInside0LastX128: BigInt!
+  feeGrowthInside1LastX128: BigInt!
+
+  # Lifecycle
+  createdAtTimestamp: BigInt!
+  createdAtBlockNumber: BigInt!
+
+  # Transaction reference
+  transaction: Transaction!
+}
+
+# Position snapshot for historical tracking
+type PositionSnapshot @entity {
+  id: ID! # position id + timestamp
+  owner: Bytes!
+  pool: Pool!
+  position: Position!
+  timestamp: BigInt!
+  blockNumber: BigInt!
   liquidity: BigInt!
   depositedToken0: BigDecimal!
   depositedToken1: BigDecimal!
@@ -90,53 +165,33 @@ type Position @entity {
   feeGrowthInside1LastX128: BigInt!
 }
 
-type Tick @entity {
-  id: ID! # pool address + tick index
-  poolAddress: String
-  tickIdx: BigInt!
-  pool: Pool!
-  liquidityGross: BigInt!
-  liquidityNet: BigInt!
-  price0: BigDecimal!
-  price1: BigDecimal!
-  volumeToken0: BigDecimal!
-  volumeToken1: BigDecimal!
-  volumeUSD: BigDecimal!
-  untrackedVolumeUSD: BigDecimal!
-  feesUSD: BigDecimal!
-  collectedFeesToken0: BigDecimal!
-  collectedFeesToken1: BigDecimal!
-  collectedFeesUSD: BigDecimal!
-  createdAtTimestamp: BigInt!
-  createdAtBlockNumber: BigInt!
-  liquidityProviderCount: BigInt!
-  feeGrowthOutside0X128: BigInt!
-  feeGrowthOutside1X128: BigInt!
-}
-
+# Transaction entity
 type Transaction @entity {
   id: ID! # transaction hash
   blockNumber: BigInt!
   timestamp: BigInt!
   gasUsed: BigInt!
   gasPrice: BigInt!
+
+  # Related events
   mints: [Mint!]! @derivedFrom(field: "transaction")
   burns: [Burn!]! @derivedFrom(field: "transaction")
   swaps: [Swap!]! @derivedFrom(field: "transaction")
   collects: [Collect!]! @derivedFrom(field: "transaction")
 }
 
-type Mint @entity {
-  id: ID! # transaction hash + "#" + index
+# Mint event (add liquidity)
+type Mint @entity(immutable: true) {
+  id: ID! # transaction hash + log index
   transaction: Transaction!
   timestamp: BigInt!
   pool: Pool!
   token0: Token!
   token1: Token!
   owner: Bytes!
-  sender: Bytes
-  origin: Bytes!
-  amount: BigInt!
+  sender: Bytes!
+  origin: Bytes! # tx origin
+  amount: BigInt! # liquidity amount
   amount0: BigDecimal!
   amount1: BigDecimal!
   amountUSD: BigDecimal
@@ -145,16 +200,17 @@ type Mint @entity {
   logIndex: BigInt
 }
 
-type Burn @entity {
-  id: ID! # transaction hash + "#" + index
+# Burn event (remove liquidity)
+type Burn @entity(immutable: true) {
+  id: ID! # transaction hash + log index
   transaction: Transaction!
   timestamp: BigInt!
   pool: Pool!
   token0: Token!
   token1: Token!
-  owner: Bytes
-  origin: Bytes!
-  amount: BigInt!
+  owner: Bytes!
+  origin: Bytes! # tx origin
+  amount: BigInt! # liquidity amount
   amount0: BigDecimal!
   amount1: BigDecimal!
   amountUSD: BigDecimal
@@ -163,8 +219,9 @@ type Burn @entity {
   logIndex: BigInt
 }
 
-type Swap @entity {
-  id: ID! # transaction hash + "#" + index
+# Swap event
+type Swap @entity(immutable: true) {
+  id: ID! # transaction hash + log index
   transaction: Transaction!
   timestamp: BigInt!
   pool: Pool!
@@ -172,7 +229,7 @@ type Swap @entity {
   token1: Token!
   sender: Bytes!
   recipient: Bytes!
-  origin: Bytes!
+  origin: Bytes! # tx origin
   amount0: BigDecimal!
   amount1: BigDecimal!
   amountUSD: BigDecimal!
@@ -181,8 +238,9 @@ type Swap @entity {
   logIndex: BigInt
 }
 
-type Collect @entity {
-  id: ID! # transaction hash + "#" + index
+# Collect event (collect fees)
+type Collect @entity(immutable: true) {
+  id: ID! # transaction hash + log index
   transaction: Transaction!
   timestamp: BigInt!
   pool: Pool!
@@ -195,76 +253,139 @@ type Collect @entity {
   logIndex: BigInt
 }
 
+# Daily aggregated data for the protocol
+type FumaSwapDayData @entity {
+  id: ID! # timestamp / 86400
+  date: Int!
+  volumeUSD: BigDecimal!
+  volumeFUMA: BigDecimal!
+  feesUSD: BigDecimal!
+  tvlUSD: BigDecimal!
+  txCount: BigInt!
+}
+
+# Daily aggregated data per pool
 type PoolDayData @entity {
   id: ID! # pool address + day id
   date: Int!
   pool: Pool!
+
+  # Liquidity
   liquidity: BigInt!
   sqrtPrice: BigInt!
+  tick: BigInt
+
+  # Price
   token0Price: BigDecimal!
   token1Price: BigDecimal!
-  tick: BigInt
-  tvlUSD: BigDecimal!
+
+  # Volume
   volumeToken0: BigDecimal!
   volumeToken1: BigDecimal!
   volumeUSD: BigDecimal!
+
+  # Fees
   feesUSD: BigDecimal!
+
+  # TVL
+  tvlUSD: BigDecimal!
+
+  # Transaction count
   txCount: BigInt!
+
+  # Opening values
   open: BigDecimal!
   high: BigDecimal!
   low: BigDecimal!
   close: BigDecimal!
 }
 
+# Hourly aggregated data per pool
 type PoolHourData @entity {
   id: ID! # pool address + hour id
   periodStartUnix: Int!
   pool: Pool!
+
+  # Liquidity
   liquidity: BigInt!
   sqrtPrice: BigInt!
+  tick: BigInt
+
+  # Price
   token0Price: BigDecimal!
   token1Price: BigDecimal!
-  tick: BigInt
-  tvlUSD: BigDecimal!
+
+  # Volume
   volumeToken0: BigDecimal!
   volumeToken1: BigDecimal!
   volumeUSD: BigDecimal!
+
+  # Fees
   feesUSD: BigDecimal!
+
+  # TVL
+  tvlUSD: BigDecimal!
+
+  # Transaction count
   txCount: BigInt!
+
+  # OHLC
   open: BigDecimal!
   high: BigDecimal!
   low: BigDecimal!
   close: BigDecimal!
 }
 
+# Daily aggregated data per token
 type TokenDayData @entity {
   id: ID! # token address + day id
   date: Int!
   token: Token!
+
+  # Volume
   volume: BigDecimal!
   volumeUSD: BigDecimal!
   untrackedVolumeUSD: BigDecimal!
+
+  # TVL
   totalValueLocked: BigDecimal!
   totalValueLockedUSD: BigDecimal!
+
+  # Price
   priceUSD: BigDecimal!
+
+  # Fees
   feesUSD: BigDecimal!
+
+  # OHLC
   open: BigDecimal!
   high: BigDecimal!
   low: BigDecimal!
   close: BigDecimal!
 }
 
+# Token hour data
 type TokenHourData @entity {
   id: ID! # token address + hour id
   periodStartUnix: Int!
   token: Token!
+
+  # Volume
   volume: BigDecimal!
   volumeUSD: BigDecimal!
   untrackedVolumeUSD: BigDecimal!
+
+  # TVL
   totalValueLocked: BigDecimal!
   totalValueLockedUSD: BigDecimal!
+
+  # Price
   priceUSD: BigDecimal!
+
+  # Fees
   feesUSD: BigDecimal!
+
+  # OHLC
   open: BigDecimal!
   high: BigDecimal!
   low: BigDecimal!

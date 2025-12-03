@@ -1,0 +1,12 @@
+{
+  "fushuma": {
+    "CLPoolManager": {
+      "address": "0x2D691Ff314F7BB2Ce9Aeb94d556440Bb0DdbFe1e",
+      "startBlock": 1
+    },
+    "CLPositionManager": {
+      "address": "0x750525284ec59F21CF1c03C62A062f6B6473B7b1",
+      "startBlock": 1
+    }
+  }
+}
