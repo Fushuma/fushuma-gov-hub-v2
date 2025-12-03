@@ -17,25 +17,6 @@ import { encodeCLPoolParameters } from './utils/encodePoolParameters';
 import { maxLiquidityForAmounts, getSqrtRatioAtTick } from './utils/liquidityMath';
 import type { PoolKey } from './types';
 
-/**
- * Known pools with their verified pool IDs from the blockchain
- * These IDs were computed when the pools were initialized on-chain
- */
-const KNOWN_POOLS: Array<{
-  currency0: string;
-  currency1: string;
-  fee: number;
-  poolId: `0x${string}`;
-}> = [
-  {
-    // USDT-WFUMA pool (0.3% fee)
-    currency0: '0x1e11d176117dbedbd234b1c6a10c6eb8dced275e', // USDT (lowercase)
-    currency1: '0xbca7b11c788dbb85be92627ef1e60a2a9b7e2c6e', // WFUMA (lowercase)
-    fee: 3000,
-    poolId: '0xd10c2ad6aed8e4657623710081889cbb99f85521be73d2c6b9b6d17fd63b97e8',
-  },
-];
-
 export interface AddLiquidityParams {
   token0: Token;
   token1: Token;
@@ -75,29 +56,14 @@ export interface CollectFeesParams {
 }
 
 /**
- * Look up known pool ID or calculate from pool key
- * Uses known pool IDs first for accuracy, falls back to calculation
+ * Calculate pool ID from pool key
  */
 function getPoolId(poolKey: PoolKey): `0x${string}` {
-  // First, try to find a known pool ID (normalized to lowercase for comparison)
-  const c0 = poolKey.currency0.toLowerCase();
-  const c1 = poolKey.currency1.toLowerCase();
-  const fee = poolKey.fee;
-
-  const knownPool = KNOWN_POOLS.find(
-    (p) => p.currency0 === c0 && p.currency1 === c1 && p.fee === fee
-  );
-
-  if (knownPool) {
-    console.log('📌 Using known pool ID:', knownPool.poolId);
-    return knownPool.poolId;
-  }
-
-  // Fall back to calculation if not a known pool
-  console.warn('⚠️ Pool not in known list, calculating ID (may not match on-chain pool)');
+  // Match the contract's assembly: keccak256(poolKey, 0xc0)
+  // This is equivalent to ABI encoding the struct (6 × 32 bytes = 192 = 0xc0)
   const encodedParams = encodeCLPoolParameters(poolKey.parameters);
   const { encodeAbiParameters } = require('viem');
-  const calculatedId = keccak256(
+  return keccak256(
     encodeAbiParameters(
       [
         { type: 'address' },
@@ -117,8 +83,6 @@ function getPoolId(poolKey: PoolKey): `0x${string}` {
       ]
     )
   );
-  console.log('🔢 Calculated pool ID:', calculatedId);
-  return calculatedId;
 }
 
 /**
