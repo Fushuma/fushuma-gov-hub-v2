@@ -3,10 +3,6 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // Use webpack instead of Turbopack for stable builds
-  experimental: {
-    ...{},
-  },
   
   // Optimize for production
   compiler: {
@@ -27,11 +23,8 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // Turbopack configuration (Next.js 16+)
-  // Disabled due to build issues - using webpack instead
-  // turbopack: {
-  //   root: process.cwd(),
-  // },
+  // Use webpack compiler instead of Turbopack
+  turbopack: undefined,
   
   // Output file tracing root
   outputFileTracingRoot: process.cwd(),
@@ -45,8 +38,6 @@ const nextConfig: NextConfig = {
   // Experimental features
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    // Use webpack compiler instead of Turbopack
-    // turbopack: false,
   },
   
   // Server external packages (moved from experimental)
@@ -75,12 +66,6 @@ const nextConfig: NextConfig = {
     ];
   },
 };
-
-// Force webpack compiler
-if (process.env.NEXT_BUILD_TOOL === 'turbopack') {
-  // Keep turbopack if explicitly requested
-  nextConfig.turbopack = { root: process.cwd() };
-}
 
 export default nextConfig;
 
