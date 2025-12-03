@@ -46,12 +46,13 @@ const TOKEN_METADATA: Record<string, { symbol: string; name: string; decimals: n
 };
 
 // Known pools configuration
+// Pool ID is calculated from: keccak256(abi.encode(currency0, currency1, hooks, poolManager, fee, parameters))
 const KNOWN_POOLS = [
   {
     token0: '0x1e11d176117dbEDbd234b1c6a10C6eb8dceD275e' as Address, // USDT
     token1: '0xBcA7B11c788dBb85bE92627ef1e60a2A9B7e2c6E' as Address, // WFUMA
     fee: 3000,
-    poolId: '0xd10c2ad6aed8e4657623710081889cbb99f85521be73d2c6b9b6d17fd63b97e8',
+    poolId: '0x5cf5c1b7a0b0a9b7f18a1de399cbf2a7b9c92a8c042244f611e70b268b1d671d',
   },
 ];
 
