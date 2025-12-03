@@ -1,12 +1,12 @@
 /**
- * Position utilities using PancakeSwap V3 SDK
+ * Position utilities for calculating token amounts
  *
- * Properly calculates token amounts, prices, and position values
- * using the same methods as PancakeSwap frontend
+ * Uses direct Uniswap V3 math formulas instead of PancakeSwap SDK
+ * to support custom fee tiers like 3000 (0.3%)
  */
 
 import { Token } from '@pancakeswap/sdk';
-import { Pool, Position, TickMath, tickToPrice } from '@pancakeswap/v3-sdk';
+import { TickMath, tickToPrice } from '@pancakeswap/v3-sdk';
 import type { Position as PositionData } from '../pools';
 
 // Fushuma chain ID
@@ -15,6 +15,9 @@ const FUSHUMA_CHAIN_ID = 121224;
 // Tick bounds for full range positions
 const MIN_TICK = -887272;
 const MAX_TICK = 887272;
+
+// Q96 constant for sqrt price calculations
+const Q96 = 2n ** 96n;
 
 // Token definitions with proper hex address type
 const TOKENS: Record<string, { address: `0x${string}`; decimals: number; symbol: string; name: string }> = {
@@ -51,23 +54,42 @@ export function getToken(address: string): Token | null {
   return null;
 }
 
-// Tick spacing for each fee tier
-const TICK_SPACINGS: Record<number, number> = {
-  100: 1,    // 0.01%
-  500: 10,   // 0.05%
-  3000: 60,  // 0.3%
-  10000: 200, // 1%
-};
-
 /**
- * Align tick to the nearest valid tick for the given tick spacing
+ * Get token decimals from address
  */
-function alignTickToSpacing(tick: number, tickSpacing: number): number {
-  return Math.floor(tick / tickSpacing) * tickSpacing;
+function getTokenDecimals(address: string): number {
+  const addr = address.toLowerCase();
+  for (const data of Object.values(TOKENS)) {
+    if (data.address.toLowerCase() === addr) {
+      return data.decimals;
+    }
+  }
+  return 18; // Default to 18 decimals
 }
 
 /**
- * Calculate token amounts from position liquidity using SDK
+ * Get sqrtRatioX96 at a given tick using TickMath
+ */
+function getSqrtRatioAtTick(tick: number): bigint {
+  try {
+    return TickMath.getSqrtRatioAtTick(tick);
+  } catch {
+    // Fallback for extreme ticks
+    if (tick <= MIN_TICK) {
+      return TickMath.MIN_SQRT_RATIO;
+    }
+    if (tick >= MAX_TICK) {
+      return TickMath.MAX_SQRT_RATIO;
+    }
+    return Q96; // 1:1 price
+  }
+}
+
+/**
+ * Calculate token amounts from position liquidity using Uniswap V3 math
+ *
+ * This implements the formulas directly instead of using SDK's Position class
+ * to avoid fee tier validation issues (SDK only supports PancakeSwap fee tiers)
  */
 export function calculatePositionAmounts(
   position: PositionData,
@@ -75,74 +97,52 @@ export function calculatePositionAmounts(
   sqrtPriceX96: string
 ): { amount0: string; amount1: string } {
   try {
-    // Debug logging
-    console.log('calculatePositionAmounts called with:', {
-      token0: position.token0,
-      token1: position.token1,
-      fee: position.fee,
-      liquidity: position.liquidity,
-      tickLower: position.tickLower,
-      tickUpper: position.tickUpper,
-      currentTick,
-      sqrtPriceX96,
-    });
-
     // Validate sqrtPriceX96 - if invalid, we can't calculate amounts
     if (!sqrtPriceX96 || sqrtPriceX96 === '0') {
       console.error('Invalid sqrtPriceX96, cannot calculate amounts');
-      // Try to use a default price (1:1 ratio)
-      // sqrtPriceX96 for price = 1 is 2^96 = 79228162514264337593543950336
-      sqrtPriceX96 = '79228162514264337593543950336';
-    }
-
-    const token0 = getToken(position.token0);
-    const token1 = getToken(position.token1);
-
-    if (!token0 || !token1) {
-      console.error('Unknown tokens in position:', position.token0, position.token1);
       return { amount0: '0', amount1: '0' };
     }
 
     // Validate liquidity
     const liquidity = BigInt(position.liquidity || '0');
     if (liquidity === 0n) {
-      console.log('Position has zero liquidity');
       return { amount0: '0', amount1: '0' };
     }
 
-    // Get tick spacing for this fee tier
-    const tickSpacing = TICK_SPACINGS[position.fee] || 60;
+    const sqrtPriceCurrent = BigInt(sqrtPriceX96);
+    const sqrtPriceLower = getSqrtRatioAtTick(position.tickLower);
+    const sqrtPriceUpper = getSqrtRatioAtTick(position.tickUpper);
 
-    // Align the current tick to the tick spacing (SDK requirement)
-    const alignedTick = alignTickToSpacing(currentTick, tickSpacing);
+    let amount0 = 0n;
+    let amount1 = 0n;
 
-    console.log('Tick alignment:', { originalTick: currentTick, alignedTick, tickSpacing });
+    if (currentTick < position.tickLower) {
+      // Position is entirely in token0 (below range)
+      // amount0 = L * (sqrtPriceUpper - sqrtPriceLower) / (sqrtPriceLower * sqrtPriceUpper) * Q96
+      amount0 = (liquidity * Q96 * (sqrtPriceUpper - sqrtPriceLower)) / (sqrtPriceLower * sqrtPriceUpper);
+      amount1 = 0n;
+    } else if (currentTick >= position.tickUpper) {
+      // Position is entirely in token1 (above range)
+      // amount1 = L * (sqrtPriceUpper - sqrtPriceLower) / Q96
+      amount0 = 0n;
+      amount1 = (liquidity * (sqrtPriceUpper - sqrtPriceLower)) / Q96;
+    } else {
+      // Position is in range
+      // amount0 = L * (sqrtPriceUpper - sqrtPriceCurrent) / (sqrtPriceCurrent * sqrtPriceUpper) * Q96
+      // amount1 = L * (sqrtPriceCurrent - sqrtPriceLower) / Q96
+      amount0 = (liquidity * Q96 * (sqrtPriceUpper - sqrtPriceCurrent)) / (sqrtPriceCurrent * sqrtPriceUpper);
+      amount1 = (liquidity * (sqrtPriceCurrent - sqrtPriceLower)) / Q96;
+    }
 
-    // Create Pool object with aligned tick
-    const pool = new Pool(
-      token0,
-      token1,
-      position.fee,
-      sqrtPriceX96,
-      BigInt(0), // Pool liquidity - not needed for position amount calculation
-      alignedTick
-    );
-
-    // Create Position object
-    const sdkPosition = new Position({
-      pool,
-      liquidity,
+    console.log('Calculated amounts:', {
+      amount0: amount0.toString(),
+      amount1: amount1.toString(),
+      currentTick,
       tickLower: position.tickLower,
-      tickUpper: position.tickUpper,
+      tickUpper: position.tickUpper
     });
 
-    // Get amounts from SDK
-    const amount0 = sdkPosition.amount0.quotient.toString();
-    const amount1 = sdkPosition.amount1.quotient.toString();
-
-    console.log('Calculated amounts:', { amount0, amount1 });
-
-    return { amount0, amount1 };
+    return { amount0: amount0.toString(), amount1: amount1.toString() };
   } catch (error) {
     console.error('Error calculating position amounts:', error);
     return { amount0: '0', amount1: '0' };
