@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  swcMinify: true,
   
   // Optimize for production
   compiler: {
@@ -14,6 +15,7 @@ const nextConfig: NextConfig = {
   // Image optimization
   images: {
     formats: ['image/avif', 'image/webp'],
+    unoptimized: process.env.NODE_ENV === 'production' ? false : true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -23,7 +25,12 @@ const nextConfig: NextConfig = {
   },
   
   // Turbopack configuration (Next.js 16+)
-  turbopack: {},
+  turbopack: {
+    root: process.cwd(),
+  },
+  
+  // Output file tracing root
+  outputFileTracingRoot: process.cwd(),
   
   // Webpack configuration
   webpack: (config) => {
@@ -34,8 +41,10 @@ const nextConfig: NextConfig = {
   // Experimental features
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    serverComponentsExternalPackages: ['thread-stream', 'pino', 'pino-pretty'],
   },
+  
+  // Server external packages (moved from experimental)
+  serverExternalPackages: ['thread-stream', 'pino', 'pino-pretty'],
   
   // Headers for security
   async headers() {
