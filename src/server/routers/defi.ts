@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, publicProcedure, adminProcedure } from "../_core/trpc";
 import { createPublicClient, http, type Address, formatUnits } from 'viem';
-import { runFullIndexing, getRecentTransactions as getIndexedTransactions, calculatePoolStats } from "../services/defi-indexer";
+// Lazy import defi-indexer to avoid initialization issues
 
 /**
  * DeFi Router
@@ -487,6 +487,8 @@ export const defiRouter = router({
   sync: adminProcedure
     .mutation(async () => {
       try {
+        // Lazy import to avoid initialization issues
+        const { runFullIndexing } = await import("../services/defi-indexer");
         const result = await runFullIndexing();
         return {
           success: true,
@@ -506,6 +508,8 @@ export const defiRouter = router({
     .input(z.object({ poolId: z.string() }))
     .query(async ({ input }) => {
       try {
+        // Lazy import to avoid initialization issues
+        const { calculatePoolStats } = await import("../services/defi-indexer");
         return await calculatePoolStats(input.poolId);
       } catch (error) {
         console.error('Error getting pool stats:', error);
@@ -532,6 +536,8 @@ export const defiRouter = router({
     )
     .query(async ({ input }) => {
       try {
+        // Lazy import to avoid initialization issues
+        const { getRecentTransactions: getIndexedTransactions } = await import("../services/defi-indexer");
         const typeFilter = input.type === 'all' ? undefined : input.type;
         const transactions = await getIndexedTransactions(input.limit, typeFilter);
         return {

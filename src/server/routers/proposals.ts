@@ -2,13 +2,14 @@ import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { proposals, proposalVotes } from "@/db/schema";
 import { eq, desc, and, isNull, like, or, sql } from "drizzle-orm";
-import { indexProposals, updateProposalStates, getProposalFromContract } from "../services/governance-indexer";
 
 export const proposalsRouter = router({
   // Sync proposals from blockchain
   sync: adminProcedure
     .mutation(async ({ ctx }) => {
       try {
+        // Lazy import to avoid initialization issues
+        const { indexProposals, updateProposalStates } = await import("../services/governance-indexer");
         const indexed = await indexProposals();
         await updateProposalStates();
         return { success: true, count: indexed.length };
@@ -23,6 +24,8 @@ export const proposalsRouter = router({
     .input(z.object({ proposalId: z.string() }))
     .query(async ({ input }) => {
       try {
+        // Lazy import to avoid initialization issues
+        const { getProposalFromContract } = await import("../services/governance-indexer");
         const proposal = await getProposalFromContract(BigInt(input.proposalId));
         return proposal;
       } catch (error) {
