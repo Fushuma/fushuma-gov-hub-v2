@@ -86,6 +86,7 @@ function LockCard({
   }, [isCompleteExitSuccess, onRefresh]);
 
   const cooldownPeriod = GOVERNANCE_PARAMS.VotingEscrow.cooldownPeriod;
+  const warmupPeriod = GOVERNANCE_PARAMS.VotingEscrow.warmupPeriod;
   const lockedAmount = lockDetails && Array.isArray(lockDetails) ? lockDetails[0] : 0n;
   const startTime = lockDetails && Array.isArray(lockDetails) ? lockDetails[1] : 0n;
 
@@ -94,6 +95,12 @@ function LockCard({
 
   const timeUntilWithdraw = inExitQueue && exitQueueTime ?
     Math.max(0, (Number(exitQueueTime) + cooldownPeriod) - Math.floor(Date.now() / 1000)) : 0;
+
+  // Calculate warmup status
+  const currentTime = Math.floor(Date.now() / 1000);
+  const warmupEndTime = Number(startTime) + warmupPeriod;
+  const isInWarmup = startTime && Number(startTime) > 0 && currentTime < warmupEndTime;
+  const timeUntilWarmupEnd = isInWarmup ? warmupEndTime - currentTime : 0;
 
   const handleIncreaseAmount = async () => {
     if (!increaseAmountInput) return;
@@ -188,8 +195,27 @@ function LockCard({
             <p className="text-lg font-bold">
               {votingPower ? (Number(votingPower) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'}
             </p>
+            {isInWarmup && (
+              <p className="text-xs text-orange-600 dark:text-orange-400">In warmup period</p>
+            )}
+            {inExitQueue && (
+              <p className="text-xs text-yellow-600 dark:text-yellow-400">Paused (exit queue)</p>
+            )}
           </div>
         </div>
+
+        {/* Warmup Period Info */}
+        {isInWarmup && timeUntilWarmupEnd > 0 && (
+          <div className="bg-orange-50 dark:bg-orange-950 p-3 rounded-lg">
+            <p className="text-sm text-orange-800 dark:text-orange-200">
+              <Info className="h-4 w-4 inline mr-1" />
+              <strong>Warmup Period:</strong> Your voting power will activate in {formatDuration(timeUntilWarmupEnd)}
+            </p>
+            <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+              All new locks have a {warmupPeriod / 86400} day warmup before voting power becomes active.
+            </p>
+          </div>
+        )}
 
         {startTime && Number(startTime) > 0 && (
           <div>
