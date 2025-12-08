@@ -3,6 +3,9 @@
  * Defines tokens that can be bridged across chains
  */
 
+// Special address marker for native tokens (common convention)
+export const NATIVE_TOKEN_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as const;
+
 export interface BridgeToken {
   symbol: string;
   name: string;
@@ -10,6 +13,7 @@ export interface BridgeToken {
   decimals: { [chainId: number]: number };
   logoURI?: string;
   projectLink?: string;
+  isNative?: { [chainId: number]: boolean };
 }
 
 /**
@@ -21,7 +25,7 @@ export const BRIDGE_TOKENS: { [key: string]: BridgeToken } = {
     symbol: 'FUMA',
     name: 'Fushuma',
     address: {
-      121224: '', // Native token
+      121224: NATIVE_TOKEN_ADDRESS, // Native token on Fushuma chain
       1: '0x0000000000000000000000000000000000000000',
       56: '0x0000000000000000000000000000000000000000',
       137: '0x0000000000000000000000000000000000000000'
@@ -31,6 +35,9 @@ export const BRIDGE_TOKENS: { [key: string]: BridgeToken } = {
       1: 18,
       56: 18,
       137: 18
+    },
+    isNative: {
+      121224: true // FUMA is native on Fushuma chain
     },
     projectLink: 'https://fushuma.com'
   },
@@ -189,4 +196,13 @@ export function getTokenDecimals(symbol: string, chainId: number): number | unde
   const token = getTokenBySymbol(symbol);
   if (!token) return undefined;
   return token.decimals[chainId];
+}
+
+/**
+ * Check if token is native on a specific chain
+ */
+export function isNativeToken(symbol: string, chainId: number): boolean {
+  const token = getTokenBySymbol(symbol);
+  if (!token) return false;
+  return token.isNative?.[chainId] === true;
 }

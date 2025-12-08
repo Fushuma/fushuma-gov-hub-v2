@@ -307,6 +307,45 @@ export async function getProposalFromContract(proposalId: bigint): Promise<OnCha
   }
 }
 
+// Maximum blocks per getLogs query (RPC limit)
+const MAX_BLOCK_RANGE = 1000;
+
+/**
+ * Fetch logs in chunks to avoid RPC block range limits
+ */
+async function getLogsInChunks<T>(
+  address: Address,
+  event: ReturnType<typeof parseAbiItem>,
+  fromBlock: bigint,
+  toBlock: bigint
+): Promise<Log[]> {
+  const logs: Log[] = [];
+  let currentFrom = fromBlock;
+
+  while (currentFrom <= toBlock) {
+    const currentTo = currentFrom + BigInt(MAX_BLOCK_RANGE) > toBlock
+      ? toBlock
+      : currentFrom + BigInt(MAX_BLOCK_RANGE);
+
+    try {
+      const chunkLogs = await publicClient.getLogs({
+        address,
+        event,
+        fromBlock: currentFrom,
+        toBlock: currentTo,
+      });
+      logs.push(...chunkLogs);
+    } catch (error) {
+      console.error(`Error fetching logs from ${currentFrom} to ${currentTo}:`, error);
+      // Continue with next chunk even if one fails
+    }
+
+    currentFrom = currentTo + BigInt(1);
+  }
+
+  return logs;
+}
+
 /**
  * Index new proposals from ProposalCreated events
  */
@@ -320,13 +359,13 @@ export async function indexProposals(fromBlock?: number): Promise<OnChainProposa
     // If start block is 0, start from a reasonable point (e.g., contract deployment)
     const fromBlockNumber = startBlock === 0 ? BigInt(1) : BigInt(startBlock);
 
-    // Fetch ProposalCreated events
-    const logs = await publicClient.getLogs({
-      address: FUSHUMA_GOVERNOR_ADDRESS as Address,
-      event: parseAbiItem('event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)'),
-      fromBlock: fromBlockNumber,
-      toBlock: currentBlock,
-    });
+    // Fetch ProposalCreated events in chunks to avoid RPC block range limits
+    const logs = await getLogsInChunks(
+      FUSHUMA_GOVERNOR_ADDRESS as Address,
+      parseAbiItem('event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)'),
+      fromBlockNumber,
+      currentBlock
+    );
 
     console.log(`Found ${logs.length} ProposalCreated events`);
 

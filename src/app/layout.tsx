@@ -41,7 +41,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${notoSans.variable} ${expletusSans.variable} font-sans`}>
+      <body className={`${notoSans.variable} ${expletusSans.variable} font-sans`} suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>

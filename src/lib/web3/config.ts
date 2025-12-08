@@ -38,21 +38,22 @@ if (typeof window !== 'undefined') {
 }
 
 // Configure wallet connectors with MetaMask first
+// Note: Wallet functions must be invoked with empty object to use default config
 const connectors = connectorsForWallets(
   [
     {
       groupName: 'Popular',
       wallets: [
-        metaMaskWallet,
-        walletConnectWallet,
-        coinbaseWallet,
+        metaMaskWallet({ projectId }),
+        walletConnectWallet({ projectId }),
+        coinbaseWallet({ appName: 'Fushuma Governance Hub' }),
       ],
     },
     {
       groupName: 'More',
       wallets: [
-        rainbowWallet,
-        trustWallet,
+        rainbowWallet({ projectId }),
+        trustWallet({ projectId }),
       ],
     },
   ],

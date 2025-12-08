@@ -13,6 +13,12 @@ const WalletProvider = dynamic(
   { ssr: false }
 );
 
+// Dynamically import AuthProvider (depends on WalletProvider hooks)
+const AuthProvider = dynamic(
+  () => import('@/components/providers/AuthProvider').then((mod) => mod.AuthProvider),
+  { ssr: false }
+);
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -25,22 +31,24 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
-  
+
   const [trpcClient] = useState(() => getTRPCClient());
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-            <Toaster richColors position="top-right" />
-          </ThemeProvider>
+          <AuthProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {children}
+              <Toaster richColors position="top-right" />
+            </ThemeProvider>
+          </AuthProvider>
         </WalletProvider>
       </QueryClientProvider>
     </trpc.Provider>
