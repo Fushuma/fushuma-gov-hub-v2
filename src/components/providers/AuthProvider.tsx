@@ -67,11 +67,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const signature = await signMessageAsync({ message });
 
       // Send signature to server
-      await signInMutation.mutateAsync({
+      const result = await signInMutation.mutateAsync({
         address,
         signature,
         message,
       });
+
+      // Store the JWT token as a cookie
+      if (result.token) {
+        document.cookie = `fushuma_session=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+      }
 
       // Refetch user data
       await refetchUser();
@@ -93,6 +98,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async () => {
     try {
       await logoutMutation.mutateAsync();
+      // Clear the session cookie
+      document.cookie = 'fushuma_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       await refetchUser();
       disconnect();
       hasAttemptedAuth.current = null;

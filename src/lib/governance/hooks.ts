@@ -2,7 +2,7 @@
  * React Hooks for Fushuma Governance Contracts
  */
 
-import { useReadContract, useWriteContract, useWatchContractEvent } from 'wagmi';
+import { useReadContract, useReadContracts, useWriteContract, useWatchContractEvent } from 'wagmi';
 import { Address, formatUnits, parseUnits } from 'viem';
 import {
   GOVERNANCE_CONTRACTS,
@@ -115,18 +115,42 @@ export function useVotingPower(tokenId?: bigint) {
 }
 
 /**
- * Get total voting power for an address
+ * Get total voting power for an address by summing all their veNFT powers
  */
 export function useTotalVotingPower(address?: Address) {
-  return useReadContract({
+  // First get all token IDs owned by the address
+  const { data: tokenIds, isLoading: isLoadingTokens } = useTokensOfOwner(address);
+
+  // Build contracts array to fetch voting power for each token
+  const contracts = (tokenIds as bigint[] ?? []).map((tokenId: bigint) => ({
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
-    functionName: 'getTotalVotingPower',
-    args: address ? [address] : undefined,
+    functionName: 'votingPower' as const,
+    args: [tokenId] as const,
+  }));
+
+  // Fetch all voting powers in one call
+  const { data: votingPowers, isLoading: isLoadingPowers, error, refetch } = useReadContracts({
+    contracts,
     query: {
-      enabled: !!address,
+      enabled: contracts.length > 0,
     },
   });
+
+  // Sum up all voting powers
+  const totalPower = votingPowers?.reduce((sum, result) => {
+    if (result.status === 'success' && result.result) {
+      return sum + (result.result as bigint);
+    }
+    return sum;
+  }, 0n) ?? 0n;
+
+  return {
+    data: totalPower,
+    isLoading: isLoadingTokens || isLoadingPowers,
+    error,
+    refetch,
+  };
 }
 
 /**
