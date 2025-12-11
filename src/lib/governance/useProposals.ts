@@ -120,7 +120,7 @@ export function useGovernanceProposals() {
       // Get the current block
       const currentBlock = await publicClient.getBlockNumber();
 
-      // Start from a reasonable block (e.g., ~30 days ago assuming 12s blocks)
+      // Start from a reasonable block (e.g., ~90 days ago assuming 12s blocks)
       // For initial deployment, we start from block 1
       const blocksPerDay = (24 * 60 * 60) / 12;
       const startBlock = currentBlock > BigInt(blocksPerDay * 90)
@@ -129,13 +129,28 @@ export function useGovernanceProposals() {
 
       console.log(`Fetching proposals from block ${startBlock} to ${currentBlock}`);
 
-      // Fetch ProposalCreated events
-      const logs = await publicClient.getLogs({
-        address: FUSHUMA_GOVERNOR_ADDRESS as Address,
-        event: parseAbiItem('event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)'),
-        fromBlock: startBlock,
-        toBlock: currentBlock,
-      });
+      // Fetch ProposalCreated events in batches of 1000 blocks (RPC limit)
+      const MAX_BLOCK_RANGE = 1000n;
+      const event = parseAbiItem('event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)');
+
+      const logs: Awaited<ReturnType<typeof publicClient.getLogs>>  = [];
+      let fromBlock = startBlock;
+
+      while (fromBlock <= currentBlock) {
+        const toBlock = fromBlock + MAX_BLOCK_RANGE - 1n > currentBlock
+          ? currentBlock
+          : fromBlock + MAX_BLOCK_RANGE - 1n;
+
+        const batchLogs = await publicClient.getLogs({
+          address: FUSHUMA_GOVERNOR_ADDRESS as Address,
+          event,
+          fromBlock,
+          toBlock,
+        });
+
+        logs.push(...batchLogs);
+        fromBlock = toBlock + 1n;
+      }
 
       console.log(`Found ${logs.length} proposals`);
 
