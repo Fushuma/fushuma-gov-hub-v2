@@ -429,6 +429,8 @@ function getMockQuote(
     route: [tokenIn.symbol!, tokenOut.symbol!],
     fee: 3000, // 0.3% fee in basis points
     minimumOutput: (outputNum * 0.995).toFixed(6), // 0.5% slippage
+    executionPrice: (1 / rate).toFixed(8),
+    midPrice: (1 / rate).toFixed(8),
   };
 }
 

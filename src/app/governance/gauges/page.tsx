@@ -70,7 +70,7 @@ export default function GaugesPage() {
     if (!gaugeCount || gaugeCount === 0n) return [];
 
     const contracts = [];
-    for (let i = 0n; i < gaugeCount; i++) {
+    for (let i = 0n; i < (typeof gaugeCount === 'bigint' ? gaugeCount : 0n); i++) {
       contracts.push({
         address: GAUGE_CONTROLLER_ADDRESS as Address,
         abi: GaugeControllerAbi,

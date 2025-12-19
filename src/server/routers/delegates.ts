@@ -117,7 +117,7 @@ export const delegatesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userAddress = ctx.session.user.address?.toLowerCase();
+      const userAddress = ctx.user.walletAddress?.toLowerCase();
       if (!userAddress) {
         throw new Error("Wallet address required to register as delegate");
       }

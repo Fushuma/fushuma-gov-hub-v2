@@ -158,7 +158,9 @@ export function useGovernanceProposals() {
 
       for (const log of logs) {
         try {
-          const { proposalId, proposer, voteStart, voteEnd, description } = log.args as {
+          const logArgs = (log as any).args;
+          if (!logArgs) continue;
+          const { proposalId, proposer, voteStart, voteEnd, description } = logArgs as {
             proposalId: bigint;
             proposer: Address;
             voteStart: bigint;
@@ -183,6 +185,7 @@ export function useGovernanceProposals() {
           }) as [bigint, bigint, bigint];
 
           // Get block timestamp for createdAt
+          if (!log.blockNumber) continue;
           const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
           const createdAt = new Date(Number(block.timestamp) * 1000);
 
@@ -200,7 +203,7 @@ export function useGovernanceProposals() {
             startBlock: voteStart,
             endBlock: voteEnd,
             createdAt,
-            transactionHash: log.transactionHash,
+            transactionHash: log.transactionHash || '0x',
           });
         } catch (eventError) {
           console.error('Error processing proposal:', eventError);

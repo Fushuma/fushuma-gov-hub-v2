@@ -36,17 +36,17 @@ const connectors = connectorsForWallets(
     {
       groupName: 'Popular',
       wallets: [
-        injectedWallet, // Fallback for any injected wallet (MetaMask, etc.)
-        metaMaskWallet({ projectId }),
-        walletConnectWallet({ projectId }),
-        coinbaseWallet({ appName: 'Fushuma Governance Hub' }),
+        injectedWallet as any, // Fallback for any injected wallet (MetaMask, etc.)
+        metaMaskWallet as any,
+        walletConnectWallet as any,
+        coinbaseWallet as any,
       ],
     },
     {
       groupName: 'More',
       wallets: [
-        rainbowWallet({ projectId }),
-        trustWallet({ projectId }),
+        rainbowWallet as any,
+        trustWallet as any,
       ],
     },
   ],

@@ -168,12 +168,12 @@ function LockCard({
   };
 
   return (
-    <Card className={inExitQueue ? 'border-yellow-500' : ''}>
+    <Card className={Boolean(inExitQueue) ? 'border-yellow-500' : ''}>
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg">veNFT #{tokenId.toString()}</CardTitle>
-            {inExitQueue && (
+            {Boolean(inExitQueue) && (
               <Badge variant="outline" className="mt-2 text-yellow-600 border-yellow-500">
                 In Exit Queue
               </Badge>
@@ -198,7 +198,7 @@ function LockCard({
             {isInWarmup && (
               <p className="text-xs text-orange-600 dark:text-orange-400">In warmup period</p>
             )}
-            {inExitQueue && (
+            {Boolean(inExitQueue) && (
               <p className="text-xs text-yellow-600 dark:text-yellow-400">Paused (exit queue)</p>
             )}
           </div>
@@ -228,7 +228,7 @@ function LockCard({
           </div>
         )}
 
-        {inExitQueue && timeUntilWithdraw > 0 && (
+        {Boolean(inExitQueue) && timeUntilWithdraw > 0 && (
           <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
               <Calendar className="h-4 w-4 inline mr-1" />
@@ -238,7 +238,7 @@ function LockCard({
         )}
 
         <div className="flex gap-2 pt-2">
-          {!inExitQueue ? (
+          {!Boolean(inExitQueue) ? (
             <>
               <Button
                 variant="outline"
