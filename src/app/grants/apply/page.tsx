@@ -7,12 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { trpc } from '@/lib/trpc/client';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function ApplyGrantPage() {
   const router = useRouter();
+  const { isConnected } = useAccount();
+  const { isAuthenticated, isAuthenticating, signIn } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     applicantName: '',
@@ -119,6 +125,31 @@ export default function ApplyGrantPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Authentication Check */}
+            {!isConnected ? (
+              <Alert className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="flex flex-col gap-3">
+                    <span>Please connect your wallet to apply for a grant.</span>
+                    <ConnectButton />
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : !isAuthenticated ? (
+              <Alert className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="flex flex-col gap-3">
+                    <span>Please sign in to apply for a grant. This requires signing a message with your wallet to verify ownership.</span>
+                    <Button onClick={signIn} disabled={isAuthenticating} className="w-fit">
+                      {isAuthenticating ? 'Signing in...' : 'Sign In with Wallet'}
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Information */}
               <div className="space-y-4">
@@ -304,10 +335,10 @@ export default function ApplyGrantPage() {
               <div className="flex gap-4 pt-4">
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending}
+                  disabled={createMutation.isPending || !isAuthenticated}
                   className="flex-1"
                 >
-                  {createMutation.isPending ? 'Submitting...' : 'Submit Application'}
+                  {createMutation.isPending ? 'Submitting...' : !isAuthenticated ? 'Sign in to Submit' : 'Submit Application'}
                 </Button>
                 <Button
                   type="button"

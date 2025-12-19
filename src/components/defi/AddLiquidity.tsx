@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useWriteContract } from 'wagmi';
-import { Plus, Info, TrendingUp } from 'lucide-react';
+import { useAccount, useWriteContract, useSwitchChain } from 'wagmi';
+import { Plus, Info, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -28,9 +29,16 @@ import type { Token } from '@pancakeswap/sdk';
 import { parseUnits, erc20Abi } from 'viem';
 import { CL_POSITION_MANAGER_ADDRESS } from '@/lib/fumaswap/contracts';
 
+// Fushuma chain ID
+const FUSHUMA_CHAIN_ID = 121224;
+
 export function AddLiquidity() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const { switchChain } = useSwitchChain();
+
+  // Check if user is on Fushuma network
+  const isCorrectNetwork = chainId === FUSHUMA_CHAIN_ID;
   
   // Token selection (using LIQUIDITY_TOKEN_LIST which excludes native FUMA)
   const [token0, setToken0] = useState<Token | null>(LIQUIDITY_TOKEN_LIST[0]);
@@ -431,6 +439,28 @@ export function AddLiquidity() {
       </CardHeader>
       
       <CardContent className="space-y-6">
+        {/* Network Warning */}
+        {isConnected && !isCorrectNetwork && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="flex flex-col gap-3">
+                <span>
+                  You are connected to the wrong network. Liquidity pools are only available on Fushuma Network.
+                </span>
+                <Button
+                  onClick={() => switchChain({ chainId: FUSHUMA_CHAIN_ID })}
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                >
+                  Switch to Fushuma Network
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Token Pair Selection */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -699,14 +729,15 @@ export function AddLiquidity() {
           )}
           
           {/* Add Liquidity Button */}
-            <Button 
+            <Button
               onClick={handleAddLiquidity}
               disabled={
-                !isConnected || 
-                !token0 || 
-                !token1 || 
-                !amount0 || 
-                !amount1 || 
+                !isConnected ||
+                !isCorrectNetwork ||
+                !token0 ||
+                !token1 ||
+                !amount0 ||
+                !amount1 ||
                 !poolExists ||
                 needsApproval0() ||
                 needsApproval1() ||
@@ -719,7 +750,8 @@ export function AddLiquidity() {
               size="lg"
             >
             <Plus className="h-4 w-4 mr-2" />
-            {!isConnected ? 'Connect Wallet' : 
+            {!isConnected ? 'Connect Wallet' :
+             !isCorrectNetwork ? 'Switch to Fushuma Network' :
              (needsApproval0() || needsApproval1()) ? 'Approve tokens first' :
              'Add Liquidity'}
           </Button>
