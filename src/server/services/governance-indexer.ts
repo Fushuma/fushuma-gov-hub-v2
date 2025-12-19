@@ -330,7 +330,7 @@ async function getLogsInChunks<T>(
     try {
       const chunkLogs = await publicClient.getLogs({
         address,
-        event,
+        event: event as any,
         fromBlock: currentFrom,
         toBlock: currentTo,
       });
@@ -373,7 +373,9 @@ export async function indexProposals(fromBlock?: number): Promise<OnChainProposa
 
     for (const log of logs) {
       try {
-        const { proposalId, proposer, voteStart, voteEnd, description } = log.args as {
+        const logArgs = (log as any).args;
+        if (!logArgs) continue;
+        const { proposalId, proposer, voteStart, voteEnd, description } = logArgs as {
           proposalId: bigint;
           proposer: Address;
           voteStart: bigint;
@@ -394,7 +396,7 @@ export async function indexProposals(fromBlock?: number): Promise<OnChainProposa
           proposer,
           startBlock: voteStart,
           endBlock: voteEnd,
-          transactionHash: log.transactionHash,
+          transactionHash: log.transactionHash || '0x',
           createdAt: new Date(), // Would need to get block timestamp for accuracy
         };
 
@@ -408,7 +410,7 @@ export async function indexProposals(fromBlock?: number): Promise<OnChainProposa
           eventType: 'ProposalCreated',
           contractAddress: FUSHUMA_GOVERNOR_ADDRESS.toLowerCase(),
           blockNumber: Number(log.blockNumber),
-          transactionHash: log.transactionHash,
+          transactionHash: log.transactionHash || '0x',
           eventData: {
             proposalId: proposalId.toString(),
             proposer,

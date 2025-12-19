@@ -131,7 +131,7 @@ export function useTotalVotingPower(address?: Address) {
 
   // Fetch all voting powers in one call
   const { data: votingPowers, isLoading: isLoadingPowers, error, refetch } = useReadContracts({
-    contracts,
+    contracts: contracts as any,
     query: {
       enabled: contracts.length > 0,
     },
