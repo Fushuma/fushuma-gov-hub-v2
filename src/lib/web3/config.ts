@@ -1,5 +1,5 @@
 import { getDefaultConfig, connectorsForWallets } from '@rainbow-me/rainbowkit';
-import { metaMaskWallet, walletConnectWallet, coinbaseWallet, rainbowWallet, trustWallet } from '@rainbow-me/rainbowkit/wallets';
+import { metaMaskWallet, walletConnectWallet, coinbaseWallet, rainbowWallet, trustWallet, injectedWallet } from '@rainbow-me/rainbowkit/wallets';
 import { http, createConfig } from 'wagmi';
 import { defineChain } from 'viem';
 
@@ -28,22 +28,15 @@ export const fushuma = defineChain({
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'placeholder-project-id-get-from-walletconnect';
 
-// Check if MetaMask is available (for debugging)
-if (typeof window !== 'undefined') {
-  console.log('MetaMask detection:', {
-    ethereum: typeof window.ethereum !== 'undefined',
-    isMetaMask: window.ethereum?.isMetaMask,
-    providers: window.ethereum?.providers ? 'Multiple providers detected' : 'Single provider'
-  });
-}
-
 // Configure wallet connectors with MetaMask first
 // Note: Wallet functions must be invoked with empty object to use default config
+// injectedWallet is added as a fallback to detect MetaMask and other browser wallets
 const connectors = connectorsForWallets(
   [
     {
       groupName: 'Popular',
       wallets: [
+        injectedWallet, // Fallback for any injected wallet (MetaMask, etc.)
         metaMaskWallet({ projectId }),
         walletConnectWallet({ projectId }),
         coinbaseWallet({ appName: 'Fushuma Governance Hub' }),
@@ -69,6 +62,8 @@ export const wagmiConfig = createConfig({
   transports: {
     [fushuma.id]: http(),
   },
-  ssr: true,
+  // SSR is disabled since WalletProvider is dynamically imported with ssr: false
+  // This prevents hydration mismatches with wallet detection
+  ssr: false,
 });
 

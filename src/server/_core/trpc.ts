@@ -11,9 +11,9 @@ export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.user) {
-    throw new TRPCError({ 
+    throw new TRPCError({
       code: "UNAUTHORIZED",
-      message: "You must be logged in to perform this action. Please connect your wallet."
+      message: "You must sign in to perform this action. Please connect your wallet and sign the authentication message."
     });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });

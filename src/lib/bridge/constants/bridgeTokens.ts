@@ -6,6 +6,19 @@
 // Special address marker for native tokens (common convention)
 export const NATIVE_TOKEN_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as const;
 
+// Zero address is used as a placeholder for "not available"
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
+
+/**
+ * Check if an address is valid (not undefined, not empty, and not zero address)
+ * Native token address is considered valid as it represents native currency
+ */
+function isValidTokenAddress(address: `0x${string}` | '' | undefined): boolean {
+  return address !== undefined &&
+         address !== '' &&
+         address !== ZERO_ADDRESS;
+}
+
 export interface BridgeToken {
   symbol: string;
   name: string;
@@ -164,20 +177,22 @@ export function getAllBridgeTokens(): BridgeToken[] {
 
 /**
  * Get tokens available on a specific chain
+ * Filters out tokens with zero address (not actually deployed)
  */
 export function getTokensByChain(chainId: number): BridgeToken[] {
   return Object.values(BRIDGE_TOKENS).filter(
-    (token) => token.address[chainId] !== undefined && token.address[chainId] !== ''
+    (token) => isValidTokenAddress(token.address[chainId])
   );
 }
 
 /**
  * Check if token is supported on chain
+ * Returns false for zero address (placeholder for not available)
  */
 export function isTokenSupportedOnChain(symbol: string, chainId: number): boolean {
   const token = getTokenBySymbol(symbol);
   if (!token) return false;
-  return token.address[chainId] !== undefined && token.address[chainId] !== '';
+  return isValidTokenAddress(token.address[chainId]);
 }
 
 /**
