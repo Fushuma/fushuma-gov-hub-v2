@@ -2,6 +2,8 @@ import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { proposals, proposalVotes } from "@/db/schema";
 import { eq, desc, and, isNull, like, or, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { assertRateLimit } from "../_core/rateLimit";
 
 export const proposalsRouter = router({
   // Sync proposals from blockchain
@@ -134,78 +136,111 @@ export const proposalsRouter = router({
       z.object({
         proposalId: z.number().int().positive(),
         voteChoice: z.enum(["for", "against", "abstain"]),
-        votingPower: z.number().int().positive().optional().default(1),
       })
     )
     .mutation(async ({ input, ctx }) => {
+      await assertRateLimit({
+        bucket: "proposals.vote",
+        key: String(ctx.user.id),
+        limit: 20,
+        windowMs: 60 * 1000,
+      });
+
       // Check if proposal exists and is active
       const [proposal] = await ctx.db
         .select()
         .from(proposals)
         .where(eq(proposals.id, input.proposalId))
         .limit(1);
-      
+
       if (!proposal) {
-        throw new Error("Proposal not found");
-      }
-      
-      if (proposal.status !== "active") {
-        throw new Error("Proposal is not active for voting");
-      }
-      
-      // Check if user has already voted
-      const [existingVote] = await ctx.db
-        .select()
-        .from(proposalVotes)
-        .where(
-          and(
-            eq(proposalVotes.userId, ctx.user.id),
-            eq(proposalVotes.proposalId, input.proposalId)
-          )
-        )
-        .limit(1);
-      
-      if (existingVote) {
-        throw new Error("You have already voted on this proposal");
-      }
-      
-      // Record the vote
-      await ctx.db.insert(proposalVotes).values({
-        userId: ctx.user.id,
-        proposalId: input.proposalId,
-        voterAddress: ctx.user.walletAddress || `user_${ctx.user.id}`,
-        voteChoice: input.voteChoice,
-        votingPower: input.votingPower,
-      });
-      
-      // Update proposal vote counts based on vote choice
-      if (input.voteChoice === "for") {
-        await ctx.db
-          .update(proposals)
-          .set({
-            votesFor: sql`${proposals.votesFor} + ${input.votingPower}`,
-            totalVotes: sql`${proposals.totalVotes} + ${input.votingPower}`
-          })
-          .where(eq(proposals.id, input.proposalId));
-      } else if (input.voteChoice === "against") {
-        await ctx.db
-          .update(proposals)
-          .set({
-            votesAgainst: sql`${proposals.votesAgainst} + ${input.votingPower}`,
-            totalVotes: sql`${proposals.totalVotes} + ${input.votingPower}`
-          })
-          .where(eq(proposals.id, input.proposalId));
-      } else if (input.voteChoice === "abstain") {
-        await ctx.db
-          .update(proposals)
-          .set({
-            votesAbstain: sql`${proposals.votesAbstain} + ${input.votingPower}`,
-            totalVotes: sql`${proposals.totalVotes} + ${input.votingPower}`
-          })
-          .where(eq(proposals.id, input.proposalId));
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proposal not found" });
       }
 
-      return { success: true };
+      if (proposal.status !== "active") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Proposal is not active for voting",
+        });
+      }
+
+      // Voting power is read from the VotingEscrow contract - never
+      // trusted from client input
+      if (!ctx.user.walletAddress) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "A wallet address is required to vote",
+        });
+      }
+
+      let votingPower: number;
+      try {
+        const { getVotingPowerTokens } = await import("../services/voting-power");
+        votingPower = await getVotingPowerTokens(ctx.user.walletAddress);
+      } catch (error) {
+        console.error("Failed to read voting power from chain:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Could not verify voting power. Please try again.",
+        });
+      }
+
+      if (votingPower <= 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You need voting power (locked WFUMA) to vote on proposals",
+        });
+      }
+
+      try {
+        // Transaction keeps the vote row and the tally consistent; the
+        // unique index on (proposalId, userId) makes double-voting
+        // impossible even under concurrent requests
+        await ctx.db.transaction(async (tx) => {
+          await tx.insert(proposalVotes).values({
+            userId: ctx.user.id,
+            proposalId: input.proposalId,
+            voterAddress: ctx.user.walletAddress!,
+            voteChoice: input.voteChoice,
+            votingPower,
+          });
+
+          const tallyColumn =
+            input.voteChoice === "for"
+              ? proposals.votesFor
+              : input.voteChoice === "against"
+                ? proposals.votesAgainst
+                : proposals.votesAbstain;
+
+          await tx
+            .update(proposals)
+            .set({
+              [input.voteChoice === "for"
+                ? "votesFor"
+                : input.voteChoice === "against"
+                  ? "votesAgainst"
+                  : "votesAbstain"]: sql`${tallyColumn} + ${votingPower}`,
+              totalVotes: sql`${proposals.totalVotes} + ${votingPower}`,
+            })
+            .where(eq(proposals.id, input.proposalId));
+        });
+      } catch (error: unknown) {
+        // MySQL duplicate key on the unique (proposalId, userId) index;
+        // drizzle may wrap the mysql2 error, so walk the cause chain
+        let cause: unknown = error;
+        while (cause instanceof Error) {
+          if ((cause as { code?: string }).code === "ER_DUP_ENTRY") {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "You have already voted on this proposal",
+            });
+          }
+          cause = cause.cause;
+        }
+        throw error;
+      }
+
+      return { success: true, votingPower };
     }),
 
   getVotes: publicProcedure

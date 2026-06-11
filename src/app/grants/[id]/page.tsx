@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { trpc } from '@/lib/trpc/client';
 import { ArrowLeft, Calendar, User, DollarSign, ExternalLink, Github, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
+import DOMPurify from 'dompurify';
 
 export default function GrantDetailPage() {
   const params = useParams();
@@ -345,7 +346,7 @@ export default function GrantDetailPage() {
                             </div>
                             <div className="prose prose-sm max-w-none dark:prose-invert">
                               {comment.bodyHtml ? (
-                                <div dangerouslySetInnerHTML={{ __html: comment.bodyHtml }} />
+                                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(comment.bodyHtml) }} />
                               ) : (
                                 <p className="whitespace-pre-wrap">{comment.body}</p>
                               )}

@@ -25,8 +25,9 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { DEFAULT_TOKEN_LIST, isPlaceholderAddress } from '@/lib/fumaswap/tokens';
 import { getSwapQuote, validateSwapParams, formatPrice, calculateMinimumOutput, executeSwap } from '@/lib/fumaswap/swap';
-import { UNIVERSAL_ROUTER_ADDRESS } from '@/lib/fumaswap/contracts';
-import { parseUnits } from 'viem';
+import { UNIVERSAL_ROUTER_ADDRESS, PERMIT2_ADDRESS } from '@/lib/fumaswap/contracts';
+import { PERMIT2_ABI, permit2AllowanceExpiration } from '@/lib/fumaswap/permit2';
+import { maxUint256, parseUnits } from 'viem';
 import { useTokenBalance } from '@/lib/fumaswap/hooks/useTokenBalance';
 import { formatTokenAmount } from '@/lib/fumaswap/utils/tokens';
 import type { Token } from '@pancakeswap/sdk';
@@ -69,8 +70,9 @@ export function SwapWidget() {
     setAmountOut(amountIn);
   };
   
-  // Check token allowance
-  const { data: allowance } = useReadContract({
+  // The router pulls input tokens through Permit2, so two allowances
+  // matter: ERC20 -> Permit2, and Permit2 -> router (with expiration)
+  const { data: allowance, refetch: refetchErc20Allowance } = useReadContract({
     address: tokenIn?.address as `0x${string}`,
     abi: [{
       name: 'allowance',
@@ -83,7 +85,20 @@ export function SwapWidget() {
       outputs: [{ name: '', type: 'uint256' }]
     }],
     functionName: 'allowance',
-    args: address && tokenIn ? [address, UNIVERSAL_ROUTER_ADDRESS as `0x${string}`] : undefined,
+    args: address && tokenIn ? [address, PERMIT2_ADDRESS as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address && !!tokenIn && tokenIn.address !== '0x0000000000000000000000000000000000000000',
+    },
+  });
+
+  const { data: permit2Allowance, refetch: refetchPermit2Allowance } = useReadContract({
+    address: PERMIT2_ADDRESS as `0x${string}`,
+    abi: PERMIT2_ABI,
+    functionName: 'allowance',
+    args:
+      address && tokenIn
+        ? [address, tokenIn.address as `0x${string}`, UNIVERSAL_ROUTER_ADDRESS as `0x${string}`]
+        : undefined,
     query: {
       enabled: !!address && !!tokenIn && tokenIn.address !== '0x0000000000000000000000000000000000000000',
     },
@@ -98,30 +113,28 @@ export function SwapWidget() {
       return;
     }
     
-    if (!allowance) {
-      // If allowance is not loaded yet, assume approval is needed
-      console.log('Allowance not loaded, assuming approval needed');
+    if (allowance === undefined || permit2Allowance === undefined) {
+      // If allowances are not loaded yet, assume approval is needed
       setNeedsApproval(true);
       return;
     }
-    
+
     try {
       const amountInWei = parseUnits(amountIn, tokenIn.decimals);
-      const currentAllowance = BigInt(allowance.toString());
-      const needsApprove = currentAllowance < amountInWei;
-      console.log('Approval check:', {
-        token: tokenIn.symbol,
-        amount: amountIn,
-        amountInWei: amountInWei.toString(),
-        currentAllowance: currentAllowance.toString(),
-        needsApproval: needsApprove
-      });
+      const erc20Allowance = BigInt(allowance.toString());
+      const [permit2Amount, permit2Expiration] = permit2Allowance as readonly [bigint, number, number];
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      const needsApprove =
+        erc20Allowance < amountInWei ||
+        permit2Amount < amountInWei ||
+        permit2Expiration <= nowSeconds;
       setNeedsApproval(needsApprove);
     } catch (error) {
       console.error('Error checking approval:', error);
       setNeedsApproval(false);
     }
-  }, [amountIn, tokenIn, allowance]);
+  }, [amountIn, tokenIn, allowance, permit2Allowance]);
   
   // Get quote when amount changes
   useEffect(() => {
@@ -135,7 +148,7 @@ export function SwapWidget() {
       setIsLoadingQuote(true);
       
       try {
-        const swapQuote = await getSwapQuote(tokenIn, tokenOut, amountIn);
+        const swapQuote = await getSwapQuote(tokenIn, tokenOut, amountIn, slippage / 100);
         
         if (swapQuote) {
           setQuote(swapQuote);
@@ -160,34 +173,55 @@ export function SwapWidget() {
     
     const debounce = setTimeout(fetchQuote, 500);
     return () => clearTimeout(debounce);
-  }, [amountIn, tokenIn, tokenOut]);
+  }, [amountIn, tokenIn, tokenOut, slippage]);
   
-  // Handle token approval
+  // Handle token approval (two steps: ERC20 -> Permit2, then a
+  // time-bounded Permit2 allowance for the router)
   const handleApprove = async () => {
     if (!isConnected || !address || !tokenIn) {
       toast.error('Please connect your wallet');
       return;
     }
-    
+
     try {
       const amountInWei = parseUnits(amountIn, tokenIn.decimals);
-      
+
+      // Step 1: one-time ERC20 approval of the Permit2 contract.
+      // Unlimited here is the canonical Permit2 pattern - per-spend
+      // limits are enforced by the Permit2 allowance below.
+      const erc20Allowance = allowance !== undefined ? BigInt(allowance.toString()) : 0n;
+      if (erc20Allowance < amountInWei) {
+        await approveToken({
+          address: tokenIn.address as `0x${string}`,
+          abi: [{
+            name: 'approve',
+            type: 'function',
+            stateMutability: 'nonpayable',
+            inputs: [
+              { name: 'spender', type: 'address' },
+              { name: 'amount', type: 'uint256' }
+            ],
+            outputs: [{ name: '', type: 'bool' }]
+          }],
+          functionName: 'approve',
+          args: [PERMIT2_ADDRESS as `0x${string}`, maxUint256],
+        });
+      }
+
+      // Step 2: exact-amount, 30-day Permit2 allowance for the router
       await approveToken({
-        address: tokenIn.address as `0x${string}`,
-        abi: [{
-          name: 'approve',
-          type: 'function',
-          stateMutability: 'nonpayable',
-          inputs: [
-            { name: 'spender', type: 'address' },
-            { name: 'amount', type: 'uint256' }
-          ],
-          outputs: [{ name: '', type: 'bool' }]
-        }],
+        address: PERMIT2_ADDRESS as `0x${string}`,
+        abi: PERMIT2_ABI,
         functionName: 'approve',
-        args: [UNIVERSAL_ROUTER_ADDRESS as `0x${string}`, amountInWei],
+        args: [
+          tokenIn.address as `0x${string}`,
+          UNIVERSAL_ROUTER_ADDRESS as `0x${string}`,
+          amountInWei,
+          permit2AllowanceExpiration(),
+        ],
       });
-      
+
+      await Promise.all([refetchErc20Allowance(), refetchPermit2Allowance()]);
       toast.success('Token approved successfully!');
     } catch (error: any) {
       console.error('Approval error:', error);

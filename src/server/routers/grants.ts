@@ -3,6 +3,7 @@ import { router, publicProcedure, protectedProcedure, adminProcedure } from "../
 import { developmentGrants, grantComments } from "@/db/schema";
 import { eq, desc, and, isNull, like, or } from "drizzle-orm";
 import { githubSync } from "../services/github-sync";
+import { assertRateLimit } from "../_core/rateLimit";
 
 export const grantsRouter = router({
   list: publicProcedure
@@ -80,6 +81,13 @@ export const grantsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      await assertRateLimit({
+        bucket: "grants.create",
+        key: String(ctx.user.id),
+        limit: 5,
+        windowMs: 60 * 60 * 1000,
+      });
+
       const [result] = await ctx.db
         .insert(developmentGrants)
         .values({
@@ -88,7 +96,7 @@ export const grantsRouter = router({
           status: "submitted",
         })
         .$returningId();
-      
+
       return { success: true, id: result.id };
     }),
 

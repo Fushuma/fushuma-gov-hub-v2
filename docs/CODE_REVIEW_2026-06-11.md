@@ -154,12 +154,30 @@ DeFi/governance indexers are well-structured and worth building on.
 
 1. ~~Fix the type error, delete `package-lock.json`, add a CI workflow that gates on
    lint/type-check/test/build~~ *(done alongside this review)*.
-2. Auth hardening: required JWT secret, HttpOnly server-set cookie, server-side voting
-   power, vote unique constraint, basic rate limiting.
-3. FumaSwap correctness: user slippage, single tick-math implementation, verify/fix router
-   encoding with a real on-chain test, best-liquidity fee-tier selection, position fees.
-4. Replace mock proposal detail data; add error/loading boundaries.
-5. Finish or hide stubbed pages; ethers→viem migration; repo cleanup.
+2. ~~Auth hardening: required JWT secret, HttpOnly server-set cookie, server-side voting
+   power, vote unique constraint, basic rate limiting~~ *(done — JWT secret now required
+   in production, session cookie is HttpOnly and set server-side, Origin check on
+   mutations, voting power read from VotingEscrow on-chain, unique vote constraint +
+   transaction, KV-backed nonces and rate limits with Redis support; **requires
+   `pnpm db:push` to apply the new unique index**)*.
+3. ~~FumaSwap correctness: user slippage, single tick-math implementation, router
+   encoding, best-liquidity fee-tier selection~~ *(done — user slippage flows from the
+   widget through quotes and execution, the floating-point tick math was deleted in
+   favour of the lookup-table version, fee tiers are picked by deepest liquidity, and
+   `executeSwap` now encodes a proper INFI_SWAP (0x10) command with
+   CL_SWAP_EXACT_IN_SINGLE→SETTLE_ALL→TAKE_ALL actions plus a Permit2 two-step approval
+   flow. **Still needs one end-to-end swap on mainnet to verify against the deployed
+   router** — encoding was verified by round-trip decode only. Position fee display
+   (feeGrowth math) remains TODO)*.
+4. ~~Replace mock proposal detail data; add error/loading boundaries~~ *(done — the
+   proposal detail page reads on-chain state and recovers title/description/call data
+   from the ProposalCreated event, so queue/execute now use real targets/calldatas;
+   error.tsx/global-error.tsx/loading.tsx boundaries added; GitHub comment HTML is
+   DOMPurify-sanitized; window.location navigation replaced with Link/router)*.
+5. Finish or hide stubbed pages (`defi/fumaswap/liquidity|pools`, `bridge/claim`,
+   ecosystem page); ethers→viem migration of the launchpad lib; ~~repo cleanup~~
+   *(done — stale reports archived to `docs/archive/`, current docs moved to `docs/`,
+   patch files removed, loose root scripts moved into `scripts/`)*.
 
 The strategic picture: governance + grants + docs + news are in good shape and the
 architecture supports the roadmap — don't rewrite anything. Spend effort on the DeFi

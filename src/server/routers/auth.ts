@@ -12,24 +12,33 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { SignJWT } from "jose";
 import { TRPCError } from "@trpc/server";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fushuma-secret-key-change-in-production"
-);
+import { JWT_SECRET } from "../_core/jwtSecret";
+import {
+  buildSessionCookie,
+  buildClearSessionCookie,
+} from "../_core/sessionCookie";
+import { assertRateLimit } from "../_core/rateLimit";
 
 export const authRouter = router({
   me: publicProcedure.query(({ ctx }) => ctx.user),
 
   getNonce: publicProcedure
     .input(z.object({ address: z.string() }))
-    .mutation(({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await assertRateLimit({
+        bucket: "auth.getNonce",
+        key: ctx.ip,
+        limit: 10,
+        windowMs: 60 * 1000,
+      });
+
       if (!isValidEthereumAddress(input.address)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invalid Ethereum address",
         });
       }
-      const nonce = generateNonce(input.address);
+      const nonce = await generateNonce(input.address);
       const message = generateSignInMessage(input.address, nonce);
       return { nonce, message };
     }),
@@ -43,6 +52,13 @@ export const authRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      await assertRateLimit({
+        bucket: "auth.signIn",
+        key: ctx.ip,
+        limit: 10,
+        windowMs: 60 * 1000,
+      });
+
       const { address, signature, message } = input;
 
       if (!isValidEthereumAddress(address)) {
@@ -61,7 +77,7 @@ export const authRouter = router({
       }
 
       const nonce = nonceMatch[1];
-      if (!verifyNonce(address, nonce)) {
+      if (!(await verifyNonce(address, nonce))) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invalid or expired nonce",
@@ -76,7 +92,7 @@ export const authRouter = router({
         });
       }
 
-      clearNonce(address);
+      await clearNonce(address);
 
       let [user] = await ctx.db
         .select()
@@ -112,9 +128,12 @@ export const authRouter = router({
         .setExpirationTime("7d")
         .sign(JWT_SECRET);
 
+      // Set the session as an HttpOnly cookie so client-side JS
+      // (and therefore XSS) can never read the token.
+      ctx.resHeaders?.append("Set-Cookie", buildSessionCookie(token));
+
       return {
         success: true,
-        token,
         user: {
           id: user.id,
           walletAddress: user.walletAddress,
@@ -126,7 +145,8 @@ export const authRouter = router({
       };
     }),
 
-  logout: publicProcedure.mutation(() => {
+  logout: publicProcedure.mutation(({ ctx }) => {
+    ctx.resHeaders?.append("Set-Cookie", buildClearSessionCookie());
     return { success: true };
   }),
 

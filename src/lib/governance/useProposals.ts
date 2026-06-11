@@ -23,6 +23,12 @@ export interface GovernanceProposal {
   endBlock: bigint;
   createdAt: Date;
   transactionHash: string;
+  /** Original (unparsed) description - required for queue/execute hashing */
+  rawDescription?: string;
+  /** Call data from the ProposalCreated event - required for queue/execute */
+  targets?: readonly Address[];
+  values?: readonly bigint[];
+  calldatas?: readonly `0x${string}`[];
 }
 
 // Governor contract ABI for reading proposals
@@ -67,6 +73,46 @@ const GovernorABI = [
     stateMutability: 'view',
   },
 ] as const;
+
+const PROPOSAL_CREATED_EVENT = parseAbiItem(
+  'event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)'
+);
+
+// Fetch ProposalCreated events in batches of 1000 blocks (RPC limit),
+// scanning roughly the last 90 days (12s blocks)
+async function fetchProposalCreatedLogs(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+) {
+  const currentBlock = await publicClient.getBlockNumber();
+  const blocksPerDay = (24 * 60 * 60) / 12;
+  const startBlock =
+    currentBlock > BigInt(blocksPerDay * 90)
+      ? currentBlock - BigInt(blocksPerDay * 90)
+      : BigInt(1);
+
+  const MAX_BLOCK_RANGE = 1000n;
+  const logs: Awaited<ReturnType<typeof publicClient.getLogs>> = [];
+  let fromBlock = startBlock;
+
+  while (fromBlock <= currentBlock) {
+    const toBlock =
+      fromBlock + MAX_BLOCK_RANGE - 1n > currentBlock
+        ? currentBlock
+        : fromBlock + MAX_BLOCK_RANGE - 1n;
+
+    const batchLogs = await publicClient.getLogs({
+      address: FUSHUMA_GOVERNOR_ADDRESS as Address,
+      event: PROPOSAL_CREATED_EVENT,
+      fromBlock,
+      toBlock,
+    });
+
+    logs.push(...batchLogs);
+    fromBlock = toBlock + 1n;
+  }
+
+  return logs;
+}
 
 /**
  * Parse proposal description to extract title and body
@@ -117,42 +163,7 @@ export function useGovernanceProposals() {
       setLoading(true);
       setError(null);
 
-      // Get the current block
-      const currentBlock = await publicClient.getBlockNumber();
-
-      // Start from a reasonable block (e.g., ~90 days ago assuming 12s blocks)
-      // For initial deployment, we start from block 1
-      const blocksPerDay = (24 * 60 * 60) / 12;
-      const startBlock = currentBlock > BigInt(blocksPerDay * 90)
-        ? currentBlock - BigInt(blocksPerDay * 90) // Last 90 days
-        : BigInt(1);
-
-      console.log(`Fetching proposals from block ${startBlock} to ${currentBlock}`);
-
-      // Fetch ProposalCreated events in batches of 1000 blocks (RPC limit)
-      const MAX_BLOCK_RANGE = 1000n;
-      const event = parseAbiItem('event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)');
-
-      const logs: Awaited<ReturnType<typeof publicClient.getLogs>>  = [];
-      let fromBlock = startBlock;
-
-      while (fromBlock <= currentBlock) {
-        const toBlock = fromBlock + MAX_BLOCK_RANGE - 1n > currentBlock
-          ? currentBlock
-          : fromBlock + MAX_BLOCK_RANGE - 1n;
-
-        const batchLogs = await publicClient.getLogs({
-          address: FUSHUMA_GOVERNOR_ADDRESS as Address,
-          event,
-          fromBlock,
-          toBlock,
-        });
-
-        logs.push(...batchLogs);
-        fromBlock = toBlock + 1n;
-      }
-
-      console.log(`Found ${logs.length} proposals`);
+      const logs = await fetchProposalCreatedLogs(publicClient);
 
       const fetchedProposals: GovernanceProposal[] = [];
 
@@ -293,10 +304,50 @@ export function useGovernanceProposal(proposalId: bigint | undefined) {
         args: [proposalId],
       }) as Address;
 
+      // Recover title, description and call data from the
+      // ProposalCreated event (required for queue/execute)
+      let title = `Proposal #${proposalId.toString()}`;
+      let body = '';
+      let rawDescription: string | undefined;
+      let targets: readonly Address[] | undefined;
+      let values: readonly bigint[] | undefined;
+      let calldatas: readonly `0x${string}`[] | undefined;
+      let createdAt = new Date();
+      let transactionHash = '';
+
+      try {
+        const logs = await fetchProposalCreatedLogs(publicClient);
+        const log = logs.find(
+          (l) => ((l as any).args?.proposalId as bigint | undefined) === proposalId
+        );
+        if (log) {
+          const args = (log as any).args as {
+            description: string;
+            targets: readonly Address[];
+            values: readonly bigint[];
+            calldatas: readonly `0x${string}`[];
+          };
+          const parsed = parseProposalDescription(args.description);
+          title = parsed.title;
+          body = parsed.body;
+          rawDescription = args.description;
+          targets = args.targets;
+          values = args.values;
+          calldatas = args.calldatas;
+          transactionHash = log.transactionHash || '';
+          if (log.blockNumber) {
+            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            createdAt = new Date(Number(block.timestamp) * 1000);
+          }
+        }
+      } catch (eventError) {
+        console.error('Could not recover ProposalCreated event:', eventError);
+      }
+
       setProposal({
         id: proposalId,
-        title: `Proposal #${proposalId.toString()}`,
-        description: '',
+        title,
+        description: body,
         proposer,
         state: state as ProposalState,
         againstVotes: votes[0],
@@ -304,8 +355,12 @@ export function useGovernanceProposal(proposalId: bigint | undefined) {
         abstainVotes: votes[2],
         startBlock,
         endBlock,
-        createdAt: new Date(),
-        transactionHash: '',
+        createdAt,
+        transactionHash,
+        rawDescription,
+        targets,
+        values,
+        calldatas,
       });
     } catch (err) {
       console.error('Error fetching proposal:', err);

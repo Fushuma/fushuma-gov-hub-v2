@@ -26,8 +26,19 @@ const ABI_STRUCT_POSITION_CONFIG = [
   ...ABI_STRUCT_POOL_KEY
 ];
 
+const ABI_STRUCT_CL_SWAP_EXACT_IN_SINGLE = [
+  'struct CLSwapExactInputSingleParams { PoolKey poolKey; bool zeroForOne; uint128 amountIn; uint128 amountOutMinimum; bytes hookData; }',
+  ...ABI_STRUCT_POOL_KEY,
+];
+
 // ABI definitions for each action type
 const ACTIONS_ABI: Record<number, readonly AbiParameter[]> = {
+  [ACTIONS.CL_SWAP_EXACT_IN_SINGLE]: parseAbiParameters([
+    'CLSwapExactInputSingleParams params',
+    ...ABI_STRUCT_CL_SWAP_EXACT_IN_SINGLE,
+  ]),
+  [ACTIONS.SETTLE_ALL]: parseAbiParameters('address currency, uint256 maxAmount'),
+  [ACTIONS.TAKE_ALL]: parseAbiParameters('address currency, uint256 minAmount'),
   [ACTIONS.CL_MINT_POSITION]: parseAbiParameters([
     'PositionConfig positionConfig, uint128 liquidity, uint128 amount0Max, uint128 amount1Max, address owner, bytes hookData',
     ...ABI_STRUCT_POSITION_CONFIG,

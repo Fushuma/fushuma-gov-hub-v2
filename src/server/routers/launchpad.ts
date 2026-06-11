@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { launchpadProjects } from "@/db/schema";
 import { eq, desc, and, isNull, like, or } from "drizzle-orm";
+import { assertRateLimit } from "../_core/rateLimit";
 
 export const launchpadRouter = router({
   list: publicProcedure
@@ -67,6 +68,13 @@ export const launchpadRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      await assertRateLimit({
+        bucket: "launchpad.create",
+        key: String(ctx.user.id),
+        limit: 5,
+        windowMs: 60 * 60 * 1000,
+      });
+
       const [result] = await ctx.db
         .insert(launchpadProjects)
         .values({
@@ -75,7 +83,7 @@ export const launchpadRouter = router({
           status: "submitted",
         })
         .$returningId();
-      
+
       return { success: true, id: result.id };
     }),
 

@@ -1,4 +1,4 @@
-import { githubSync } from './src/server/services/github-sync';
+import { githubSync } from '../src/server/services/github-sync';
 
 async function main() {
   console.log('Running GitHub sync with comments...');

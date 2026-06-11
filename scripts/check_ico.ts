@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import LaunchpadABI from './src/config/abis/Launchpad.json';
+import LaunchpadABI from '../src/config/abis/Launchpad.json';
 
 const provider = new ethers.providers.JsonRpcProvider("https://rpc.fushuma.com");
 const launchpadContract = new ethers.Contract(

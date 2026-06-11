@@ -1,5 +1,10 @@
-import 'dotenv/config.js';
-import { githubSync } from './src/server/services/github-sync';
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Load .env.local explicitly
+config({ path: resolve(process.cwd(), '.env.local') });
+
+import { githubSync } from '../src/server/services/github-sync';
 
 async function main() {
   console.log('Starting GitHub grants sync...');
