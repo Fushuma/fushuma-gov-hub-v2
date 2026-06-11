@@ -13,6 +13,7 @@ import { createPublicClient, http } from 'viem';
 import { defineChain } from 'viem';
 import { getParametersForFee } from './poolKeyHelper';
 import { STATIC_POOLS } from './staticPools';
+import { getSqrtRatioAtTick } from './utils/liquidityMath';
 
 // Define Fushuma chain
 const fushuma = defineChain({
@@ -567,18 +568,6 @@ export function calculatePositionValue(position: Position): PositionValue {
     console.error('Error calculating position value:', error);
     return { amount0: '0', amount1: '0', fees0: '0', fees1: '0', totalValue: '0' };
   }
-}
-
-/**
- * Get sqrt ratio at a specific tick
- */
-function getSqrtRatioAtTick(tick: number): bigint {
-  const absTick = Math.abs(tick);
-  const Q96 = BigInt(2) ** BigInt(96);
-
-  // Use the standard tick math formula: sqrt(1.0001^tick) * 2^96
-  const sqrtRatio = Math.sqrt(Math.pow(1.0001, tick)) * Number(Q96);
-  return BigInt(Math.floor(sqrtRatio));
 }
 
 /**

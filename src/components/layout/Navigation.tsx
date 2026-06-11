@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes';
 import { Moon, Sun, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { NetworkBanner } from './NetworkBanner';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -46,6 +47,7 @@ export function Navigation() {
 
   return (
     <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+      <NetworkBanner />
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">

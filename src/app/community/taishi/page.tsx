@@ -4,6 +4,7 @@ import { Navigation } from '@/components/layout/Navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 import { 
   Award,
   Users,
@@ -271,9 +272,11 @@ export default function TaishiProgramPage() {
             <p className="text-muted-foreground mb-6">
               Successful applicants will be announced on Fushuma's social channels and GitHub, then onboarded as Samurai.
             </p>
-            <Button size="lg" onClick={() => window.location.href = '/community/apply'}>
-              Apply Now <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <Link href="/community/apply">
+              <Button size="lg">
+                Apply Now <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 

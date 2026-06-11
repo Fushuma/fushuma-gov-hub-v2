@@ -270,7 +270,9 @@ export const proposalVotes = mysqlTable("proposal_votes", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => ({
   proposalIdIdx: index("idx_proposal_vote_proposal_id").on(table.proposalId),
-  userProposalIdx: index("idx_proposal_vote_user_proposal").on(table.userId, table.proposalId),
+  // Unique constraint makes double-voting impossible at the database
+  // level, even under concurrent requests
+  userProposalUnique: unique("uq_proposal_vote_user_proposal").on(table.userId, table.proposalId),
 }));
 
 export type ProposalVote = typeof proposalVotes.$inferSelect;

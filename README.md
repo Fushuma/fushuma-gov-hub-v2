@@ -220,10 +220,10 @@ pm2 startup
 
 - **[README.md](./README.md)** - This file, project overview
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Ubuntu server deployment guide
-- **[DEFI-INTEGRATION.md](./DEFI-INTEGRATION.md)** - DeFi integration details
+- **[DEFI-INTEGRATION.md](./docs/DEFI-INTEGRATION.md)** - DeFi integration details
 - **[SECURITY.md](./SECURITY.md)** - Security best practices
-- **[SETUP-SUMMARY.md](./SETUP-SUMMARY.md)** - Quick setup guide
-- **[SMART_CONTRACT_DEPLOYMENT.md](./SMART_CONTRACT_DEPLOYMENT.md)** - Smart contract deployment info
+- **[SETUP-SUMMARY.md](./docs/SETUP-SUMMARY.md)** - Quick setup guide
+- **[SMART_CONTRACT_DEPLOYMENT.md](./docs/SMART_CONTRACT_DEPLOYMENT.md)** - Smart contract deployment info
 - **[.env.example](./.env.example)** - Environment variable template
 
 ## 🤝 Contributing
@@ -248,7 +248,7 @@ The platform integrates a complete DeFi suite based on PancakeSwap V4 (Infinity)
 - **Optimized Performance**: Server-side rendering and code splitting
 - **Shanghai EVM Compatible**: Modified contracts using Storage-as-Transient pattern for zkEVM+ compatibility
 
-See [DEFI-INTEGRATION.md](./DEFI-INTEGRATION.md) for detailed integration documentation.
+See [DEFI-INTEGRATION.md](./docs/DEFI-INTEGRATION.md) for detailed integration documentation.
 
 ### Technology Integration
 

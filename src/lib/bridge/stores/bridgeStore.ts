@@ -143,6 +143,11 @@ export const useBridgeStore = create<BridgeState>()(
     }),
     {
       name: 'bridge-storage',
+      // v1: token model changed to keyed variants; discard older
+      // persisted state so stale token/network shapes can't load
+      version: 1,
+      migrate: (persisted, version) =>
+        (version < 1 ? initialState : persisted) as BridgeState,
       partialize: (state) => ({
         transactionHistory: state.transactionHistory,
         fromNetwork: state.fromNetwork,

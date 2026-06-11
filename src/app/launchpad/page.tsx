@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Rocket, TrendingUp, Users, Clock } from 'lucide-react';
 import { useAllICOs } from '@/hooks/launchpad';
+import { useNow } from '@/hooks/useNow';
 import { ICOCard } from '@/components/launchpad/ICOCard';
 import { getStatus } from '@/lib/launchpad/ico';
 import { useMemo, useState } from 'react';
@@ -19,6 +20,7 @@ type IcoStatusFilter = 'All' | 'Live' | 'Upcoming' | 'Ended' | 'Sold Out' | 'Clo
 export default function LaunchpadPage() {
   const [statusFilter, setStatusFilter] = useState<IcoStatusFilter>('All');
   const { data: icos, isLoading } = useAllICOs();
+  const now = useNow();
 
   // Create metadata lookup map
   const metadataMap = useMemo(() => {
@@ -31,9 +33,10 @@ export default function LaunchpadPage() {
 
   // Sort and categorize ICOs
   const categorizedICOs = useMemo(() => {
-    if (!icos) return { live: [], upcoming: [], ended: [], soldOut: [], closed: [] };
+    if (!icos || now === null) {
+      return { live: [], upcoming: [], ended: [], soldOut: [], closed: [] };
+    }
 
-    const now = Date.now().toString();
     const live: typeof icos = [];
     const upcoming: typeof icos = [];
     const ended: typeof icos = [];
@@ -46,7 +49,7 @@ export default function LaunchpadPage() {
         ico.data.amount,
         ico.data.totalSold,
         ico.data.startDate.toString(),
-        now,
+        now.toString(),
         ico.data.endDate.toString()
       );
 
@@ -80,7 +83,7 @@ export default function LaunchpadPage() {
     closed.sort(sortByDate);
 
     return { live, upcoming, ended, soldOut, closed };
-  }, [icos]);
+  }, [icos, now]);
 
   // Combine in display order: Live → Upcoming → Sold Out → Ended → Closed
   const sortedICOs = useMemo(() => {
@@ -273,6 +276,7 @@ export default function LaunchpadPage() {
                 key={ico.data.seed}
                 ico={ico}
                 metadata={metadataMap.get(ico.key.toLowerCase())}
+                now={now ?? 0}
               />
             ))}
           </div>

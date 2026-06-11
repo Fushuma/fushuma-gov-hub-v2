@@ -46,7 +46,7 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
 
       try {
         setIsCalculating(true);
-        const amountBigInt = parseUnits(amount, Math.log10(ico.icoDecimals));
+        const amountBigInt = parseUnits(amount, Math.round(Math.log10(ico.icoDecimals)));
         const result = await getEvmCostInfo(ico.seed, amountBigInt);
         setCost(result);
       } catch (error) {
@@ -63,6 +63,7 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
 
   // Check allowance for ERC20 payment tokens
   const { data: allowance } = useReadContract({
+    chainId: 121224,
     address: isNativePayment ? undefined : (ico.costMint as `0x${string}`),
     abi: ERC20ABI,
     functionName: 'allowance',
@@ -86,6 +87,7 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
     setIsApproving(true);
     try {
       await approveToken({
+        chainId: 121224,
         address: ico.costMint as `0x${string}`,
         abi: ERC20ABI,
         functionName: 'approve',
@@ -103,21 +105,23 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
   // Buy tokens
   const { writeContract: buyTokens, data: purchaseHash } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({
+    chainId: 121224,
     hash: purchaseHash,
   });
 
   const handlePurchase = async () => {
-    if (!cost || !amount) return;
+    if (!cost || !amount || !address) return;
 
     setIsPurchasing(true);
     try {
-      const amountBigInt = parseUnits(amount, Math.log10(ico.icoDecimals));
-      
+      const amountBigInt = parseUnits(amount, Math.round(Math.log10(ico.icoDecimals)));
+
       buyTokens({
+        chainId: 121224,
         address: LAUNCHPAD_PROXY_ADDRESS as `0x${string}`,
         abi: LaunchpadABI,
-        functionName: 'buy',
-        args: [ico.seed, amountBigInt],
+        functionName: 'buyToken',
+        args: [ico.seed, amountBigInt, address],
         value: isNativePayment ? cost.value : 0n,
       });
     } catch (error: any) {
@@ -205,7 +209,7 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
                 <div className="flex justify-between text-sm">
                   <span>Cost:</span>
                   <span className="font-semibold">
-                    {formatUnits(cost.value, isNativePayment ? 18 : 6)} {paymentSymbol}
+                    {formatUnits(cost.value, Math.round(Math.log10(ico.costDecimals)))} {paymentSymbol}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

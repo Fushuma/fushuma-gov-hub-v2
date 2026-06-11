@@ -138,20 +138,16 @@ function StatsSection() {
   const totalGrantsCount = grants?.length || 0;
   
   return (
-    <section className="grid md:grid-cols-3 gap-8 py-20">
-      <StatCard 
-        label="Active Proposals" 
-        value={activeProposalsCount} 
+    <section className="grid md:grid-cols-2 gap-8 py-20">
+      <StatCard
+        label="Active Proposals"
+        value={activeProposalsCount}
         isLoading={loadingProposals}
       />
-      <StatCard 
-        label="Total Grants" 
-        value={totalGrantsCount} 
+      <StatCard
+        label="Total Grants"
+        value={totalGrantsCount}
         isLoading={loadingGrants}
-      />
-      <StatCard 
-        label="Contributors" 
-        value="1,234" 
       />
     </section>
   );

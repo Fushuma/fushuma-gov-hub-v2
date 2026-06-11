@@ -23,6 +23,12 @@ export interface GovernanceProposal {
   endBlock: bigint;
   createdAt: Date;
   transactionHash: string;
+  /** Original (unparsed) description - required for queue/execute hashing */
+  rawDescription?: string;
+  /** Call data from the ProposalCreated event - required for queue/execute */
+  targets?: readonly Address[];
+  values?: readonly bigint[];
+  calldatas?: readonly `0x${string}`[];
 }
 
 // Governor contract ABI for reading proposals
@@ -68,6 +74,70 @@ const GovernorABI = [
   },
 ] as const;
 
+const PROPOSAL_CREATED_EVENT = parseAbiItem(
+  'event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)'
+);
+
+// The chunked scan below issues hundreds of sequential getLogs calls,
+// so the result (and any in-flight scan) is shared between the list and
+// detail hooks and cached for a few minutes.
+type ProposalLogs = Awaited<ReturnType<typeof scanProposalCreatedLogs>>;
+const LOGS_CACHE_TTL_MS = 5 * 60 * 1000;
+let logsCache: { promise: Promise<ProposalLogs>; fetchedAt: number } | null = null;
+
+function fetchProposalCreatedLogs(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
+  forceRefresh = false
+): Promise<ProposalLogs> {
+  const now = Date.now();
+  if (!forceRefresh && logsCache && now - logsCache.fetchedAt < LOGS_CACHE_TTL_MS) {
+    return logsCache.promise;
+  }
+  const promise = scanProposalCreatedLogs(publicClient).catch((error) => {
+    // Don't cache failures
+    logsCache = null;
+    throw error;
+  });
+  logsCache = { promise, fetchedAt: now };
+  return promise;
+}
+
+// Fetch ProposalCreated events in batches of 1000 blocks (RPC limit),
+// scanning roughly the last 90 days (12s blocks)
+async function scanProposalCreatedLogs(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+) {
+  const currentBlock = await publicClient.getBlockNumber();
+  const blocksPerDay = (24 * 60 * 60) / 12;
+  const startBlock =
+    currentBlock > BigInt(blocksPerDay * 90)
+      ? currentBlock - BigInt(blocksPerDay * 90)
+      : BigInt(1);
+
+  const MAX_BLOCK_RANGE = 1000n;
+  const logs: Awaited<ReturnType<typeof publicClient.getLogs>> = [];
+  let fromBlock = startBlock;
+
+  while (fromBlock <= currentBlock) {
+    const toBlock =
+      fromBlock + MAX_BLOCK_RANGE - 1n > currentBlock
+        ? currentBlock
+        : fromBlock + MAX_BLOCK_RANGE - 1n;
+
+    const batchLogs = await publicClient.getLogs({
+      address: FUSHUMA_GOVERNOR_ADDRESS as Address,
+      event: PROPOSAL_CREATED_EVENT,
+      fromBlock,
+      toBlock,
+    });
+
+    logs.push(...batchLogs);
+    fromBlock = toBlock + 1n;
+  }
+
+  return logs;
+}
+
 /**
  * Parse proposal description to extract title and body
  */
@@ -102,12 +172,12 @@ function parseProposalDescription(description: string): { title: string; body: s
  * Hook to fetch all governance proposals
  */
 export function useGovernanceProposals() {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 121224 });
   const [proposals, setProposals] = useState<GovernanceProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchProposals = useCallback(async () => {
+  const fetchProposals = useCallback(async (forceRefresh = false) => {
     if (!publicClient) {
       setLoading(false);
       return;
@@ -117,42 +187,7 @@ export function useGovernanceProposals() {
       setLoading(true);
       setError(null);
 
-      // Get the current block
-      const currentBlock = await publicClient.getBlockNumber();
-
-      // Start from a reasonable block (e.g., ~90 days ago assuming 12s blocks)
-      // For initial deployment, we start from block 1
-      const blocksPerDay = (24 * 60 * 60) / 12;
-      const startBlock = currentBlock > BigInt(blocksPerDay * 90)
-        ? currentBlock - BigInt(blocksPerDay * 90) // Last 90 days
-        : BigInt(1);
-
-      console.log(`Fetching proposals from block ${startBlock} to ${currentBlock}`);
-
-      // Fetch ProposalCreated events in batches of 1000 blocks (RPC limit)
-      const MAX_BLOCK_RANGE = 1000n;
-      const event = parseAbiItem('event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)');
-
-      const logs: Awaited<ReturnType<typeof publicClient.getLogs>>  = [];
-      let fromBlock = startBlock;
-
-      while (fromBlock <= currentBlock) {
-        const toBlock = fromBlock + MAX_BLOCK_RANGE - 1n > currentBlock
-          ? currentBlock
-          : fromBlock + MAX_BLOCK_RANGE - 1n;
-
-        const batchLogs = await publicClient.getLogs({
-          address: FUSHUMA_GOVERNOR_ADDRESS as Address,
-          event,
-          fromBlock,
-          toBlock,
-        });
-
-        logs.push(...batchLogs);
-        fromBlock = toBlock + 1n;
-      }
-
-      console.log(`Found ${logs.length} proposals`);
+      const logs = await fetchProposalCreatedLogs(publicClient, forceRefresh);
 
       const fetchedProposals: GovernanceProposal[] = [];
 
@@ -226,11 +261,14 @@ export function useGovernanceProposals() {
     fetchProposals();
   }, [fetchProposals]);
 
+  // Manual refresh bypasses the shared log cache
+  const refetch = useCallback(() => fetchProposals(true), [fetchProposals]);
+
   return {
     proposals,
     loading,
     error,
-    refetch: fetchProposals,
+    refetch,
   };
 }
 
@@ -238,7 +276,7 @@ export function useGovernanceProposals() {
  * Hook to fetch a single proposal by ID
  */
 export function useGovernanceProposal(proposalId: bigint | undefined) {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 121224 });
   const [proposal, setProposal] = useState<GovernanceProposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -293,10 +331,50 @@ export function useGovernanceProposal(proposalId: bigint | undefined) {
         args: [proposalId],
       }) as Address;
 
+      // Recover title, description and call data from the
+      // ProposalCreated event (required for queue/execute)
+      let title = `Proposal #${proposalId.toString()}`;
+      let body = '';
+      let rawDescription: string | undefined;
+      let targets: readonly Address[] | undefined;
+      let values: readonly bigint[] | undefined;
+      let calldatas: readonly `0x${string}`[] | undefined;
+      let createdAt = new Date();
+      let transactionHash = '';
+
+      try {
+        const logs = await fetchProposalCreatedLogs(publicClient);
+        const log = logs.find(
+          (l) => ((l as any).args?.proposalId as bigint | undefined) === proposalId
+        );
+        if (log) {
+          const args = (log as any).args as {
+            description: string;
+            targets: readonly Address[];
+            values: readonly bigint[];
+            calldatas: readonly `0x${string}`[];
+          };
+          const parsed = parseProposalDescription(args.description);
+          title = parsed.title;
+          body = parsed.body;
+          rawDescription = args.description;
+          targets = args.targets;
+          values = args.values;
+          calldatas = args.calldatas;
+          transactionHash = log.transactionHash || '';
+          if (log.blockNumber) {
+            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            createdAt = new Date(Number(block.timestamp) * 1000);
+          }
+        }
+      } catch (eventError) {
+        console.error('Could not recover ProposalCreated event:', eventError);
+      }
+
       setProposal({
         id: proposalId,
-        title: `Proposal #${proposalId.toString()}`,
-        description: '',
+        title,
+        description: body,
         proposer,
         state: state as ProposalState,
         againstVotes: votes[0],
@@ -304,8 +382,12 @@ export function useGovernanceProposal(proposalId: bigint | undefined) {
         abstainVotes: votes[2],
         startBlock,
         endBlock,
-        createdAt: new Date(),
-        transactionHash: '',
+        createdAt,
+        transactionHash,
+        rawDescription,
+        targets,
+        values,
+        calldatas,
       });
     } catch (err) {
       console.error('Error fetching proposal:', err);

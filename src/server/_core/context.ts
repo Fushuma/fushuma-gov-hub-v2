@@ -3,10 +3,8 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { jwtVerify } from "jose";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fushuma-secret-key-change-in-production"
-);
+import { JWT_SECRET } from "./jwtSecret";
+import { SESSION_COOKIE_NAME } from "./sessionCookie";
 
 export type User = {
   id: number;
@@ -17,22 +15,28 @@ export type User = {
   role: "user" | "admin";
 };
 
-export async function createContext(req: NextRequest) {
-  const sessionToken = req.cookies.get("fushuma_session")?.value;
-  
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.headers.get("x-real-ip") || "unknown";
+}
+
+export async function createContext(req: NextRequest, resHeaders?: Headers) {
+  const sessionToken = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+
   let user: User | null = null;
-  
+
   if (sessionToken) {
     try {
       const verified = await jwtVerify(sessionToken, JWT_SECRET);
       const userId = verified.payload.userId as number;
-      
+
       const [dbUser] = await db
         .select()
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
-      
+
       if (dbUser) {
         user = {
           id: dbUser.id,
@@ -47,8 +51,8 @@ export async function createContext(req: NextRequest) {
       console.error("Session verification failed:", error);
     }
   }
-  
-  return { user, db };
+
+  return { user, db, resHeaders, ip: getClientIp(req) };
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useICOData, usePurchaseHistory } from '@/hooks/launchpad';
+import { useNow } from '@/hooks/useNow';
 import { BuyTokensCard } from '@/components/launchpad/BuyTokensCard';
 import { ICOStats } from '@/components/launchpad/ICOStats';
 import { VestingInfo } from '@/components/launchpad/VestingInfo';
@@ -25,7 +26,8 @@ export default function ICODetailPage() {
   const icoId = params.id ? parseInt(params.id as string) : null;
 
   const { data: ico, isLoading, refetch: refetchICO } = useICOData(icoId);
-  
+  const now = useNow();
+
   // Check if current user is the ICO owner
   const isOwner = useMemo(() => {
     if (!address || !ico) return false;
@@ -46,16 +48,16 @@ export default function ICODetailPage() {
 
   // Calculate status and price
   const status = useMemo(() => {
-    if (!ico) return null;
+    if (!ico || now === null) return null;
     return getStatus(
       ico.data.isClosed,
       ico.data.amount,
       ico.data.totalSold,
       ico.data.startDate.toString(),
-      Date.now().toString(),
+      now.toString(),
       ico.data.endDate.toString()
     );
-  }, [ico]);
+  }, [ico, now]);
 
   const currentPrice = useMemo(() => {
     if (!ico || !status) return 0;

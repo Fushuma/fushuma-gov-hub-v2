@@ -13,15 +13,17 @@ import { formatDistanceToNow } from 'date-fns';
 interface ICOCardProps {
   ico: IIcoInfoWithKey;
   metadata?: LaunchpadMetadata;
+  /** Current timestamp (ms), captured once by the parent to keep rendering pure */
+  now: number;
 }
 
-export function ICOCard({ ico, metadata }: ICOCardProps) {
+export function ICOCard({ ico, metadata, now }: ICOCardProps) {
   const status = getStatus(
     ico.data.isClosed,
     ico.data.amount,
     ico.data.totalSold,
     ico.data.startDate.toString(),
-    Date.now().toString(),
+    now.toString(),
     ico.data.endDate.toString()
   );
 

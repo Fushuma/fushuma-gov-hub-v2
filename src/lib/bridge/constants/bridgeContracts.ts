@@ -3,16 +3,16 @@
  * Ported from Bridge application
  */
 
+// The bridge contract is deployed at the same address on every
+// supported chain (deterministic deployment), matching the production
+// bridge app's config.
 export const BRIDGE_CONTRACTS: { [chainId: number]: `0x${string}` } = {
-  97: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // BSC Testnet
-  56: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // BSC Mainnet
-  42: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Kovan
   1: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Ethereum Mainnet
-  61: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Ethereum Classic
+  56: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // BSC Mainnet
   137: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Polygon
   121224: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Fushuma
   42161: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Arbitrum
-  130: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Huobi ECO Chain
+  130: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462', // Unichain
   8453: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462' // Base
 };
 

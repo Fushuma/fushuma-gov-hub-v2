@@ -3,6 +3,7 @@
 import { Navigation } from '@/components/layout/Navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { 
   MessageSquare, 
   Users, 
@@ -124,19 +125,21 @@ export default function CommunityPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button
-                    variant="default"
-                    className="w-full"
-                    onClick={() => {
-                      if (program.url.startsWith('http')) {
-                        window.open(program.url, '_blank');
-                      } else {
-                        window.location.href = program.url;
-                      }
-                    }}
-                  >
-                    {program.action}
-                  </Button>
+                  {program.url.startsWith('http') ? (
+                    <Button
+                      variant="default"
+                      className="w-full"
+                      onClick={() => window.open(program.url, '_blank')}
+                    >
+                      {program.action}
+                    </Button>
+                  ) : (
+                    <Link href={program.url}>
+                      <Button variant="default" className="w-full">
+                        {program.action}
+                      </Button>
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -230,12 +233,12 @@ export default function CommunityPage() {
             </div>
 
             <div className="flex gap-4 mt-8">
-              <Button onClick={() => window.location.href = '/governance'}>
-                View Proposals
-              </Button>
-              <Button variant="outline" onClick={() => window.location.href = '/grants/apply'}>
-                Apply for Grant
-              </Button>
+              <Link href="/governance">
+                <Button>View Proposals</Button>
+              </Link>
+              <Link href="/grants/apply">
+                <Button variant="outline">Apply for Grant</Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

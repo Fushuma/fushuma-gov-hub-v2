@@ -1,6 +1,9 @@
 /**
  * Bridge Networks Configuration
- * Defines supported networks for bridge operations
+ *
+ * Supported networks, kept in sync with the production bridge app
+ * (github.com/Fushuma/Bridge): Ethereum, BSC, Polygon, Arbitrum, Base,
+ * Unichain and Fushuma.
  */
 
 export interface BridgeNetwork {
@@ -22,7 +25,7 @@ export const BRIDGE_NETWORKS: { [chainId: number]: BridgeNetwork } = {
     chainId: 1,
     name: 'Ethereum',
     symbol: 'ETH',
-    rpcUrls: ['https://eth.llamarpc.com'],
+    rpcUrls: ['https://ethereum.publicnode.com'],
     blockExplorerUrl: 'https://etherscan.io',
     nativeCurrency: {
       name: 'Ether',
@@ -45,12 +48,12 @@ export const BRIDGE_NETWORKS: { [chainId: number]: BridgeNetwork } = {
   137: {
     chainId: 137,
     name: 'Polygon',
-    symbol: 'MATIC',
+    symbol: 'POL',
     rpcUrls: ['https://polygon-rpc.com'],
     blockExplorerUrl: 'https://polygonscan.com',
     nativeCurrency: {
-      name: 'MATIC',
-      symbol: 'MATIC',
+      name: 'POL',
+      symbol: 'POL',
       decimals: 18
     }
   },
@@ -92,25 +95,13 @@ export const BRIDGE_NETWORKS: { [chainId: number]: BridgeNetwork } = {
   },
   130: {
     chainId: 130,
-    name: 'Huobi ECO Chain',
-    symbol: 'HT',
-    rpcUrls: ['https://http-mainnet.hecochain.com'],
-    blockExplorerUrl: 'https://hecoinfo.com',
+    name: 'Unichain',
+    symbol: 'ETH',
+    rpcUrls: ['https://mainnet.unichain.org'],
+    blockExplorerUrl: 'https://uniscan.xyz',
     nativeCurrency: {
-      name: 'Huobi Token',
-      symbol: 'HT',
-      decimals: 18
-    }
-  },
-  820: {
-    chainId: 820,
-    name: 'Callisto',
-    symbol: 'CLO',
-    rpcUrls: ['https://rpc.callisto.network'],
-    blockExplorerUrl: 'https://explorer.callisto.network',
-    nativeCurrency: {
-      name: 'Callisto',
-      symbol: 'CLO',
+      name: 'Ether',
+      symbol: 'ETH',
       decimals: 18
     }
   }

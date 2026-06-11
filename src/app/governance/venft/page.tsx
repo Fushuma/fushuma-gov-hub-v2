@@ -345,6 +345,16 @@ export default function VeNFTPage() {
     hash: createLockHash,
   });
 
+  // Form state
+  const [lockAmount, setLockAmount] = useState('');
+
+  const handleRefreshAll = () => {
+    refetchBalance();
+    refetchVeNFTBalance();
+    refetchVotingPower();
+    refetchTokenIds();
+  };
+
   // Handle approve success
   useEffect(() => {
     if (isApproveSuccess && approveHash) {
@@ -360,16 +370,6 @@ export default function VeNFTPage() {
       handleRefreshAll();
     }
   }, [isCreateLockSuccess, createLockHash]);
-
-  const handleRefreshAll = () => {
-    refetchBalance();
-    refetchVeNFTBalance();
-    refetchVotingPower();
-    refetchTokenIds();
-  };
-
-  // Form state
-  const [lockAmount, setLockAmount] = useState('');
 
   const minDeposit = Number(GOVERNANCE_PARAMS.VotingEscrow.minDeposit) / 1e18;
   const maxMultiplier = GOVERNANCE_PARAMS.VotingEscrow.maxMultiplier;

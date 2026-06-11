@@ -11,6 +11,7 @@ export function useClaimTokens() {
   const [isPending, setIsPending] = useState(false);
   const { writeContract, data: hash, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    chainId: 121224,
     hash,
   });
 
@@ -23,6 +24,7 @@ export function useClaimTokens() {
 
     try {
       await writeContract({
+        chainId: 121224,
         address: vestingContractAddress as `0x${string}`,
         abi: VestingImplementationABI,
         functionName: 'claim',

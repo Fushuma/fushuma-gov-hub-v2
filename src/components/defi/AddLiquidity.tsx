@@ -45,7 +45,7 @@ export function AddLiquidity() {
   const [token1, setToken1] = useState<Token | null>(LIQUIDITY_TOKEN_LIST[1]);
   
   // Fetch balances
-  const { data: nativeBalance } = useBalance({ address });
+  const { data: nativeBalance } = useBalance({ address, chainId: FUSHUMA_CHAIN_ID });
   const { balance: token0Balance } = useTokenBalance(token0?.address as `0x${string}` | undefined);
   const { balance: token1Balance } = useTokenBalance(token1?.address as `0x${string}` | undefined);
   
@@ -104,15 +104,18 @@ export function AddLiquidity() {
   
   // Wait for approval confirmations
   const { isLoading: isConfirming0, isSuccess: isSuccess0 } = useWaitForTransactionReceipt({
+    chainId: 121224,
     hash: approvalHash0,
   });
   
   const { isLoading: isConfirming1, isSuccess: isSuccess1 } = useWaitForTransactionReceipt({
+    chainId: 121224,
     hash: approvalHash1,
   });
   
   // Check token allowances
   const { data: allowance0, refetch: refetchAllowance0 } = useReadContract({
+    chainId: 121224,
     address: token0?.address as `0x${string}`,
     abi: erc20Abi,
     functionName: 'allowance',
@@ -121,6 +124,7 @@ export function AddLiquidity() {
   });
   
   const { data: allowance1, refetch: refetchAllowance1 } = useReadContract({
+    chainId: 121224,
     address: token1?.address as `0x${string}`,
     abi: erc20Abi,
     functionName: 'allowance',
@@ -160,6 +164,7 @@ export function AddLiquidity() {
       const amount = parseUnits(amount0, token0.decimals);
       
       const hash = await writeContractAsync({
+        chainId: 121224,
         address: token0.address as `0x${string}`,
         abi: erc20Abi,
         functionName: 'approve',
@@ -183,6 +188,7 @@ export function AddLiquidity() {
       const amount = parseUnits(amount1, token1.decimals);
       
       const hash = await writeContractAsync({
+        chainId: 121224,
         address: token1.address as `0x${string}`,
         abi: erc20Abi,
         functionName: 'approve',

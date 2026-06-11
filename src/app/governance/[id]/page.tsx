@@ -13,7 +13,6 @@ import {
   useCastVote,
   useHasVoted,
   useTotalVotingPower,
-  useProposalState,
   useQueueProposal,
   useExecuteProposal,
   getProposalStateLabel,
@@ -31,126 +30,33 @@ import {
   GOVERNANCE_PARAMS,
   GOVERNANCE_NETWORK,
 } from '@/lib/governance';
+import { useGovernanceProposal } from '@/lib/governance/useProposals';
 
 // Helper to get transaction explorer URL
 const getTransactionUrl = (hash: string) =>
   `${GOVERNANCE_NETWORK.explorerUrl}/tx/${hash}`;
 
-// Mock proposal type for frontend display
-interface MockProposal {
-  id: bigint;
-  title: string;
-  description: string;
-  proposer: string;
-  state: ProposalState;
-  forVotes: bigint;
-  againstVotes: bigint;
-  abstainVotes: bigint;
-  startBlock: bigint;
-  endBlock: bigint;
-  createdAt: Date;
-  targets: string[];
-  values: bigint[];
-  calldatas: string[];
+function parseProposalId(id: string): bigint | undefined {
+  try {
+    return BigInt(id);
+  } catch {
+    return undefined;
+  }
 }
-
-// Mock proposal data - in production, this would come from event indexing or subgraph
-const MOCK_PROPOSALS: Record<string, MockProposal> = {
-  '1': {
-    id: 1n,
-    title: 'Increase Grant Budget for Q1 2026',
-    description: `# Proposal: Increase Grant Budget for Q1 2026
-
-## Summary
-This proposal seeks to increase the quarterly grant budget from 100,000 WFUMA to 150,000 WFUMA to support more community projects and accelerate ecosystem growth.
-
-## Motivation
-The current grant program has been highly successful, with all allocated funds being distributed to quality projects. However, we've had to reject several promising proposals due to budget constraints.
-
-## Specification
-- Increase quarterly grant budget to 150,000 WFUMA
-- Maintain current application and review process
-- Add monthly progress reports from funded projects
-
-## Expected Outcomes
-- Support 5-7 additional projects per quarter
-- Faster ecosystem growth
-- Increased developer activity`,
-    proposer: '0xC8e420222d4c93355776eD77f9A34757fb6f3eea',
-    state: ProposalState.Active,
-    forVotes: 45000000000000000000000n,
-    againstVotes: 12000000000000000000000n,
-    abstainVotes: 3000000000000000000000n,
-    startBlock: 1000000n,
-    endBlock: 1050400n,
-    createdAt: new Date('2025-11-10'),
-    targets: [],
-    values: [],
-    calldatas: [],
-  },
-  '2': {
-    id: 2n,
-    title: 'Protocol Upgrade: Fushuma V3',
-    description: `# Proposal: Protocol Upgrade to Fushuma V3
-
-## Summary
-Major protocol upgrade to improve transaction speeds and reduce gas costs through zkEVM optimizations.
-
-## Technical Details
-- Implement batch transaction processing
-- Optimize state tree structure
-- Reduce proof generation time by 40%
-
-## Timeline
-- Development: 2 months
-- Testing: 1 month
-- Deployment: Phased rollout over 2 weeks`,
-    proposer: '0x7152B9A7BD708750892e577Fcc96ea24FDDF37a4',
-    state: ProposalState.Succeeded,
-    forVotes: 120000000000000000000000n,
-    againstVotes: 8000000000000000000000n,
-    abstainVotes: 2000000000000000000000n,
-    startBlock: 950000n,
-    endBlock: 1000400n,
-    createdAt: new Date('2025-11-05'),
-    targets: [],
-    values: [],
-    calldatas: [],
-  },
-  '3': {
-    id: 3n,
-    title: 'Add New Gauge for DeFi Rewards',
-    description: `# Proposal: Add New Gauge for DeFi Rewards
-
-## Summary
-Create a new gauge to distribute rewards to liquidity providers on FumaSwap.
-
-## Details
-- Allocate 10% of weekly emissions to FumaSwap LP rewards
-- Target FUMA/USDC and FUMA/ETH pairs
-- Implement time-weighted rewards`,
-    proposer: '0x45FAc82b24511927a201C2cdFC506625dECe3d22',
-    state: ProposalState.Pending,
-    forVotes: 0n,
-    againstVotes: 0n,
-    abstainVotes: 0n,
-    startBlock: 1100000n,
-    endBlock: 1150400n,
-    createdAt: new Date('2025-11-15'),
-    targets: [],
-    values: [],
-    calldatas: [],
-  },
-};
 
 export default function ProposalDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const proposalId = params.id as string;
+  const proposalId = parseProposalId(params.id as string);
 
-  // Get proposal data (mock for now)
-  const proposal = MOCK_PROPOSALS[proposalId];
+  // Proposal data from the blockchain (state, votes, and the
+  // ProposalCreated event for title/description/call data)
+  const {
+    proposal,
+    loading: isLoadingProposal,
+    refetch: refetchProposal,
+  } = useGovernanceProposal(proposalId);
 
   // Contract hooks
   const { data: currentBlock } = useBlockNumber({ watch: true });
@@ -168,30 +74,56 @@ export default function ProposalDetailPage() {
   const [selectedVote, setSelectedVote] = useState<VoteType | null>(null);
   const [confirmedVoteHash, setConfirmedVoteHash] = useState<string | null>(null);
 
-  // Handle vote success
+  // Handle vote success - refetch so the tallies update
   useEffect(() => {
     if (isVoteSuccess && voteHash) {
       toast.success('Vote cast successfully!');
       setConfirmedVoteHash(voteHash);
       setSelectedVote(null);
+      refetchProposal();
     }
-  }, [isVoteSuccess, voteHash]);
+  }, [isVoteSuccess, voteHash, refetchProposal]);
 
   // Handle queue success
   useEffect(() => {
     if (isQueueSuccess && queueHash) {
       toast.success('Proposal queued for execution!');
+      refetchProposal();
     }
-  }, [isQueueSuccess, queueHash]);
+  }, [isQueueSuccess, queueHash, refetchProposal]);
 
   // Handle execute success
   useEffect(() => {
     if (isExecuteSuccess && executeHash) {
       toast.success('Proposal executed successfully!');
+      refetchProposal();
     }
-  }, [isExecuteSuccess, executeHash]);
+  }, [isExecuteSuccess, executeHash, refetchProposal]);
 
-  if (!proposal) {
+  if (isLoadingProposal) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 py-16">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-muted rounded w-32" />
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="h-64 bg-muted rounded" />
+                <div className="h-40 bg-muted rounded" />
+              </div>
+              <div className="space-y-6">
+                <div className="h-64 bg-muted rounded" />
+                <div className="h-48 bg-muted rounded" />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (proposalId === undefined || !proposal) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
@@ -245,14 +177,26 @@ export default function ProposalDetailPage() {
     }
   };
 
+  // Queue/execute need the exact call data and original description
+  // string recovered from the ProposalCreated event
+  const hasExecutionData =
+    !!proposal.targets &&
+    !!proposal.values &&
+    !!proposal.calldatas &&
+    proposal.rawDescription !== undefined;
+
   const handleQueueProposal = async () => {
     if (!isConnected) {
       toast.error('Please connect your wallet');
       return;
     }
+    if (!hasExecutionData) {
+      toast.error('Could not recover proposal call data from the blockchain');
+      return;
+    }
 
     try {
-      const descriptionHash = hashProposalDescription(proposal.description);
+      const descriptionHash = hashProposalDescription(proposal.rawDescription!);
 
       await queueProposal({
         address: FUSHUMA_GOVERNOR_ADDRESS as `0x${string}`,
@@ -276,9 +220,13 @@ export default function ProposalDetailPage() {
       toast.error('Please connect your wallet');
       return;
     }
+    if (!hasExecutionData) {
+      toast.error('Could not recover proposal call data from the blockchain');
+      return;
+    }
 
     try {
-      const descriptionHash = hashProposalDescription(proposal.description);
+      const descriptionHash = hashProposalDescription(proposal.rawDescription!);
 
       await executeProposal({
         address: FUSHUMA_GOVERNOR_ADDRESS as `0x${string}`,
@@ -575,7 +523,7 @@ export default function ProposalDetailPage() {
                       </p>
                       <Button
                         onClick={handleQueueProposal}
-                        disabled={!isConnected || isQueueing}
+                        disabled={!isConnected || isQueueing || !hasExecutionData}
                         className="w-full"
                       >
                         <ListChecks className="h-4 w-4 mr-2" />
@@ -590,7 +538,7 @@ export default function ProposalDetailPage() {
                       </p>
                       <Button
                         onClick={handleExecuteProposal}
-                        disabled={!isConnected || isExecuting}
+                        disabled={!isConnected || isExecuting || !hasExecutionData}
                         className="w-full bg-green-600 hover:bg-green-700"
                       >
                         <Play className="h-4 w-4 mr-2" />

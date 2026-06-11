@@ -31,11 +31,13 @@ export function useCreateICO() {
   const [isPending, setIsPending] = useState(false);
   const { writeContract, data: hash, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    chainId: 121224,
     hash,
   });
 
   // Get creation fee
   const { data: creationFee, isLoading: isFeeLoading, error: feeError } = useReadContract({
+    chainId: 121224,
     address: LAUNCHPAD_PROXY_ADDRESS as `0x${string}`,
     abi: LaunchpadABI,
     functionName: 'creationFee',
@@ -53,6 +55,7 @@ export function useCreateICO() {
     }
 
     await approveTokens({
+      chainId: 121224,
       address: tokenAddress as `0x${string}`,
       abi: ERC20ABI,
       functionName: 'approve',
@@ -118,6 +121,7 @@ export function useCreateICO() {
 
       // Create ICO
       await writeContract({
+        chainId: 121224,
         address: LAUNCHPAD_PROXY_ADDRESS as `0x${string}`,
         abi: LaunchpadABI,
         functionName: 'createICO',

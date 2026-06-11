@@ -5,8 +5,8 @@
  */
 import type { Token } from '@pancakeswap/sdk';
 import type { Address } from 'viem';
-import { encodePacked, parseUnits, formatUnits, encodeAbiParameters, parseAbiParameters, createPublicClient, http } from 'viem';
-import { UNIVERSAL_ROUTER_ADDRESS, CL_QUOTER_ADDRESS, CL_POOL_MANAGER_ADDRESS, FeeAmount, TICK_SPACINGS } from './contracts';
+import { encodePacked, parseUnits, formatUnits } from 'viem';
+import { UNIVERSAL_ROUTER_ADDRESS, CL_QUOTER_ADDRESS, CL_POOL_MANAGER_ADDRESS, FeeAmount } from './contracts';
 import { getParametersForFee } from './poolKeyHelper';
 
 export interface SwapQuote {
@@ -26,16 +26,21 @@ export interface SwapParams {
   amountIn: string;
   slippageTolerance: number; // in percentage (e.g., 0.5 for 0.5%)
   deadline: number; // in minutes
+  /**
+   * NOTE: output always goes to the transaction sender (the router's
+   * TAKE_ALL action pays msgSender). A custom recipient is not supported
+   * by the current action plan; this field exists for future use and
+   * must equal the connected wallet address.
+   */
   recipient: Address;
 }
 
 // Fee tiers to try in order of preference
 const FEE_TIERS = [3000, 500, 10000, 100]; // 0.3%, 0.05%, 1%, 0.01%
 
-// Universal Router command codes
+// Universal Router command codes (PancakeSwap Infinity Universal Router)
 const Commands = {
-  V4_SWAP: '0x00',
-  PERMIT2_TRANSFER_FROM: '0x0d',
+  INFI_SWAP: '0x10',
   SWEEP: '0x04',
 } as const;
 
@@ -45,18 +50,6 @@ const KNOWN_POOL_FEES: Record<string, number> = {
   '0x1e11d176117dbedbD234b1c6a10c6eb8dceD275e-0xbca7b11c788dbb85be92627ef1e60a2a9b7e2c6e': 3000,
   '0xbca7b11c788dbb85be92627ef1e60a2a9b7e2c6e-0x1e11d176117dbedbD234b1c6a10c6eb8dceD275e': 3000,
 };
-
-// Fushuma chain for creating clients
-const fushuma = {
-  id: 121224,
-  name: 'Fushuma',
-  network: 'fushuma',
-  nativeCurrency: { decimals: 18, name: 'FUMA', symbol: 'FUMA' },
-  rpcUrls: {
-    default: { http: ['https://rpc.fushuma.com'] },
-    public: { http: ['https://rpc.fushuma.com'] },
-  },
-} as const;
 
 // CLPoolManager ABI for fetching pool state
 const CLPoolManagerABI = [
@@ -98,37 +91,45 @@ async function getBestFeeTier(tokenIn: Token, tokenOut: Token): Promise<number> 
   const token0 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenIn : tokenOut;
   const token1 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenOut : tokenIn;
 
-  for (const fee of FEE_TIERS) {
-    try {
-      const parameters = getParametersForFee(fee as FeeAmount);
-      const poolId = keccak256(
-        encodeAbiParameters(
-          parseAbiParameters('address, address, address, address, uint24, bytes32'),
-          [
-            token0.address as Address,
-            token1.address as Address,
-            '0x0000000000000000000000000000000000000000' as Address,
-            CL_POOL_MANAGER_ADDRESS as Address,
-            fee,
-            parameters,
-          ]
-        )
-      );
+  // Probe every fee tier and pick the pool with the deepest liquidity -
+  // returning the first non-empty pool could route through a dust pool
+  // with terrible execution
+  const liquidities = await Promise.all(
+    FEE_TIERS.map(async (fee) => {
+      try {
+        const parameters = getParametersForFee(fee as FeeAmount);
+        const poolId = keccak256(
+          encodeAbiParameters(
+            parseAbiParameters('address, address, address, address, uint24, bytes32'),
+            [
+              token0.address as Address,
+              token1.address as Address,
+              '0x0000000000000000000000000000000000000000' as Address,
+              CL_POOL_MANAGER_ADDRESS as Address,
+              fee,
+              parameters,
+            ]
+          )
+        );
 
-      const liquidity = await publicClient.readContract({
-        address: CL_POOL_MANAGER_ADDRESS as Address,
-        abi: CLPoolManagerABI,
-        functionName: 'getLiquidity',
-        args: [poolId],
-      });
+        const liquidity = await publicClient.readContract({
+          address: CL_POOL_MANAGER_ADDRESS as Address,
+          abi: CLPoolManagerABI,
+          functionName: 'getLiquidity',
+          args: [poolId],
+        });
 
-      if (liquidity > 0n) {
-        return fee;
+        return { fee, liquidity };
+      } catch {
+        // Pool doesn't exist with this fee tier
+        return { fee, liquidity: 0n };
       }
-    } catch (error) {
-      // Pool doesn't exist with this fee tier, try next
-      continue;
-    }
+    })
+  );
+
+  const best = liquidities.reduce((a, b) => (b.liquidity > a.liquidity ? b : a));
+  if (best.liquidity > 0n) {
+    return best.fee;
   }
 
   // Default to 0.3% if no pool found
@@ -181,7 +182,8 @@ function calculatePriceImpact(
 export async function getSwapQuote(
   tokenIn: Token,
   tokenOut: Token,
-  amountIn: string
+  amountIn: string,
+  slippageTolerance: number = 0.5 // in percent, e.g. 0.5 for 0.5%
 ): Promise<SwapQuote | null> {
   try {
     const { publicClient } = await import('@/lib/viem');
@@ -261,10 +263,10 @@ export async function getSwapQuote(
       ? calculatePriceImpact(amountInWei, outputAmount, sqrtPriceX96, tokenIn.decimals, tokenOut.decimals, zeroForOne)
       : 0;
 
-    // Calculate execution price
+    // Calculate execution price (output per input, same units as midPrice)
     const inputNum = parseFloat(amountIn);
     const outputNum = parseFloat(outputAmountFormatted);
-    const executionPrice = outputNum > 0 ? (inputNum / outputNum).toFixed(8) : '0';
+    const executionPrice = inputNum > 0 ? (outputNum / inputNum).toFixed(8) : '0';
 
     // Calculate mid price from sqrtPriceX96
     let midPrice = '0';
@@ -283,7 +285,7 @@ export async function getSwapQuote(
       priceImpact: Math.round(priceImpact * 100) / 100, // Round to 2 decimal places
       route: [tokenIn.symbol!, tokenOut.symbol!],
       fee: fee,
-      minimumOutput: (parseFloat(outputAmountFormatted) * 0.995).toFixed(6), // 0.5% slippage
+      minimumOutput: calculateMinimumOutput(outputAmountFormatted, slippageTolerance),
       executionPrice,
       midPrice,
     };
@@ -302,56 +304,76 @@ export async function getSwapQuote(
 }
 
 /**
- * Execute a swap transaction using Universal Router
+ * Execute a swap transaction using the Infinity Universal Router.
+ *
+ * Encodes an INFI_SWAP command whose input is the planner-encoded action
+ * list (CL_SWAP_EXACT_IN_SINGLE -> SETTLE_ALL -> TAKE_ALL), matching the
+ * PancakeSwap Infinity router. Input tokens are pulled via Permit2, so
+ * the caller must hold a Permit2 allowance for the router (see permit2.ts).
  */
 export async function executeSwap(
   params: SwapParams,
   writeContract: any
 ): Promise<{ hash: Address } | null> {
   try {
-    const { tokenIn, tokenOut, amountIn, slippageTolerance, deadline, recipient } = params;
-    
+    const { tokenIn, tokenOut, amountIn, slippageTolerance, deadline } = params;
+    const { ActionsPlanner } = await import('./utils/ActionsPlanner');
+    const { ACTIONS } = await import('./utils/constants');
+
     // Parse amounts
     const amountInWei = parseUnits(amountIn, tokenIn.decimals);
-    
-    // Get quote to calculate minimum output
-    const quote = await getSwapQuote(tokenIn, tokenOut, amountIn);
+
+    // Get quote (with the user's slippage tolerance) for the minimum output
+    const quote = await getSwapQuote(tokenIn, tokenOut, amountIn, slippageTolerance);
     if (!quote) {
       throw new Error('Failed to get swap quote');
     }
-    
+
     const minAmountOut = parseUnits(quote.minimumOutput, tokenOut.decimals);
-    
+
     // Calculate deadline timestamp
-    const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
-    
-    // Encode commands for Universal Router
-    // For a simple swap: V4_SWAP command
-    const commands = encodePacked(['bytes1'], [Commands.V4_SWAP as `0x${string}`]);
-    
-    // Encode inputs for V4_SWAP
-    // The Universal Router expects specific parameters for V4 swaps
-    const swapInput = encodeAbiParameters(
-      parseAbiParameters('address recipient, uint256 amountIn, uint256 amountOutMin, bytes path, bool payerIsUser'),
-      [
-        recipient,
-        amountInWei,
-        minAmountOut,
-        encodePacked(['address', 'address'], [tokenIn.address as Address, tokenOut.address as Address]),
-        true, // payer is user
-      ]
-    );
-    
-    const inputs = [swapInput];
-    
-    // Execute swap through Universal Router
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + deadline * 60);
+
+    // Pool key must match the pool the quote was computed against
+    const token0 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenIn : tokenOut;
+    const token1 = tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase() ? tokenOut : tokenIn;
+    const zeroForOne = tokenIn.address.toLowerCase() === token0.address.toLowerCase();
+    const poolKey = {
+      currency0: token0.address as Address,
+      currency1: token1.address as Address,
+      hooks: '0x0000000000000000000000000000000000000000' as Address,
+      poolManager: CL_POOL_MANAGER_ADDRESS as Address,
+      fee: quote.fee,
+      parameters: getParametersForFee(quote.fee as FeeAmount),
+    };
+
+    const planner = new ActionsPlanner();
+    planner.add(ACTIONS.CL_SWAP_EXACT_IN_SINGLE, [
+      {
+        poolKey,
+        zeroForOne,
+        amountIn: amountInWei,
+        amountOutMinimum: minAmountOut,
+        hookData: '0x' as `0x${string}`,
+      },
+    ]);
+    // Pay the input currency (pulled from the user via Permit2)...
+    planner.add(ACTIONS.SETTLE_ALL, [tokenIn.address as Address, amountInWei]);
+    // ...and receive the output currency (sent to the caller)
+    planner.add(ACTIONS.TAKE_ALL, [tokenOut.address as Address, minAmountOut]);
+
+    const commands = encodePacked(['bytes1'], [Commands.INFI_SWAP as `0x${string}`]);
+    const inputs = [planner.encode()];
+
+    // Execute swap through the Infinity Universal Router
     const result = await writeContract({
+      chainId: 121224,
       address: UNIVERSAL_ROUTER_ADDRESS as Address,
       abi: (await import('./abis/UniversalRouter.json')).default,
       functionName: 'execute',
       args: [commands, inputs, deadlineTimestamp],
     });
-    
+
     return result;
   } catch (error) {
     console.error('Error executing swap:', error);
@@ -392,46 +414,6 @@ export function validateSwapParams(
   }
   
   return { valid: true };
-}
-
-/**
- * Mock quote for development
- */
-function getMockQuote(
-  tokenIn: Token,
-  tokenOut: Token,
-  amountIn: string
-): SwapQuote {
-  // Simple mock exchange rates for development
-  const mockRates: Record<string, number> = {
-    'WFUMA-USDC': 0.1,
-    'WFUMA-USDT': 0.1,
-    'USDC-USDT': 1.0,
-    'USDT-USDC': 1.0,
-    'WFUMA-WETH': 0.00003,
-    'WETH-WFUMA': 33333,
-    'WFUMA-WBTC': 0.000002,
-    'WBTC-WFUMA': 500000,
-  };
-
-  const pairKey = `${tokenIn.symbol}-${tokenOut.symbol}`;
-  const reversePairKey = `${tokenOut.symbol}-${tokenIn.symbol}`;
-  
-  let rate = mockRates[pairKey] || (1 / (mockRates[reversePairKey] || 1));
-  
-  const inputNum = parseFloat(amountIn);
-  const outputNum = inputNum * rate * 0.997; // Apply 0.3% fee
-  
-  return {
-    inputAmount: amountIn,
-    outputAmount: outputNum.toFixed(6),
-    priceImpact: 0.1, // Mock 0.1% price impact
-    route: [tokenIn.symbol!, tokenOut.symbol!],
-    fee: 3000, // 0.3% fee in basis points
-    minimumOutput: (outputNum * 0.995).toFixed(6), // 0.5% slippage
-    executionPrice: (1 / rate).toFixed(8),
-    midPrice: (1 / rate).toFixed(8),
-  };
 }
 
 /**
