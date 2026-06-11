@@ -9,6 +9,7 @@ export function useTokenBalance(tokenAddress: Address | undefined) {
   const { address } = useAccount();
 
   const { data: balance, isLoading, refetch } = useReadContract({
+    chainId: 121224,
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
@@ -35,6 +36,7 @@ export function useTokenAllowance(
   const { address } = useAccount();
 
   const { data: allowance, isLoading, refetch } = useReadContract({
+    chainId: 121224,
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'allowance',

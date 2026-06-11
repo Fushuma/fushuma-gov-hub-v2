@@ -21,6 +21,7 @@ import { useBridgeAllowance } from '@/lib/bridge/hooks/useBridgeAllowance';
 import { useBridgeBalance } from '@/lib/bridge/hooks/useBridgeBalance';
 import { validateBridgeAmount, getDecimalAmount } from '@/lib/bridge/utils/bridgeHelpers';
 import { getMinGasAmount } from '@/lib/bridge/constants/bridgeConfig';
+import { isNativeTokenAddress, getTokensForRoute } from '@/lib/bridge/constants/bridgeTokens';
 
 export function BridgeForm() {
   const { address: account, chainId } = useAccount();
@@ -45,18 +46,31 @@ export function BridgeForm() {
   const tokenDecimals = fromNetwork && selectedToken
     ? selectedToken.decimals[fromNetwork.chainId]
     : 18;
+  const isNative = isNativeTokenAddress(tokenAddress);
 
-  // Get balance
-  const { balance, refetchBalance } = useBridgeBalance(
-    tokenAddress && tokenAddress ? (tokenAddress as `0x${string}`) : undefined,
-    tokenDecimals
+  // The selected token must be bridgeable on the selected route
+  const isTokenValidForRoute = Boolean(
+    fromNetwork &&
+    toNetwork &&
+    selectedToken &&
+    getTokensForRoute(fromNetwork.chainId, toNetwork.chainId).some(
+      (t) => t.key === selectedToken.key
+    )
   );
 
-  // Get allowance
+  // Get balance on the source chain
+  const { balance, refetchBalance } = useBridgeBalance(
+    tokenAddress ? (tokenAddress as `0x${string}`) : undefined,
+    tokenDecimals,
+    fromNetwork?.chainId
+  );
+
+  // Get allowance on the source chain (native coins skip approval)
   const { isApproved, approve, needsApproval } = useBridgeAllowance(
-    tokenAddress && tokenAddress ? (tokenAddress as `0x${string}`) : undefined,
+    tokenAddress ? (tokenAddress as `0x${string}`) : undefined,
     amount,
-    tokenDecimals
+    tokenDecimals,
+    fromNetwork?.chainId
   );
 
   // Validate form
@@ -65,6 +79,7 @@ export function BridgeForm() {
     fromNetwork &&
     toNetwork &&
     selectedToken &&
+    isTokenValidForRoute &&
     amount &&
     !error &&
     !isPending
@@ -111,14 +126,15 @@ export function BridgeForm() {
     if (!tokenAddr) return;
 
     const receiver = destinationAddress || account;
-    const isNativeToken = !tokenAddr || (tokenAddr as string) === '';
-    const value = isNativeToken ? getDecimalAmount(amount, tokenDecimals) : 0n;
+    // Native coins (the 0x...0001 marker) attach the amount as msg.value
+    const value = isNative ? getDecimalAmount(amount, tokenDecimals) : 0n;
 
     const result = await simpleSwap(
       receiver,
-      (tokenAddr as string) === '' ? '0x0000000000000000000000000000000000000000' : (tokenAddr as `0x${string}`),
+      tokenAddr as `0x${string}`,
       amount,
       tokenDecimals,
+      fromNetwork.chainId,
       toNetwork.chainId,
       value
     );
@@ -222,11 +238,21 @@ export function BridgeForm() {
         </div>
 
         {/* Warnings */}
+        {fromNetwork && toNetwork && selectedToken && !isTokenValidForRoute && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {selectedToken.symbol} cannot be bridged from {fromNetwork.name} to{' '}
+              {toNetwork.name}. Select another token or route.
+            </AlertDescription>
+          </Alert>
+        )}
         {fromNetwork && toNetwork && fromNetwork.chainId !== chainId && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Please switch to {fromNetwork.name} network to continue
+              Your wallet will be asked to switch to {fromNetwork.name} when you
+              approve or bridge
             </AlertDescription>
           </Alert>
         )}

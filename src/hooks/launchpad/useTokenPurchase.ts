@@ -13,6 +13,7 @@ export function useTokenPurchase() {
   const [isPending, setIsPending] = useState(false);
   const { writeContract, data: hash, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    chainId: 121224,
     hash,
   });
 
@@ -30,10 +31,11 @@ export function useTokenPurchase() {
 
     try {
       await writeContract({
+        chainId: 121224,
         address: LAUNCHPAD_PROXY_ADDRESS as `0x${string}`,
         abi: LaunchpadABI,
-        functionName: 'buy',
-        args: [icoId, amount],
+        functionName: 'buyToken',
+        args: [icoId, amount, address],
         value: isNativePayment ? paymentValue : 0n,
       });
     } catch (err) {

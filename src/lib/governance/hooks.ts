@@ -6,6 +6,7 @@ import { useReadContract, useReadContracts, useWriteContract, useWatchContractEv
 import { Address, formatUnits, parseUnits } from 'viem';
 import {
   GOVERNANCE_CONTRACTS,
+  GOVERNANCE_NETWORK,
   WFUMA_ADDRESS,
   VOTING_ESCROW_ADDRESS,
   EPOCH_MANAGER_ADDRESS,
@@ -33,6 +34,7 @@ import { ProposalState, VoteType } from './types';
  */
 export function useWFUMABalance(address?: Address) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: WFUMA_ADDRESS as Address,
     abi: WFUMAAbi,
     functionName: 'balanceOf',
@@ -48,6 +50,7 @@ export function useWFUMABalance(address?: Address) {
  */
 export function useWFUMAAllowance(owner?: Address) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: WFUMA_ADDRESS as Address,
     abi: WFUMAAbi,
     functionName: 'allowance',
@@ -74,6 +77,7 @@ export function useApproveWFUMA() {
  */
 export function useVeNFTBalance(address?: Address) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'balanceOf',
@@ -89,6 +93,7 @@ export function useVeNFTBalance(address?: Address) {
  */
 export function useVeNFTDetails(tokenId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'locked',
@@ -104,6 +109,7 @@ export function useVeNFTDetails(tokenId?: bigint) {
  */
 export function useVotingPower(tokenId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'votingPower',
@@ -123,6 +129,7 @@ export function useTotalVotingPower(address?: Address) {
 
   // Build contracts array to fetch voting power for each token
   const contracts = (tokenIds as bigint[] ?? []).map((tokenId: bigint) => ({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'votingPower' as const,
@@ -186,6 +193,7 @@ export function useCompleteExit() {
  */
 export function useInExitQueue(tokenId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'inExitQueue',
@@ -201,6 +209,7 @@ export function useInExitQueue(tokenId?: bigint) {
  */
 export function useExitQueueTime(tokenId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'exitQueueTime',
@@ -216,6 +225,7 @@ export function useExitQueueTime(tokenId?: bigint) {
  */
 export function useTokensOfOwner(owner?: Address) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'tokensOfOwner',
@@ -231,6 +241,7 @@ export function useTokensOfOwner(owner?: Address) {
  */
 export function useLockedBalance(tokenId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     functionName: 'getLockedBalance',
@@ -250,6 +261,7 @@ export function useLockedBalance(tokenId?: bigint) {
  */
 export function useCurrentEpoch() {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: EPOCH_MANAGER_ADDRESS as Address,
     abi: EpochManagerAbi,
     functionName: 'currentEpoch',
@@ -261,6 +273,7 @@ export function useCurrentEpoch() {
  */
 export function useEpochDetails(epochId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: EPOCH_MANAGER_ADDRESS as Address,
     abi: EpochManagerAbi,
     functionName: 'getEpoch',
@@ -276,6 +289,7 @@ export function useEpochDetails(epochId?: bigint) {
  */
 export function useEpochPhase() {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: EPOCH_MANAGER_ADDRESS as Address,
     abi: EpochManagerAbi,
     functionName: 'getCurrentPhase',
@@ -291,6 +305,7 @@ export function useEpochPhase() {
  */
 export function useProposal(proposalId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     functionName: 'getProposal',
@@ -306,6 +321,7 @@ export function useProposal(proposalId?: bigint) {
  */
 export function useProposalState(proposalId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     functionName: 'state',
@@ -321,6 +337,7 @@ export function useProposalState(proposalId?: bigint) {
  */
 export function useProposalVotes(proposalId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     functionName: 'proposalVotes',
@@ -336,6 +353,7 @@ export function useProposalVotes(proposalId?: bigint) {
  */
 export function useHasVoted(proposalId?: bigint, voter?: Address) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     functionName: 'hasVoted',
@@ -363,6 +381,7 @@ export function useProposalThreshold() {
  */
 export function useQuorum(blockNumber?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     functionName: 'quorum',
@@ -417,6 +436,7 @@ export function useCancelProposal() {
  */
 export function useIsCouncilMember(address?: Address) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GOVERNANCE_COUNCIL_ADDRESS as Address,
     abi: GovernanceCouncilAbi,
     functionName: 'isCouncilMember',
@@ -432,6 +452,7 @@ export function useIsCouncilMember(address?: Address) {
  */
 export function useRequiredApprovals() {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GOVERNANCE_COUNCIL_ADDRESS as Address,
     abi: GovernanceCouncilAbi,
     functionName: 'requiredApprovals',
@@ -443,6 +464,7 @@ export function useRequiredApprovals() {
  */
 export function useCouncilMembers() {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GOVERNANCE_COUNCIL_ADDRESS as Address,
     abi: GovernanceCouncilAbi,
     functionName: 'getCouncilMembers',
@@ -458,6 +480,7 @@ export function useCouncilMembers() {
  */
 export function useGaugeCount() {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GAUGE_CONTROLLER_ADDRESS as Address,
     abi: GaugeControllerAbi,
     functionName: 'gaugeCount',
@@ -469,6 +492,7 @@ export function useGaugeCount() {
  */
 export function useGaugeInfo(gaugeId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GAUGE_CONTROLLER_ADDRESS as Address,
     abi: GaugeControllerAbi,
     functionName: 'gauges',
@@ -484,6 +508,7 @@ export function useGaugeInfo(gaugeId?: bigint) {
  */
 export function useActiveGauges() {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GAUGE_CONTROLLER_ADDRESS as Address,
     abi: GaugeControllerAbi,
     functionName: 'getActiveGauges',
@@ -495,6 +520,7 @@ export function useActiveGauges() {
  */
 export function useGaugeWeight(gaugeId?: bigint) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GAUGE_CONTROLLER_ADDRESS as Address,
     abi: GaugeControllerAbi,
     functionName: 'getGaugeWeight',
@@ -510,6 +536,7 @@ export function useGaugeWeight(gaugeId?: bigint) {
  */
 export function useTotalGaugeWeight() {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GAUGE_CONTROLLER_ADDRESS as Address,
     abi: GaugeControllerAbi,
     functionName: 'getTotalWeight',
@@ -521,6 +548,7 @@ export function useTotalGaugeWeight() {
  */
 export function useUserGaugeVote(gaugeId?: bigint, user?: Address) {
   return useReadContract({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: GAUGE_CONTROLLER_ADDRESS as Address,
     abi: GaugeControllerAbi,
     functionName: 'getUserGaugeVote',
@@ -549,6 +577,7 @@ export function useWatchProposalCreated(
   onProposalCreated: (log: any) => void
 ) {
   useWatchContractEvent({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     eventName: 'ProposalCreated',
@@ -561,6 +590,7 @@ export function useWatchProposalCreated(
  */
 export function useWatchVoteCast(onVoteCast: (log: any) => void) {
   useWatchContractEvent({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     eventName: 'VoteCast',
@@ -573,6 +603,7 @@ export function useWatchVoteCast(onVoteCast: (log: any) => void) {
  */
 export function useWatchLockCreated(onLockCreated: (log: any) => void) {
   useWatchContractEvent({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: VOTING_ESCROW_ADDRESS as Address,
     abi: VotingEscrowAbi,
     eventName: 'LockCreated',
@@ -585,6 +616,7 @@ export function useWatchLockCreated(onLockCreated: (log: any) => void) {
  */
 export function useWatchEpochChanged(onEpochChanged: (log: any) => void) {
   useWatchContractEvent({
+    chainId: GOVERNANCE_NETWORK.chainId,
     address: EPOCH_MANAGER_ADDRESS as Address,
     abi: EpochManagerAbi,
     eventName: 'EpochStarted',

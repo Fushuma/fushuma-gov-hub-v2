@@ -21,6 +21,7 @@ export function useTokenApprove(
   } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    chainId: 121224,
     hash,
   });
 
@@ -33,6 +34,7 @@ export function useTokenApprove(
     }
 
     writeContract({
+      chainId: 121224,
       address: tokenAddress,
       abi: ERC20_ABI,
       functionName: 'approve',
@@ -49,6 +51,7 @@ export function useTokenApprove(
     }
 
     writeContract({
+      chainId: 121224,
       address: tokenAddress,
       abi: ERC20_ABI,
       functionName: 'approve',

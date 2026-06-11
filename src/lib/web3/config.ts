@@ -2,6 +2,7 @@ import { getDefaultConfig, connectorsForWallets } from '@rainbow-me/rainbowkit';
 import { metaMaskWallet, walletConnectWallet, coinbaseWallet, rainbowWallet, trustWallet, injectedWallet } from '@rainbow-me/rainbowkit/wallets';
 import { http, createConfig } from 'wagmi';
 import { defineChain } from 'viem';
+import { mainnet, bsc, polygon, arbitrum, base, unichain } from 'viem/chains';
 
 // Fushuma Network Chain Definition
 export const fushuma = defineChain({
@@ -56,14 +57,25 @@ const connectors = connectorsForWallets(
   }
 );
 
+// Fushuma first (the app's home chain); the other chains are bridge
+// source/destination networks, matching the production bridge app.
 export const wagmiConfig = createConfig({
   connectors,
-  chains: [fushuma],
+  chains: [fushuma, mainnet, bsc, polygon, arbitrum, base, unichain],
   transports: {
     [fushuma.id]: http(),
+    [mainnet.id]: http('https://ethereum.publicnode.com'),
+    [bsc.id]: http('https://bsc-dataseed.binance.org'),
+    [polygon.id]: http('https://polygon-rpc.com'),
+    [arbitrum.id]: http('https://arb1.arbitrum.io/rpc'),
+    [base.id]: http('https://mainnet.base.org'),
+    [unichain.id]: http('https://mainnet.unichain.org'),
   },
   // SSR is disabled since WalletProvider is dynamically imported with ssr: false
   // This prevents hydration mismatches with wallet detection
   ssr: false,
 });
+
+/** The app's home chain id - governance and FumaSwap live here. */
+export const FUSHUMA_CHAIN_ID = fushuma.id;
 

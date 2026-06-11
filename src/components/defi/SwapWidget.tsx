@@ -73,6 +73,7 @@ export function SwapWidget() {
   // The router pulls input tokens through Permit2, so two allowances
   // matter: ERC20 -> Permit2, and Permit2 -> router (with expiration)
   const { data: allowance, refetch: refetchErc20Allowance } = useReadContract({
+    chainId: 121224,
     address: tokenIn?.address as `0x${string}`,
     abi: [{
       name: 'allowance',
@@ -92,6 +93,7 @@ export function SwapWidget() {
   });
 
   const { data: permit2Allowance, refetch: refetchPermit2Allowance } = useReadContract({
+    chainId: 121224,
     address: PERMIT2_ADDRESS as `0x${string}`,
     abi: PERMIT2_ABI,
     functionName: 'allowance',
@@ -192,6 +194,7 @@ export function SwapWidget() {
       const erc20Allowance = allowance !== undefined ? BigInt(allowance.toString()) : 0n;
       if (erc20Allowance < amountInWei) {
         await approveToken({
+          chainId: 121224,
           address: tokenIn.address as `0x${string}`,
           abi: [{
             name: 'approve',
@@ -210,6 +213,7 @@ export function SwapWidget() {
 
       // Step 2: exact-amount, 30-day Permit2 allowance for the router
       await approveToken({
+        chainId: 121224,
         address: PERMIT2_ADDRESS as `0x${string}`,
         abi: PERMIT2_ABI,
         functionName: 'approve',

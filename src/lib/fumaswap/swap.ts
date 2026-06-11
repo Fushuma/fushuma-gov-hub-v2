@@ -361,6 +361,7 @@ export async function executeSwap(
 
     // Execute swap through the Infinity Universal Router
     const result = await writeContract({
+      chainId: 121224,
       address: UNIVERSAL_ROUTER_ADDRESS as Address,
       abi: (await import('./abis/UniversalRouter.json')).default,
       functionName: 'execute',

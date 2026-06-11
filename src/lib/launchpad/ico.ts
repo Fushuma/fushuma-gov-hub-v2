@@ -27,10 +27,24 @@ const launchpadContract = new ethers.Contract(
   provider
 );
 
+// Payment-token decimals are read from the token contract once and cached
+const paymentDecimalsCache = new Map<string, number>();
+
+async function getPaymentDecimals(paymentToken: string): Promise<number> {
+  const key = paymentToken.toLowerCase();
+  const cached = paymentDecimalsCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const { getTokenDecimals } = await import('./tokens');
+  const decimals = await getTokenDecimals(paymentToken);
+  paymentDecimalsCache.set(key, decimals);
+  return decimals;
+}
+
 /**
  * Map raw contract data to IIcoInfo structure
  */
-function mapEvmIcoToIIcoInfo(index: number, params: any, state: any): IIcoInfoWithKey {
+function mapEvmIcoToIIcoInfo(index: number, params: any, state: any, costDecimals: number): IIcoInfoWithKey {
   return {
     key: index.toString(),
     data: {
@@ -40,7 +54,7 @@ function mapEvmIcoToIIcoInfo(index: number, params: any, state: any): IIcoInfoWi
       icoDecimals: 10 ** Number(state.icoTokenDecimals),
       amount: Number(params.amount),
       costMint: params.paymentToken,
-      costDecimals: 10 ** 6, // USDT/USDC have 6 decimals
+      costDecimals: 10 ** costDecimals,
       startPrice: BigInt(params.startPrice),
       endPrice: BigInt(params.endPrice),
       startDate: Number(params.startDate) * 1000,
@@ -73,7 +87,8 @@ export async function fetchAllICOs(): Promise<IIcoInfoWithKey[]> {
     for (let i = 26; i < Number(total); i++) {
       const ico = await launchpadContract.getICO(i);
       const { 0: params, 1: state } = ico;
-      results.push(mapEvmIcoToIIcoInfo(i, params, state));
+      const costDecimals = await getPaymentDecimals(params.paymentToken);
+      results.push(mapEvmIcoToIIcoInfo(i, params, state, costDecimals));
     }
 
     return results;
@@ -90,7 +105,8 @@ export async function fetchICO(index: number): Promise<IIcoInfoWithKey | null> {
   try {
     const ico = await launchpadContract.getICO(index);
     const { 0: params, 1: state } = ico;
-    return mapEvmIcoToIIcoInfo(index, params, state);
+    const costDecimals = await getPaymentDecimals(params.paymentToken);
+    return mapEvmIcoToIIcoInfo(index, params, state, costDecimals);
   } catch (err) {
     console.error('Failed to fetch ICO:', err);
     return null;

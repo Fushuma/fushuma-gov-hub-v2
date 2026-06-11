@@ -15,7 +15,13 @@ import {
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { useBridgeStore } from '@/lib/bridge/stores/bridgeStore';
-import { getAllBridgeTokens, getTokensByChain, type BridgeToken } from '@/lib/bridge/constants/bridgeTokens';
+import {
+  getAllBridgeTokens,
+  getTokensByChain,
+  getTokensForRoute,
+  getTokenLabel,
+  type BridgeToken,
+} from '@/lib/bridge/constants/bridgeTokens';
 import { useBridgeBalance } from '@/lib/bridge/hooks/useBridgeBalance';
 import { cn } from '@/lib/utils';
 
@@ -26,13 +32,17 @@ interface TokenSelectorProps {
 export function TokenSelector({ disabled }: TokenSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const { selectedToken, fromNetwork, setSelectedToken } = useBridgeStore();
+  const { selectedToken, fromNetwork, toNetwork, setSelectedToken } = useBridgeStore();
 
-  // Get tokens available on the selected network
+  // Tokens must be bridgeable on the selected route (valid address on
+  // both the source and destination chains)
   const availableTokens = useMemo(() => {
-    if (!fromNetwork) return getAllBridgeTokens();
-    return getTokensByChain(fromNetwork.chainId);
-  }, [fromNetwork]);
+    if (fromNetwork && toNetwork) {
+      return getTokensForRoute(fromNetwork.chainId, toNetwork.chainId);
+    }
+    if (fromNetwork) return getTokensByChain(fromNetwork.chainId);
+    return getAllBridgeTokens();
+  }, [fromNetwork, toNetwork]);
 
   // Filter tokens by search
   const filteredTokens = useMemo(() => {
@@ -66,7 +76,7 @@ export function TokenSelector({ disabled }: TokenSelectorProps) {
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
                 <span className="text-xs font-semibold">{selectedToken.symbol.substring(0, 1)}</span>
               </div>
-              <span>{selectedToken.symbol}</span>
+              <span>{getTokenLabel(selectedToken)}</span>
             </div>
           ) : (
             <span className="text-muted-foreground">Select token</span>
@@ -93,9 +103,9 @@ export function TokenSelector({ disabled }: TokenSelectorProps) {
             ) : (
               filteredTokens.map((token) => (
                 <TokenItem
-                  key={token.symbol}
+                  key={token.key}
                   token={token}
-                  isSelected={selectedToken?.symbol === token.symbol}
+                  isSelected={selectedToken?.key === token.key}
                   onSelect={handleSelect}
                   chainId={fromNetwork?.chainId}
                 />
@@ -120,7 +130,8 @@ function TokenItem({ token, isSelected, onSelect, chainId }: TokenItemProps) {
   const tokenDecimals = chainId ? token.decimals[chainId] : 18;
   const { balance } = useBridgeBalance(
     tokenAddress && (tokenAddress as string) !== '' ? (tokenAddress as `0x${string}`) : undefined,
-    tokenDecimals
+    tokenDecimals,
+    chainId
   );
 
   return (
@@ -137,7 +148,7 @@ function TokenItem({ token, isSelected, onSelect, chainId }: TokenItemProps) {
           <span className="text-xs font-semibold">{token.symbol.substring(0, 1)}</span>
         </div>
         <div className="flex flex-col items-start">
-          <span className="font-medium">{token.symbol}</span>
+          <span className="font-medium">{getTokenLabel(token)}</span>
           <span className="text-xs text-muted-foreground">{token.name}</span>
         </div>
       </div>

@@ -183,3 +183,56 @@ The strategic picture: governance + grants + docs + news are in good shape and t
 architecture supports the roadmap — don't rewrite anything. Spend effort on the DeFi
 correctness gaps and the missing safety nets (CI, tests, auth hardening) before adding
 new features.
+
+---
+
+# Addendum (June 11, 2026): Bridge review & cross-repo validation
+
+## Bridge
+
+There are two bridges. The production bridge at **bridge.fushuma.com**
+(source: github.com/Fushuma/Bridge, Dev Grant #28) works and is in active use.
+The code under `src/lib/bridge` / `src/components/bridge` was an unfinished port
+of it. The port has been brought to parity with the production app's
+configuration and contract calls:
+
+- **Config now mirrors the live app**: same bridge contract
+  (`0x7304ac11…1462`, deterministically deployed on every supported chain),
+  same validator lambdas (3-of-4 signatures), and the real token list from the
+  live app's `tokenLists2.json` — per-source-chain wrapped variants
+  (USDT-via-Ethereum `0x1e11d176…` @6 decimals ≠ USDT-via-BSC `0x9d0FB7…`
+  @18 decimals), USDC (Base↔Fushuma), BNB, four ETH variants, POL, FUMA.
+- **Chain 130 is Unichain**, not Huobi ECO as the port previously claimed;
+  dead networks (Kovan, ETC, HECO mislabel, Callisto) removed.
+- **Claim fixed**: now uses the `bridge.json` ABI's 7-arg
+  `claim(originalToken, originalChainID, txId, to, value, fromChainId, sig[])`
+  with validator signatures passed as a `bytes[]` array (previously the wrong
+  6-arg ABI with signatures concatenated into one string - every claim would
+  have failed to encode).
+- **Native coin handling fixed**: the bridge marks native coins with the
+  `0x…0001` marker address (FUMA on Fushuma, ETH/BNB/POL elsewhere); deposits
+  attach `msg.value` and skip ERC20 approval.
+- **Multi-chain wallet support**: the wagmi config now includes Ethereum,
+  BSC, Polygon, Arbitrum, Base and Unichain. Bridge reads/writes are pinned to
+  the source chain (wagmi prompts a network switch on submit). All governance,
+  FumaSwap and launchpad reads/writes are pinned to Fushuma, and a global
+  banner offers a one-click switch back to Fushuma when the wallet is on
+  another chain (hidden on bridge routes).
+
+**Still required before calling the in-hub bridge production-ready:** a real
+end-to-end test (deposit + claim with small amounts) on mainnet routes, since
+the validator lambdas and live contracts cannot be exercised from CI.
+
+## Cross-repo validation (github.com/Fushuma)
+
+- **FumaSwap vs `fushuma-contracts`** — the rewritten swap path was validated
+  against the deployed contract source: INFI_SWAP command byte (0x10), all
+  action constants, `CLSwapExactInputSingleParams`/`PoolKey` struct layouts,
+  pool-ID hashing, `parameters` bit-packing, CLQuoter signature, Permit2
+  payment flow, and TAKE_ALL recipient semantics — **all match**.
+- **Launchpad vs `Fushuma-Launchpad` (Dev Grant #38)** — two
+  transaction-breaking bugs found and fixed: the hub called `buy` (a function
+  that does not exist in the Launchpad ABI; the contract exposes
+  `buyToken(id, amountToBuy, buyer)`) and omitted the `buyer` argument.
+  Payment-token decimals are now read from the token contract (cached) instead
+  of being hardcoded to 6, fixing pricing for native-FUMA-priced ICOs.

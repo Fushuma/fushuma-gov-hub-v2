@@ -1,15 +1,19 @@
 /**
  * Bridge Claim Hook
- * Handles claiming bridged tokens on destination chain
- * Converted from web3-react to wagmi
+ * Handles claiming bridged tokens on destination chain.
+ *
+ * Matches the production bridge app's claim call exactly:
+ * claim(originalToken, originalChainID, txId, to, value, fromChainId, sig[])
+ * using the bridge.json ABI, with validator signatures passed as a
+ * bytes[] array.
  */
 
 import { useCallback } from 'react';
 import { useAccount, useWriteContract, usePublicClient } from 'wagmi';
 import { toast } from 'sonner';
-import BridgeABI from '../abis/BridgeABI.json';
+import BridgeABI from '../abis/bridge.json';
 import { useBridgeStore } from '../stores/bridgeStore';
-import { getSignaturesForClaim, type SignatureResponse } from '../utils/bridgeSignatures';
+import { getSignaturesForClaim, REQUIRED_SIGNATURES, type SignatureResponse } from '../utils/bridgeSignatures';
 
 export function useBridgeClaim() {
   const { address: account, chainId } = useAccount();
@@ -37,7 +41,7 @@ export function useBridgeClaim() {
         // Get signatures from validators
         const { signatures, response } = await getSignaturesForClaim(txHash, fromChainId);
 
-        if (signatures.length < 3) {
+        if (signatures.length < REQUIRED_SIGNATURES) {
           toast.error('Insufficient signatures. Please try again later.', { id: 'claim-loading' });
           return null;
         }
@@ -48,7 +52,6 @@ export function useBridgeClaim() {
         }
 
         const claimData = response as Required<SignatureResponse>;
-        const combinedSignatures = signatures.join('');
 
         toast.loading('Submitting claim transaction...', { id: 'claim-loading' });
 
@@ -59,14 +62,13 @@ export function useBridgeClaim() {
           functionName: 'claim',
           args: [
             claimData.originalToken as `0x${string}`,
-            claimData.originalChainID,
+            BigInt(claimData.originalChainID),
             txHash as `0x${string}`,
             claimData.to as `0x${string}`,
             BigInt(claimData.value),
-            fromChainId,
-            combinedSignatures as `0x${string}`
+            BigInt(fromChainId),
+            signatures as `0x${string}`[]
           ],
-          value: 0n
         });
 
         // Wait for transaction receipt
@@ -81,7 +83,7 @@ export function useBridgeClaim() {
         return hash;
       } catch (error: any) {
         console.error('Simple claim error:', error);
-        
+
         if (error.message?.includes('User rejected')) {
           toast.error('Transaction rejected', { id: 'claim-loading' });
         } else if (error.message?.includes('already claimed')) {
@@ -89,7 +91,7 @@ export function useBridgeClaim() {
         } else {
           toast.error('Claim transaction failed', { id: 'claim-loading' });
         }
-        
+
         return null;
       } finally {
         setIsPending(false);
@@ -99,7 +101,7 @@ export function useBridgeClaim() {
   );
 
   /**
-   * Advanced claim - claim with contract call
+   * Advanced claim - claim with contract call on the destination chain
    */
   const advancedClaim = useCallback(
     async (
@@ -118,7 +120,7 @@ export function useBridgeClaim() {
         // Get signatures from validators
         const { signatures, response } = await getSignaturesForClaim(txHash, fromChainId);
 
-        if (signatures.length < 3) {
+        if (signatures.length < REQUIRED_SIGNATURES) {
           toast.error('Insufficient signatures. Please try again later.', { id: 'claim-loading' });
           return null;
         }
@@ -129,7 +131,6 @@ export function useBridgeClaim() {
         }
 
         const claimData = response as Required<SignatureResponse>;
-        const combinedSignatures = signatures.join('');
 
         toast.loading('Submitting advanced claim transaction...', { id: 'claim-loading' });
 
@@ -140,16 +141,15 @@ export function useBridgeClaim() {
           functionName: 'claimToContract',
           args: [
             claimData.originalToken as `0x${string}`,
-            claimData.originalChainID,
+            BigInt(claimData.originalChainID),
             txHash as `0x${string}`,
             claimData.to as `0x${string}`,
             BigInt(claimData.value),
-            fromChainId,
+            BigInt(fromChainId),
             claimData.toContract as `0x${string}`,
             claimData.data as `0x${string}`,
-            combinedSignatures as `0x${string}`
+            signatures as `0x${string}`[]
           ],
-          value: 0n
         });
 
         // Wait for transaction receipt
@@ -164,7 +164,7 @@ export function useBridgeClaim() {
         return hash;
       } catch (error: any) {
         console.error('Advanced claim error:', error);
-        
+
         if (error.message?.includes('User rejected')) {
           toast.error('Transaction rejected', { id: 'claim-loading' });
         } else if (error.message?.includes('already claimed')) {
@@ -172,7 +172,7 @@ export function useBridgeClaim() {
         } else {
           toast.error('Claim transaction failed', { id: 'claim-loading' });
         }
-        
+
         return null;
       } finally {
         setIsPending(false);

@@ -148,7 +148,7 @@ function parseProposalDescription(description: string): { title: string; body: s
  * Hook to fetch all governance proposals
  */
 export function useGovernanceProposals() {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 121224 });
   const [proposals, setProposals] = useState<GovernanceProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -249,7 +249,7 @@ export function useGovernanceProposals() {
  * Hook to fetch a single proposal by ID
  */
 export function useGovernanceProposal(proposalId: bigint | undefined) {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 121224 });
   const [proposal, setProposal] = useState<GovernanceProposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
