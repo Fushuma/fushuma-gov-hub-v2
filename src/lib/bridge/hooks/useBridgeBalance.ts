@@ -52,23 +52,3 @@ export function useBridgeBalance(
     isLoading: false
   };
 }
-
-/**
- * Hook to get balances for multiple tokens
- */
-export function useBridgeBalances(
-  tokens: Array<{ address: `0x${string}` | undefined; decimals: number }>
-) {
-  const { address: account } = useAccount();
-
-  const balances = tokens.map((token) => {
-    const { balance, balanceRaw } = useBridgeBalance(token.address, token.decimals);
-    return {
-      address: token.address,
-      balance,
-      balanceRaw
-    };
-  });
-
-  return balances;
-}

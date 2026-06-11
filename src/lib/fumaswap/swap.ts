@@ -417,7 +417,7 @@ function getMockQuote(
   const pairKey = `${tokenIn.symbol}-${tokenOut.symbol}`;
   const reversePairKey = `${tokenOut.symbol}-${tokenIn.symbol}`;
   
-  let rate = mockRates[pairKey] || (1 / (mockRates[reversePairKey] || 1));
+  const rate = mockRates[pairKey] || (1 / (mockRates[reversePairKey] || 1));
   
   const inputNum = parseFloat(amountIn);
   const outputNum = inputNum * rate * 0.997; // Apply 0.3% fee

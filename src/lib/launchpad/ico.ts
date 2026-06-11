@@ -188,7 +188,7 @@ export function calculateCurrentPrice(
  * Find closest block by timestamp (binary search)
  */
 async function findClosestBlockByTimestamp(targetTimestamp: number): Promise<number> {
-  let latestBlockNumber = await provider.getBlockNumber();
+  const latestBlockNumber = await provider.getBlockNumber();
   let earliest = 0;
   let latest = latestBlockNumber;
 

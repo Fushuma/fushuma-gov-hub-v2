@@ -3,6 +3,9 @@ node_modules
 .pnp
 .pnp.js
 
+# npm lockfile - this project uses pnpm (see packageManager in package.json)
+package-lock.json
+
 # Testing
 coverage
 *.log

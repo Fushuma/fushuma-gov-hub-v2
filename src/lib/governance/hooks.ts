@@ -350,11 +350,12 @@ export function useHasVoted(proposalId?: bigint, voter?: Address) {
  * Get proposal threshold
  */
 export function useProposalThreshold() {
-  return useReadContract({
+  const result = useReadContract({
     address: FUSHUMA_GOVERNOR_ADDRESS as Address,
     abi: FushumaGovernorAbi,
     functionName: 'proposalThreshold',
   });
+  return { ...result, data: result.data as bigint | undefined };
 }
 
 /**
