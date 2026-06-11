@@ -46,7 +46,7 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
 
       try {
         setIsCalculating(true);
-        const amountBigInt = parseUnits(amount, Math.log10(ico.icoDecimals));
+        const amountBigInt = parseUnits(amount, Math.round(Math.log10(ico.icoDecimals)));
         const result = await getEvmCostInfo(ico.seed, amountBigInt);
         setCost(result);
       } catch (error) {
@@ -114,7 +114,7 @@ export function BuyTokensCard({ ico, status, currentPrice, onPurchaseSuccess }: 
 
     setIsPurchasing(true);
     try {
-      const amountBigInt = parseUnits(amount, Math.log10(ico.icoDecimals));
+      const amountBigInt = parseUnits(amount, Math.round(Math.log10(ico.icoDecimals)));
 
       buyTokens({
         chainId: 121224,

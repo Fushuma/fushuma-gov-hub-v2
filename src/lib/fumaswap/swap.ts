@@ -26,6 +26,12 @@ export interface SwapParams {
   amountIn: string;
   slippageTolerance: number; // in percentage (e.g., 0.5 for 0.5%)
   deadline: number; // in minutes
+  /**
+   * NOTE: output always goes to the transaction sender (the router's
+   * TAKE_ALL action pays msgSender). A custom recipient is not supported
+   * by the current action plan; this field exists for future use and
+   * must equal the connected wallet address.
+   */
   recipient: Address;
 }
 

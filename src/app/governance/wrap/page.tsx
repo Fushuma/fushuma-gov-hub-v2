@@ -24,12 +24,14 @@ export default function WrapPage() {
   // Get FUMA balance (native token)
   const { data: fumaBalance } = useBalance({
     address: address,
+    chainId: 121224,
   });
 
   // Get WFUMA balance
   const { data: wfumaBalance } = useBalance({
     address: address,
     token: WFUMA_ADDRESS,
+    chainId: 121224,
   });
 
   // Wrap (deposit) transaction

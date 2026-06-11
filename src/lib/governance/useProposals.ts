@@ -78,9 +78,33 @@ const PROPOSAL_CREATED_EVENT = parseAbiItem(
   'event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)'
 );
 
+// The chunked scan below issues hundreds of sequential getLogs calls,
+// so the result (and any in-flight scan) is shared between the list and
+// detail hooks and cached for a few minutes.
+type ProposalLogs = Awaited<ReturnType<typeof scanProposalCreatedLogs>>;
+const LOGS_CACHE_TTL_MS = 5 * 60 * 1000;
+let logsCache: { promise: Promise<ProposalLogs>; fetchedAt: number } | null = null;
+
+function fetchProposalCreatedLogs(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
+  forceRefresh = false
+): Promise<ProposalLogs> {
+  const now = Date.now();
+  if (!forceRefresh && logsCache && now - logsCache.fetchedAt < LOGS_CACHE_TTL_MS) {
+    return logsCache.promise;
+  }
+  const promise = scanProposalCreatedLogs(publicClient).catch((error) => {
+    // Don't cache failures
+    logsCache = null;
+    throw error;
+  });
+  logsCache = { promise, fetchedAt: now };
+  return promise;
+}
+
 // Fetch ProposalCreated events in batches of 1000 blocks (RPC limit),
 // scanning roughly the last 90 days (12s blocks)
-async function fetchProposalCreatedLogs(
+async function scanProposalCreatedLogs(
   publicClient: NonNullable<ReturnType<typeof usePublicClient>>
 ) {
   const currentBlock = await publicClient.getBlockNumber();
@@ -153,7 +177,7 @@ export function useGovernanceProposals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchProposals = useCallback(async () => {
+  const fetchProposals = useCallback(async (forceRefresh = false) => {
     if (!publicClient) {
       setLoading(false);
       return;
@@ -163,7 +187,7 @@ export function useGovernanceProposals() {
       setLoading(true);
       setError(null);
 
-      const logs = await fetchProposalCreatedLogs(publicClient);
+      const logs = await fetchProposalCreatedLogs(publicClient, forceRefresh);
 
       const fetchedProposals: GovernanceProposal[] = [];
 
@@ -237,11 +261,14 @@ export function useGovernanceProposals() {
     fetchProposals();
   }, [fetchProposals]);
 
+  // Manual refresh bypasses the shared log cache
+  const refetch = useCallback(() => fetchProposals(true), [fetchProposals]);
+
   return {
     proposals,
     loading,
     error,
-    refetch: fetchProposals,
+    refetch,
   };
 }
 
