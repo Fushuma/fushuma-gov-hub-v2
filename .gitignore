@@ -88,3 +88,7 @@ credentials/
 *.bak
 *.tmp
 
+# Migration snapshot output (generated; can be large)
+snapshot-out/
+snapshot-out-*/
+
