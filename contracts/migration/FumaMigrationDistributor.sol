@@ -28,8 +28,12 @@ pragma solidity ^0.8.20;
  *          marked claimed before any transfer.
  *        - ERC-20 transfers tolerate non-standard tokens (e.g. USDT) that do
  *          not return a bool.
- *        - Unclaimed funds can only be swept after an owner-set deadline, so
- *          the owner cannot rug an active claim window.
+ *        - Unclaimed funds can only be swept after a claim deadline that (a)
+ *          must be at least `minClaimWindow` in the future when set, (b) can
+ *          only ever be extended, never shortened, and (c) can be finalized
+ *          (locked) — so once finalized the owner cannot rug an active claim
+ *          window. Assets migrated here must be standard (no fee-on-transfer /
+ *          rebasing) tokens; fund each pool with at least its `tokenTotal`.
  */
 contract FumaMigrationDistributor {
     /// @dev Sentinel asset id for native FUMA on the new chain.
@@ -46,6 +50,10 @@ contract FumaMigrationDistributor {
 
     /// @notice Unix time after which the owner may sweep unclaimed funds. 0 = never.
     uint256 public claimDeadline;
+    /// @notice Once true, `claimDeadline` is permanently locked.
+    bool public deadlineFinalized;
+    /// @notice Minimum distance into the future a newly-set deadline must be.
+    uint256 public immutable minClaimWindow;
 
     uint256 private _locked = 1;
 
@@ -53,6 +61,7 @@ contract FumaMigrationDistributor {
     event RootSet(address indexed asset, bytes32 root);
     event RootFinalized(address indexed asset, bytes32 root);
     event ClaimDeadlineSet(uint256 deadline);
+    event ClaimDeadlineFinalized(uint256 deadline);
     event Claimed(address indexed asset, address indexed account, uint256 amount);
     event Swept(address indexed asset, address indexed to, uint256 amount);
 
@@ -67,7 +76,9 @@ contract FumaMigrationDistributor {
     error TokenTransferFailed();
     error DeadlineNotSet();
     error DeadlineNotReached();
-    error DeadlineInPast();
+    error DeadlineFinalized();
+    error DeadlineWindowTooShort();
+    error DeadlineCannotShorten();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -81,9 +92,16 @@ contract FumaMigrationDistributor {
         _locked = 1;
     }
 
-    constructor(address initialOwner) {
+    /**
+     * @param initialOwner   Owner (a multisig is recommended).
+     * @param minClaimWindow_ Minimum seconds a newly-set claim deadline must be
+     *                        in the future (e.g. 30 days). Immutable; picked at
+     *                        deploy so holders can verify the guaranteed window.
+     */
+    constructor(address initialOwner, uint256 minClaimWindow_) {
         if (initialOwner == address(0)) revert ZeroAddress();
         owner = initialOwner;
+        minClaimWindow = minClaimWindow_;
         emit OwnershipTransferred(address(0), initialOwner);
     }
 
@@ -119,11 +137,27 @@ contract FumaMigrationDistributor {
         emit RootFinalized(asset, merkleRoot[asset]);
     }
 
-    /// @notice Set the time after which unclaimed funds may be swept.
+    /**
+     * @notice Set the time after which unclaimed funds may be swept. The
+     *         deadline can only be pushed further out, never pulled in, must be
+     *         at least `minClaimWindow` in the future, and cannot be changed
+     *         once finalized. This makes the claim window credible: the owner
+     *         cannot shorten it to rug an active window.
+     */
     function setClaimDeadline(uint256 deadline) external onlyOwner {
-        if (deadline != 0 && deadline <= block.timestamp) revert DeadlineInPast();
+        if (deadlineFinalized) revert DeadlineFinalized();
+        if (deadline != 0 && deadline < block.timestamp + minClaimWindow) revert DeadlineWindowTooShort();
+        // Extend-only: cannot pull the deadline in (and cannot reset to 0).
+        if (claimDeadline != 0 && deadline < claimDeadline) revert DeadlineCannotShorten();
         claimDeadline = deadline;
         emit ClaimDeadlineSet(deadline);
+    }
+
+    /// @notice Permanently lock the claim deadline so it can never change again.
+    function finalizeClaimDeadline() external onlyOwner {
+        if (claimDeadline == 0) revert DeadlineNotSet();
+        deadlineFinalized = true;
+        emit ClaimDeadlineFinalized(claimDeadline);
     }
 
     // --------------------------------------------------------------------- //

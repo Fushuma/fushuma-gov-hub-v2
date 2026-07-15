@@ -95,6 +95,10 @@ export interface SnapshotManifest {
   params: {
     minBalanceWei: string;
     includeContracts: boolean;
+    /** Whether balances were re-read at `block` over RPC (vs explorer-current). */
+    pinnedAtBlock: boolean;
+    /** How ERC-20 holders were enumerated. */
+    tokenHolderSource: "explorer" | "logs";
     excludedAddresses: Address[];
   };
   assets: Array<{
@@ -105,5 +109,12 @@ export interface SnapshotManifest {
     merkleRoot: Hex;
     numClaims: number;
     tokenTotal: string;
+  }>;
+  /** Per-asset summary of everything left out of the airdrop (never silent). */
+  excluded: Array<{
+    symbol: string;
+    excludedCount: number;
+    totalExcluded: string;
+    byReason: Record<string, { count: number; total: string }>;
   }>;
 }

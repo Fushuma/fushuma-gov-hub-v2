@@ -1,7 +1,13 @@
 /**
  * Pure snapshot-building logic: raw per-asset balances -> normalized balances,
- * Merkle claim bundles, and a manifest. No network or filesystem access here,
- * so it is fully unit-testable offline.
+ * Merkle claim bundles, an excluded-balances report, and a manifest. No network
+ * or filesystem access here, so it is fully unit-testable offline.
+ *
+ * Nothing is dropped silently: every address removed from the airdrop (burn
+ * address, system/protocol contract, other contract, or dust) is recorded in
+ * the excluded report with a reason and its balance, so the migration team can
+ * see exactly what was left out (e.g. FUMA locked in VotingEscrow / veFUMA, or
+ * LP funds in the pool managers) and attribute it deliberately.
  */
 
 import { getAddress } from "viem";
@@ -16,37 +22,59 @@ import type {
   SnapshotManifest,
 } from "./types";
 import { buildMerkle, LEAF_ENCODING, type MerkleEntry } from "./merkle";
-import type { SnapshotConfig } from "./config";
+import { BURN_ADDRESSES, SYSTEM_CONTRACTS, type SnapshotConfig } from "./config";
+
+export type ExclusionReason = "burn" | "system-contract" | "contract" | "dust";
+
+export interface ExcludedEntry {
+  address: Address;
+  balance: string;
+  reason: ExclusionReason;
+  /** For system contracts, the human name (e.g. "VotingEscrow"). */
+  label?: string;
+}
+
+export interface AssetExcludedJSON {
+  asset: AssetSpec;
+  chainId: number;
+  block: string;
+  count: number;
+  totalExcluded: string;
+  byReason: Record<string, { count: number; total: string }>;
+  entries: ExcludedEntry[];
+}
+
+const burnSet = new Set(BURN_ADDRESSES.map((a) => a.toLowerCase()));
+const systemNameByAddress = new Map<string, string>(
+  Object.entries(SYSTEM_CONTRACTS).map(([name, addr]) => [addr.toLowerCase(), name]),
+);
+
+export interface PartitionResult {
+  kept: BalanceEntry[];
+  excluded: ExcludedEntry[];
+}
 
 /**
- * Aggregate raw balance rows into a clean, deduplicated set:
- *  - sum duplicate addresses,
- *  - checksum addresses,
- *  - drop excluded addresses,
- *  - drop contracts unless includeContracts,
- *  - drop balances below minBalanceWei.
- *
- * Returns entries sorted by descending balance (stable, deterministic).
+ * Split raw balance rows into kept (airdropped) and excluded, aggregating
+ * duplicate addresses and checksumming. Kept entries are sorted by descending
+ * balance; excluded entries by descending balance too.
  */
-export function normalizeBalances(
+export function partitionBalances(
   raw: BalanceEntry[],
   cfg: Pick<SnapshotConfig, "minBalanceWei" | "includeContracts" | "excludedAddresses">,
-): BalanceEntry[] {
+): PartitionResult {
   const merged = new Map<string, BalanceEntry>();
-
   for (const row of raw) {
     let account: Address;
     try {
       account = getAddress(row.address);
     } catch {
-      // Skip malformed addresses rather than poison the whole run.
-      continue;
+      continue; // skip malformed addresses
     }
     const key = account.toLowerCase();
     const prev = merged.get(key);
     if (prev) {
       prev.balance += row.balance;
-      // Any source marking it a contract wins.
       prev.isContract = prev.isContract || row.isContract;
     } else {
       merged.set(key, { address: account, balance: row.balance, isContract: row.isContract });
@@ -57,21 +85,56 @@ export function normalizeBalances(
     Array.from(cfg.excludedAddresses).map((a) => a.toLowerCase()),
   );
 
-  const out: BalanceEntry[] = [];
+  const kept: BalanceEntry[] = [];
+  const excluded: ExcludedEntry[] = [];
+
   for (const entry of merged.values()) {
-    if (excludedLower.has(entry.address.toLowerCase())) continue;
-    if (!cfg.includeContracts && entry.isContract) continue;
-    if (entry.balance < cfg.minBalanceWei) continue;
-    out.push(entry);
+    const lower = entry.address.toLowerCase();
+    if (excludedLower.has(lower)) {
+      const label = systemNameByAddress.get(lower);
+      excluded.push({
+        address: entry.address,
+        balance: entry.balance.toString(),
+        reason: burnSet.has(lower) ? "burn" : "system-contract",
+        ...(label ? { label } : {}),
+      });
+      continue;
+    }
+    if (!cfg.includeContracts && entry.isContract) {
+      excluded.push({ address: entry.address, balance: entry.balance.toString(), reason: "contract" });
+      continue;
+    }
+    if (entry.balance < cfg.minBalanceWei) {
+      excluded.push({ address: entry.address, balance: entry.balance.toString(), reason: "dust" });
+      continue;
+    }
+    kept.push(entry);
   }
 
-  out.sort((a, b) => {
-    if (a.balance === b.balance) {
-      return a.address.toLowerCase() < b.address.toLowerCase() ? -1 : 1;
-    }
+  const byBalanceDesc = (a: { balance: bigint | string }, b: { balance: bigint | string }) => {
+    const ab = BigInt(a.balance);
+    const bb = BigInt(b.balance);
+    return ab === bb ? 0 : ab > bb ? -1 : 1;
+  };
+  kept.sort((a, b) => {
+    if (a.balance === b.balance) return a.address.toLowerCase() < b.address.toLowerCase() ? -1 : 1;
     return a.balance > b.balance ? -1 : 1;
   });
-  return out;
+  excluded.sort(byBalanceDesc);
+
+  return { kept, excluded };
+}
+
+/**
+ * Aggregate raw balance rows into a clean, deduplicated, airdrop-eligible set.
+ * Thin wrapper over partitionBalances kept for callers that only want the kept
+ * entries.
+ */
+export function normalizeBalances(
+  raw: BalanceEntry[],
+  cfg: Pick<SnapshotConfig, "minBalanceWei" | "includeContracts" | "excludedAddresses">,
+): BalanceEntry[] {
+  return partitionBalances(raw, cfg).kept;
 }
 
 /** Serialize a normalized balance set to the on-disk JSON shape. */
@@ -93,6 +156,33 @@ export function serializeBalances(
       balance: e.balance.toString(),
       ...(e.isContract ? { isContract: true } : {}),
     })),
+  };
+}
+
+/** Serialize the excluded set for an asset, summarized by reason. */
+export function serializeExcluded(
+  asset: AssetSpec,
+  chainId: number,
+  block: string,
+  excluded: ExcludedEntry[],
+): AssetExcludedJSON {
+  const byReason: Record<string, { count: number; total: string }> = {};
+  let total = 0n;
+  for (const e of excluded) {
+    total += BigInt(e.balance);
+    const r = byReason[e.reason] ?? { count: 0, total: "0" };
+    r.count += 1;
+    r.total = (BigInt(r.total) + BigInt(e.balance)).toString();
+    byReason[e.reason] = r;
+  }
+  return {
+    asset,
+    chainId,
+    block,
+    count: excluded.length,
+    totalExcluded: total.toString(),
+    byReason,
+    entries: excluded,
   };
 }
 
@@ -136,6 +226,7 @@ export function buildClaimBundle(
 export interface BuiltAsset {
   balances: AssetBalancesJSON;
   bundle: AssetClaimBundle | null;
+  excluded: AssetExcludedJSON;
 }
 
 export interface BuiltSnapshot {
@@ -145,8 +236,8 @@ export interface BuiltSnapshot {
 
 /**
  * Turn a collection of raw per-asset balances into a full snapshot: normalized
- * balances + claim bundles + manifest. `generatedAt` is passed in by callers
- * (scripts) because timestamps are impure.
+ * balances + claim bundles + excluded report + manifest. `generatedAt` is
+ * passed in by callers (scripts) because timestamps are impure.
  */
 export function buildSnapshot(
   rawByAsset: AssetBalances[],
@@ -155,12 +246,14 @@ export function buildSnapshot(
 ): BuiltSnapshot {
   const builtAssets: BuiltAsset[] = [];
   const manifestAssets: SnapshotManifest["assets"] = [];
+  const manifestExcluded: SnapshotManifest["excluded"] = [];
 
   for (const raw of rawByAsset) {
-    const normalized = normalizeBalances(raw.entries, cfg);
-    const balances = serializeBalances(raw.asset, raw.chainId, raw.block, normalized);
-    const bundle = buildClaimBundle(raw.asset, raw.chainId, raw.block, normalized);
-    builtAssets.push({ balances, bundle });
+    const { kept, excluded } = partitionBalances(raw.entries, cfg);
+    const balances = serializeBalances(raw.asset, raw.chainId, raw.block, kept);
+    const excludedJson = serializeExcluded(raw.asset, raw.chainId, raw.block, excluded);
+    const bundle = buildClaimBundle(raw.asset, raw.chainId, raw.block, kept);
+    builtAssets.push({ balances, bundle, excluded: excludedJson });
 
     if (bundle) {
       manifestAssets.push({
@@ -173,6 +266,14 @@ export function buildSnapshot(
         tokenTotal: bundle.tokenTotal,
       });
     }
+    if (excluded.length > 0) {
+      manifestExcluded.push({
+        symbol: raw.asset.symbol,
+        excludedCount: excludedJson.count,
+        totalExcluded: excludedJson.totalExcluded,
+        byReason: excludedJson.byReason,
+      });
+    }
   }
 
   const manifest: SnapshotManifest = {
@@ -182,9 +283,12 @@ export function buildSnapshot(
     params: {
       minBalanceWei: cfg.minBalanceWei.toString(),
       includeContracts: cfg.includeContracts,
+      pinnedAtBlock: cfg.pinBalancesAtBlock,
+      tokenHolderSource: cfg.tokenHolderSource,
       excludedAddresses: Array.from(cfg.excludedAddresses),
     },
     assets: manifestAssets,
+    excluded: manifestExcluded,
   };
 
   return { manifest, assets: builtAssets };

@@ -75,6 +75,11 @@ async function fetchJsonWithRetry<T>(
   for (let attempt = 0; attempt <= cfg.maxRetries; attempt++) {
     try {
       const res = await fetchImpl(url, { headers });
+      // Permanent client errors (bad address, not found, forbidden) must fail
+      // fast — retrying wastes the full backoff schedule. 429 is transient.
+      if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+        throw new Error(`explorer HTTP ${res.status} (non-retryable): ${(await res.text()).slice(0, 200)}`);
+      }
       if (res.status === 429 || res.status >= 500) {
         throw new Error(`explorer HTTP ${res.status}`);
       }
@@ -84,6 +89,7 @@ async function fetchJsonWithRetry<T>(
       return (await res.json()) as T;
     } catch (err) {
       lastErr = err;
+      if (err instanceof Error && err.message.includes("non-retryable")) throw err;
       if (attempt < cfg.maxRetries) {
         await sleep(Math.min(1000 * 2 ** attempt, 16000));
       }

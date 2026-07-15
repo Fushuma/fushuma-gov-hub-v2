@@ -2,12 +2,14 @@ import { describe, it, expect } from "vitest";
 import { getAddress } from "viem";
 import {
   normalizeBalances,
+  partitionBalances,
   serializeBalances,
+  serializeExcluded,
   buildClaimBundle,
   buildSnapshot,
 } from "./build";
 import { verifyClaimBundle } from "./verify";
-import { loadConfig } from "./config";
+import { loadConfig, SYSTEM_CONTRACTS } from "./config";
 import type { AssetBalances, AssetSpec, BalanceEntry } from "./types";
 import { NATIVE_SENTINEL } from "./types";
 
@@ -78,6 +80,54 @@ describe("normalizeBalances", () => {
     ];
     const out = normalizeBalances(raw, cfgBase);
     expect(out.map((e) => e.address)).toEqual([addr(9)]);
+  });
+});
+
+describe("partitionBalances (excluded report)", () => {
+  it("always excludes system/protocol contracts, even with includeContracts", () => {
+    const veFUMA = SYSTEM_CONTRACTS.VotingEscrow;
+    const raw: BalanceEntry[] = [
+      { address: veFUMA, balance: 50_000n * 10n ** 18n }, // user FUMA locked in veFUMA
+      { address: addr(7), balance: 100n },
+    ];
+    const cfg = loadConfig({ includeContracts: true, minBalanceWei: 1n });
+    const { kept, excluded } = partitionBalances(raw, cfg);
+    expect(kept.map((e) => e.address)).toEqual([addr(7)]);
+    const ve = excluded.find((e) => e.address.toLowerCase() === veFUMA.toLowerCase())!;
+    expect(ve.reason).toBe("system-contract");
+    expect(ve.label).toBe("VotingEscrow");
+    expect(ve.balance).toBe((50_000n * 10n ** 18n).toString());
+  });
+
+  it("classifies burn, contract, and dust exclusions with reasons", () => {
+    const cfg = loadConfig({ includeContracts: false, minBalanceWei: 10n });
+    const raw: BalanceEntry[] = [
+      { address: "0x000000000000000000000000000000000000dEaD", balance: 999n },
+      { address: addr(2), balance: 100n, isContract: true },
+      { address: addr(3), balance: 5n }, // dust
+      { address: addr(4), balance: 100n }, // kept
+    ];
+    const { kept, excluded } = partitionBalances(raw, cfg);
+    expect(kept.map((e) => e.address)).toEqual([addr(4)]);
+    const reasons = Object.fromEntries(excluded.map((e) => [e.address.toLowerCase(), e.reason]));
+    expect(reasons["0x000000000000000000000000000000000000dead"]).toBe("burn");
+    expect(reasons[addr(2).toLowerCase()]).toBe("contract");
+    expect(reasons[addr(3).toLowerCase()]).toBe("dust");
+  });
+
+  it("serializeExcluded summarizes totals by reason", () => {
+    const cfg = loadConfig({ includeContracts: false, minBalanceWei: 10n });
+    const raw: BalanceEntry[] = [
+      { address: addr(2), balance: 100n, isContract: true },
+      { address: addr(5), balance: 200n, isContract: true },
+      { address: addr(3), balance: 5n },
+    ];
+    const { excluded } = partitionBalances(raw, cfg);
+    const s = serializeExcluded(NATIVE, 121224, "1", excluded);
+    expect(s.count).toBe(3);
+    expect(s.totalExcluded).toBe("305");
+    expect(s.byReason.contract).toEqual({ count: 2, total: "300" });
+    expect(s.byReason.dust).toEqual({ count: 1, total: "5" });
   });
 });
 
