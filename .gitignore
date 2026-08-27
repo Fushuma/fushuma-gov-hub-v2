@@ -88,3 +88,6 @@ credentials/
 *.bak
 *.tmp
 
+
+# Hard-fork snapshot exports (large; publish hashes, not files)
+snapshots/

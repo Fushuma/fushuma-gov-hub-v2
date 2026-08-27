@@ -98,6 +98,12 @@ pnpm lint         # Run ESLint
 pnpm type-check   # Run TypeScript type checking
 pnpm db:push      # Push database schema changes
 pnpm db:studio    # Open Drizzle Studio (database GUI)
+
+# Hard-fork network snapshot (see docs/HARDFORK_SNAPSHOT_RUNBOOK.md)
+pnpm snapshot:preflight   # Check whether a node can produce a snapshot
+pnpm snapshot             # Export network state at a frozen block
+pnpm snapshot:verify      # Independently re-verify a produced snapshot
+pnpm snapshot:genesis     # Build a genesis alloc (re-launch forks only)
 ```
 
 ## 🔗 Deployed Smart Contracts
@@ -224,6 +230,7 @@ pm2 startup
 - **[SECURITY.md](./SECURITY.md)** - Security best practices
 - **[SETUP-SUMMARY.md](./docs/SETUP-SUMMARY.md)** - Quick setup guide
 - **[SMART_CONTRACT_DEPLOYMENT.md](./docs/SMART_CONTRACT_DEPLOYMENT.md)** - Smart contract deployment info
+- **[HARDFORK_SNAPSHOT_RUNBOOK.md](./docs/HARDFORK_SNAPSHOT_RUNBOOK.md)** - Freezing, exporting and verifying network state for a hard fork
 - **[.env.example](./.env.example)** - Environment variable template
 
 ## 🤝 Contributing
