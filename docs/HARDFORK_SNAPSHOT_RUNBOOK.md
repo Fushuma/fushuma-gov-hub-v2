@@ -148,6 +148,9 @@ protocol/ve-locks.ndjson      every veNFT lock, owner and voting power
 protocol/proposals.ndjson     proposals with tallies and state
 protocol/grants.ndjson        grants, including unclaimed amounts
 protocol/launchpad-icos.ndjson ICOs and their vesting contracts
+bridge/config.json            authorities, threshold, token backing, supported chains
+bridge/processed-claims.ndjson every (fromChainId, txId) already claimed
+bridge/outbound-deposits.ndjson transfers that left Fushuma
 manifest.json                 SHA-256 of every file + one snapshot hash
 ```
 
@@ -251,6 +254,89 @@ Before launching, fill in the fork activation blocks in the template and review
 
 ---
 
+## 7b. The bridge — the part that can lose real money
+
+The bridge is deployed at **one address on seven chains**: Fushuma plus
+Ethereum, BSC, Polygon, Arbitrum, Unichain and Base. **The six foreign
+deployments do not fork with you.** They keep running, still believing in chain
+121224, still holding the token pairs and authority set they were configured
+with. Everything below follows from that.
+
+### Two ways a migration loses money here
+
+**1. Losing the processed-claim set → the bridge gets drained.**
+`isTxProcessed(fromChainId, txId)` is the only thing stopping a historical
+inbound transfer from being claimed a second time. It is a mapping, so it
+cannot be read out by calling the contract. The snapshot rebuilds it by
+replaying every `Claim` and `ClaimToContract` log — which carry `txId` and
+`fromChainId` explicitly — into `bridge/processed-claims.ndjson`, then reads a
+sample back through `isTxProcessed` to prove the reconstruction. If any claim
+found in the logs does not read back as processed, the run warns and **that set
+must not be used to seed replay protection**.
+
+On an EVM-equivalent re-launch the storage dump carries the mapping verbatim
+and this is belt-and-braces. On a non-EVM migration the log replay is the
+*only* way to recover it.
+
+**2. Losing in-flight inbound transfers → user funds are stranded.**
+A deposit made on Ethereum that had not been claimed on Fushuma at the freeze
+block exists only as a log on Ethereum. The foreign bridge has already taken
+the funds. Fork without accounting for it and nothing on the new chain knows
+anything is owed.
+
+These are invisible from Fushuma, so they need a separate cross-chain pass:
+
+```bash
+cp bridge-chains.example.json bridge-chains.json   # fill in RPCs + deployment blocks
+pnpm snapshot:bridge-inbound -- \
+  --dir snapshots/fushuma-121224-block-<N> \
+  --chains bridge-chains.json
+```
+
+It scans each foreign chain for deposits addressed to Fushuma, subtracts the
+claims already recorded on the Fushuma side, and writes what is left to
+`bridge/inbound-unclaimed.ndjson` — your outstanding liability list.
+
+A chain missing from the config is reported as **NOT SCANNED**, never as empty.
+Silence there would read as "nothing pending", which is precisely the mistake
+that strands funds.
+
+The matching rule is that a Fushuma `Claim.txId` is the deposit's transaction
+hash on the source chain. The tool prints a match rate per chain; a near-zero
+rate means the rule does not hold for this deployment rather than that
+everything is outstanding, and it warns accordingly. Verify one case by hand
+before treating a large list as real.
+
+### Reconnecting after the fork
+
+`bridge/config.json` is the checklist. On the new chain you must reproduce:
+
+- the **authority set**, and which authorities are `required`
+- `threshold` and `minRequiredAuthorities`
+- the **token pairs** and each token's `tokenDeposits` backing
+- `isSupported` for every partner chain
+- `feeTo`, `getBridgeFee` per token, `contractCaller`, `tokenImplementation`
+
+Then **re-seed `isTxProcessed` from `processed-claims.ndjson` before opening
+claims.** Opening the bridge first and backfilling after is the drain scenario.
+
+On the foreign side, whoever owns those bridges has to point them at the new
+Fushuma: `setSupportedChain`, and re-created token pairs if the chain ID or any
+token address changes. That is six separate transactions on six chains, by the
+bridge owner, and it is not something this repo can do for you.
+
+**If the chain ID changes**, assume every foreign pairing breaks until proven
+otherwise, and check whether authority signatures are chain-ID-bound before
+committing to a new ID.
+
+### Settle before you fork
+
+The cleanest migration has an empty in-flight set. Consider `freeze()`ing the
+bridge some hours before the freeze block, letting outstanding claims drain,
+and confirming `inbound-unclaimed.ndjson` is empty or a short, known list.
+
+---
+
 ## 8. Rollback plan
 
 Decide the abort criteria **before** the fork, and write them down:
@@ -286,7 +372,7 @@ balances still match.
 |---|---|
 | T-7 days | `snapshot:preflight`. Fix node config. Re-sync if preimages are missing. |
 | T-3 days | Full rehearsal against a testnet or a forked local node. Time the run. |
-| T-2 days | Announce the freeze block height. |
+| T-2 days | Announce the freeze block height. Run `snapshot:bridge-inbound` to see the current in-flight bridge backlog. |
 | T-1 day | Second chaindata backup, off-site copy. |
 | T-0 | Freeze block passes → chaindata backup → export → verify on a second machine → publish hashes → fork. |
 | T+1 hour | Post-fork export and diff. |
@@ -310,3 +396,10 @@ Stated plainly, because knowing where a tool stops is part of trusting it.
    they are flagged, not silently exported wrong.
 5. **The exporter reads; it never writes to the chain.** It needs no keys and
    holds no funds.
+6. **Foreign bridge state is not snapshotted, only reconciled against.** The six
+   foreign deployments are outside this chain and outside this tooling; the
+   inbound scan reads their logs but cannot capture or migrate their state.
+7. **Vesting beneficiaries and LP positions have no domain-level export.** Their
+   storage is captured in the state dump, so an EVM-equivalent fork carries
+   them, but a non-EVM migration would need them reconstructed. Confirmed with
+   the team as unused as of this writing.

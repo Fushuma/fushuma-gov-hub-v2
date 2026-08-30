@@ -9,6 +9,7 @@
 
 import { CONTRACTS } from '../../../src/lib/contracts';
 import { GOVERNANCE_CONTRACTS } from '../../../src/lib/governance/contracts';
+import { BRIDGE_CONTRACTS } from '../../../src/lib/bridge/constants/bridgeContracts';
 import { normalizeAddress, type Hex } from '../../../src/lib/snapshot/hex';
 
 export interface ContractEntry {
@@ -54,8 +55,34 @@ const LAUNCHPAD_CONTRACTS: Record<string, string> = {
   VestingImplementation: '0x0d8e696475b233193d21E565C21080EbF6A3C5DA',
 };
 
-const BRIDGE_CONTRACTS: Record<string, string> = {
-  Bridge: '0x7304ac11BE92A013dA2a8a9D77330eA5C1531462',
+const FUSHUMA_CHAIN_ID = 121224;
+
+/**
+ * The bridge is deployed at one address across every connected chain. The
+ * Fushuma-side deployment is what this snapshot reads; the others keep running
+ * through a fork and have to be reconciled against it.
+ */
+export const BRIDGE_ADDRESS: Hex = normalizeAddress(
+  BRIDGE_CONTRACTS[FUSHUMA_CHAIN_ID],
+);
+
+/** Every chain the bridge mesh spans, Fushuma first. */
+export const BRIDGE_CHAIN_IDS: number[] = Object.keys(BRIDGE_CONTRACTS)
+  .map(Number)
+  .sort((a, b) => (a === FUSHUMA_CHAIN_ID ? -1 : b === FUSHUMA_CHAIN_ID ? 1 : a - b));
+
+/** Foreign chains only - the ones that do NOT fork with Fushuma. */
+export const FOREIGN_BRIDGE_CHAIN_IDS: number[] = BRIDGE_CHAIN_IDS.filter(
+  (chainId) => chainId !== FUSHUMA_CHAIN_ID,
+);
+
+export function bridgeAddressFor(chainId: number): Hex | null {
+  const address = BRIDGE_CONTRACTS[chainId];
+  return address ? normalizeAddress(address) : null;
+}
+
+const BRIDGE_REGISTRY: Record<string, string> = {
+  Bridge: BRIDGE_CONTRACTS[FUSHUMA_CHAIN_ID],
 };
 
 function entries(
@@ -77,7 +104,7 @@ export const TRACKED_CONTRACTS: ContractEntry[] = [
   ...entries(DEFI_CONTRACTS, 'defi'),
   ...entries(INFRA_CONTRACTS, 'infrastructure'),
   ...entries(LAUNCHPAD_CONTRACTS, 'launchpad'),
-  ...entries(BRIDGE_CONTRACTS, 'bridge'),
+  ...entries(BRIDGE_REGISTRY, 'bridge'),
 ];
 
 /**

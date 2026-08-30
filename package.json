@@ -24,7 +24,8 @@
     "snapshot": "tsx scripts/snapshot/snapshot.ts",
     "snapshot:preflight": "tsx scripts/snapshot/preflight.ts",
     "snapshot:verify": "tsx scripts/snapshot/verify.ts",
-    "snapshot:genesis": "tsx scripts/snapshot/genesis.ts"
+    "snapshot:genesis": "tsx scripts/snapshot/genesis.ts",
+    "snapshot:bridge-inbound": "tsx scripts/snapshot/bridge-inbound.ts"
   },
   "dependencies": {
     "@callisto-enterprise/soy-sdk": "^0.1.7",

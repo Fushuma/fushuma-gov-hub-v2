@@ -104,6 +104,7 @@ pnpm snapshot:preflight   # Check whether a node can produce a snapshot
 pnpm snapshot             # Export network state at a frozen block
 pnpm snapshot:verify      # Independently re-verify a produced snapshot
 pnpm snapshot:genesis     # Build a genesis alloc (re-launch forks only)
+pnpm snapshot:bridge-inbound  # Find in-flight bridge transfers owed to Fushuma
 ```
 
 ## 🔗 Deployed Smart Contracts

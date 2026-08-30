@@ -7,6 +7,7 @@
  *   accounts  native FUMA balances, committed to a Merkle root
  *   tokens    ERC-20 holder sets, replayed from logs and verified on chain
  *   protocol  governance, gauges, grants and launchpad state in domain terms
+ *   bridge    authorities, token backing, and the processed-claim set
  *   manifest  SHA-256 of every artifact, folded into one snapshot hash
  *
  * Usage:
@@ -30,6 +31,7 @@ import { discoverAddresses } from './steps/discover';
 import { accountsFromDump, exportAccounts } from './steps/accounts';
 import { exportTokens } from './steps/tokens';
 import { exportProtocol } from './steps/protocol';
+import { exportBridge } from './steps/bridge';
 import { writeManifest } from './steps/manifest';
 
 const TOOL_VERSION = '1.0.0';
@@ -52,7 +54,7 @@ async function main(): Promise<void> {
   banner(config);
 
   // Pin first and always: every other step reads at this exact height.
-  console.log('\n[1/6] Pinning the freeze block');
+  console.log('\n[1/7] Pinning the freeze block');
   const pinned = await pinBlock(rpc, {
     block: config.block,
     confirmations: config.confirmations,
@@ -75,7 +77,7 @@ async function main(): Promise<void> {
   let stateDumped = false;
 
   if (shouldRun(config, 'state') && !config.skipStateDump) {
-    console.log('\n[2/6] Full state dump');
+    console.log('\n[2/7] Full state dump');
     const state = await dumpState(rpc, config, pinned, outDir);
     steps.state = withoutFiles(state);
     files.push(...state.files);
@@ -94,13 +96,13 @@ async function main(): Promise<void> {
       );
     }
   } else {
-    console.log('\n[2/6] Full state dump (skipped)');
+    console.log('\n[2/7] Full state dump (skipped)');
     steps.state = { skipped: true };
   }
 
   // ---- accounts ---------------------------------------------------------
   if (shouldRun(config, 'accounts')) {
-    console.log('\n[3/6] Native FUMA balances');
+    console.log('\n[3/7] Native FUMA balances');
 
     if (stateDumped) {
       // The dump already holds every balance at this height; deriving the
@@ -130,12 +132,12 @@ async function main(): Promise<void> {
       }
     }
   } else {
-    console.log('\n[3/6] Native FUMA balances (skipped)');
+    console.log('\n[3/7] Native FUMA balances (skipped)');
   }
 
   // ---- tokens -----------------------------------------------------------
   if (shouldRun(config, 'tokens')) {
-    console.log('\n[4/6] ERC-20 holder sets');
+    console.log('\n[4/7] ERC-20 holder sets');
     const tokens = await exportTokens(rpc, config, pinned, outDir);
     steps.tokens = {
       allVerified: tokens.allVerified,
@@ -151,12 +153,12 @@ async function main(): Promise<void> {
       );
     }
   } else {
-    console.log('\n[4/6] ERC-20 holder sets (skipped)');
+    console.log('\n[4/7] ERC-20 holder sets (skipped)');
   }
 
   // ---- protocol ---------------------------------------------------------
   if (shouldRun(config, 'protocol')) {
-    console.log('\n[5/6] Protocol state');
+    console.log('\n[5/7] Protocol state');
     const protocol = await exportProtocol(rpc, config, pinned, outDir);
     steps.protocol = {
       allOk: protocol.allOk,
@@ -170,12 +172,40 @@ async function main(): Promise<void> {
       }
     }
   } else {
-    console.log('\n[5/6] Protocol state (skipped)');
+    console.log('\n[5/7] Protocol state (skipped)');
+  }
+
+  // ---- bridge -----------------------------------------------------------
+  if (shouldRun(config, 'bridge')) {
+    console.log('\n[6/7] Bridge state');
+    const bridge = await exportBridge(rpc, config, pinned, outDir);
+    steps.bridge = withoutFiles(bridge);
+    files.push(...bridge.files);
+
+    for (const note of bridge.notes) warnings.push(`[bridge] ${note}`);
+
+    if (bridge.processedMismatches > 0) {
+      warnings.push(
+        `Bridge: ${bridge.processedMismatches} claim(s) recovered from logs do not read back ` +
+          'as processed on chain. Do NOT seed bridge replay protection from this export ' +
+          'until that is explained.',
+      );
+    }
+
+    // Deposits taken on foreign chains and not yet claimed here are invisible
+    // from Fushuma, and the foreign bridges do not fork with it.
+    warnings.push(
+      'Bridge: inbound transfers still in flight on the six foreign chains are NOT covered ' +
+        'by this snapshot. Run `pnpm snapshot:bridge-inbound` against those chains to get ' +
+        'the outstanding liability list before forking.',
+    );
+  } else {
+    console.log('\n[6/7] Bridge state (skipped)');
   }
 
   // A reorg at any point during the export invalidates everything above,
   // because the artifacts would mix two different chains.
-  console.log('\n[6/6] Re-checking the freeze block and writing the manifest');
+  console.log('\n[7/7] Re-checking the freeze block and writing the manifest');
   await assertNoReorg(rpc, pinned);
   console.log(`  freeze block still ${pinned.hash} - no reorg`);
 
@@ -209,8 +239,9 @@ async function main(): Promise<void> {
     console.log('\nNo warnings. All consistency checks passed.');
   }
 
-  console.log('\nNext: verify independently with');
+  console.log('\nNext:');
   console.log(`  pnpm snapshot:verify -- --dir ${outDir}`);
+  console.log(`  pnpm snapshot:bridge-inbound -- --dir ${outDir} --chains bridge-chains.json`);
 }
 
 function banner(config: SnapshotConfig): void {

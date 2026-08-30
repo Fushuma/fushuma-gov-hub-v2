@@ -40,6 +40,7 @@ export const ALL_STEPS = [
   'accounts',
   'tokens',
   'protocol',
+  'bridge',
   'manifest',
 ] as const;
 

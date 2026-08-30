@@ -1,0 +1,9 @@
+{
+  "_comment": "RPC endpoints for the six foreign chains the bridge spans. Copy to bridge-chains.json and fill in. fromBlock should be the bridge's deployment block on that chain - omitting it scans from genesis, which on Ethereum is hours of pointless requests. A chain left out is reported as NOT SCANNED, never as empty.",
+  "1": { "rpc": "https://ethereum-rpc.example", "fromBlock": 0, "logRange": 2000 },
+  "56": { "rpc": "https://bsc-rpc.example", "fromBlock": 0, "logRange": 2000 },
+  "130": { "rpc": "https://unichain-rpc.example", "fromBlock": 0, "logRange": 2000 },
+  "137": { "rpc": "https://polygon-rpc.example", "fromBlock": 0, "logRange": 2000 },
+  "8453": { "rpc": "https://base-rpc.example", "fromBlock": 0, "logRange": 2000 },
+  "42161": { "rpc": "https://arbitrum-rpc.example", "fromBlock": 0, "logRange": 2000 }
+}

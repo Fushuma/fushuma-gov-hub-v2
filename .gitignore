@@ -91,3 +91,6 @@ credentials/
 
 # Hard-fork snapshot exports (large; publish hashes, not files)
 snapshots/
+
+# Operator RPC endpoints for the bridge reconciliation (may contain API keys)
+bridge-chains.json
